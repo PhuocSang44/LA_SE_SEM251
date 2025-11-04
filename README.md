@@ -81,6 +81,8 @@ QUAN TRỌNG: DỮ LIỆU VÀ TUPLE JSON NHẬN VÀO TRẢ RA GIỮA CÁC APPLIC
 
 DEADLINE ĐỌC HIỂU CODE LÀ HẾT THỨ 7 sau đó sẽ bắt tay vào code làm theo từng phần, 2 người/phần
 
+làm phần nào thì vào vẽ ERD và RM phần đó (vẽ thêm vào để hoàn thiện và hiện thực)
+
 link Sheet: https://docs.google.com/spreadsheets/d/1BhJfF3xaPIYVZtvTy55Cjk9PK278R5m_zCideKBOugM/edit?gid=0#gid=0
 
 
