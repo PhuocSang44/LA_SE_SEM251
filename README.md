@@ -57,17 +57,17 @@ trong FE tui đã làm AuthContext và Profile
 
 NHIỆM VỤ HIỆN TẠI
 
--Hoàn thiện lưu người dùng vào trong DB (tạo thêm bảng Student và University Staff -> tham khảo ERD + RM) lưu hoàn thiện thông tin (VƯƠNG + QUỐC)
+-Hoàn thiện lưu người dùng vào trong DB (tạo thêm bảng Student và University Staff -> tham khảo ERD + RM) lưu hoàn thiện thông tin (VƯƠNG + QUỐC) (3 ngày)
 
--Hiện thực tính năng tạo Course(Prerequisite hardcode trong DATACORE) Course trong hệ thống chỉ lưu những thông tin cơ bản (ERD RM) (VƯƠNG + QUỐC)
+-Hiện thực tính năng tạo Course(Prerequisite hardcode trong DATACORE) Course trong hệ thống chỉ lưu những thông tin cơ bản (ERD RM) (VƯƠNG + QUỐC) (3 ngày)
 
--Hiện thực tính năng đăng kí Course (VƯƠNG + QUỐC)
+-Hiện thực tính năng đăng kí Course (VƯƠNG + QUỐC) (3 ngày)
 
--Hiện thực tính năng schedule/reschedule/cancel sessions tutor (LONG + VŨ)
+-Hiện thực tính năng schedule/reschedule/cancel sessions tutor (LONG + VŨ) (3 ngày)
 
--Hiện thực tính năng đăng kí/huỷ tham gia session tutor (LONG + VŨ)
+-Hiện thực tính năng đăng kí/huỷ tham gia session tutor (LONG + VŨ) (3 ngày)
 
--tính năng up tài liệu và download tài liệu (hiện thực thêm LIBRARY) (LONG + VŨ)
+-tính năng up tài liệu và download tài liệu (hiện thực thêm LIBRARY) (LONG + VŨ) (3 ngày)
 
 -tính năng feedback (SANG + PHÁT)
 
@@ -78,6 +78,11 @@ NHIỆM VỤ HIỆN TẠI
 protect route trong FE bằng user_role (hiện tại cooperator == administrator)
 
 QUAN TRỌNG: DỮ LIỆU VÀ TUPLE JSON NHẬN VÀO TRẢ RA GIỮA CÁC APPLICATIONS PHẢI ĐỒNG NHẤT MỚI CHẠY ĐƯỢC
+
+DEADLINE ĐỌC HIỂU CODE LÀ HẾT THỨ 7 sau đó sẽ bắt tay vào code làm theo từng phần, 2 người/phần
+
+link Sheet: https://docs.google.com/spreadsheets/d/1BhJfF3xaPIYVZtvTy55Cjk9PK278R5m_zCideKBOugM/edit?gid=0#gid=0
+
 
 
 
