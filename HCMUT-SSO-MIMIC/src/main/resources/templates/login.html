@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSO Login</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; display: grid; place-items: center; min-height: 90vh; background-color: #f4f7f6; }
+    .login-card { background: #fff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.07); padding: 2rem 3rem; width: 400px; }
+    .login-card h1 { text-align: center; font-weight: 600; color: #333; }
+    .form-group { margin-bottom: 1.5rem; }
+    .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; color: #555; }
+    .form-group input { width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+    .login-button { width: 100%; padding: 0.85rem; border: none; border-radius: 8px; background-color: #007aff; color: white; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
+    .login-button:hover { background-color: #0056b3; }
+    .error { background: #ffebee; color: #c51162; border: 1px solid #c51162; border-radius: 8px; padding: 1rem; text-align: center; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+<div class="login-card">
+  <h1>SSO Login</h1>
+
+  <!-- This div will show an error message if login fails -->
+  <div th:if="${param.error}" class="error">
+    Invalid username or password.
+  </div>
+
+  <!--
+    This form MUST POST to "/login"
+    The inputs MUST be named "username" and "password"
+  -->
+  <form th:action="@{/login}" method="post">
+    <div class="form-group">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" required autofocus>
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required>
+    </div>
+    <button type="submit" class="login-button">Log In</button>
+  </form>
+</div>
+</body>
+</html>

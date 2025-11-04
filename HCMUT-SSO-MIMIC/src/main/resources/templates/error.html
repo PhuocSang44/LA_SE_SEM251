@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Error Page</title>
+</head>
+<body>
+<h1>Oops, something went wrong!</h1>
+
+<h2 th:text="|${status} - ${error}|">Error Code - Error Type</h2>
+
+<p th:text="${message}">Detailed error message will go here</p>
+
+<a th:href="@{/}">Go Back Home</a>
+</body>
+</html>

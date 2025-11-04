@@ -1,0 +1,33 @@
+services:
+  # This is the name of your service
+  db:
+    image: mysql:8.1
+    container_name: hcmut-tss-mysql-db
+    restart: unless-stopped
+
+    # Set the environment variables
+    environment:
+      MYSQL_ROOT_PASSWORD: 10diemSEHK251@
+      MYSQL_DATABASE: hcmut-tss-mysql-db-main
+
+    ports:
+      - "10000:3306"
+    # Define a volume to make your data persistent
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  redis:
+    image: redis:7-alpine  # Use a specific, lightweight version
+    container_name: my-redis-container
+    ports:
+      - "10002:6379"
+    restart: unless-stopped
+    command: >
+      redis-server
+      --save ""
+      --appendonly no
+# Redis has default config to store in persistent volume, disable using the above command
+# Top-level volumes block to declare the named volume
+volumes:
+  mysql-data:
+# Default Network is Bridge
