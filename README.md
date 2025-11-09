@@ -88,7 +88,7 @@ link Sheet: https://docs.google.com/spreadsheets/d/1BhJfF3xaPIYVZtvTy55Cjk9PK278
 ## Mock Credentials
 
 ### HCMUT-SSO-MIMIC (Authentication Service)
-**Password cho tất cả users:** `secret`
+**Password cho tất cả users:** `pass`
 
 **Available Users:**
 - an.nguyen@hcmut.edu.vn
@@ -126,7 +126,7 @@ link Sheet: https://docs.google.com/spreadsheets/d/1BhJfF3xaPIYVZtvTy55Cjk9PK278
 - CHE: Chemical Engineering  
 - FME: Civil Engineering
 
-*Note: Thông tin này được lưu trong `users.json` (SSO) và `DatacoreService.java` (DATACORE). Tất cả password đều được hash bằng BCrypt với plain text là "secret".*
+*Note: Thông tin này được lưu trong `users.json` (SSO) và `DatacoreService.java` (DATACORE). Tất cả password đều được hash bằng BCrypt với plain text là "secret".* ---> ??
 
 
 
