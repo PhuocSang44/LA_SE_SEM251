@@ -19,12 +19,13 @@ public interface ToTssUserMapper {
     @AfterMapping
     default void mapUserSubtypes(@MappingTarget ToTssUserDto dto, CustomUser customUser) {
 
-        if (customUser instanceof Student) {
+        if (customUser instanceof Student student) {
             // It's a Student
             dto.setUserType(Type.STUDENT.toString());
+            dto.setMajor(student.getMajor());
+            dto.setAcademicLevel(student.getAcademic_Level());
         }
-        else if (customUser instanceof UniversityStaff) {
-            UniversityStaff staff = (UniversityStaff) customUser;
+        else if (customUser instanceof UniversityStaff staff) {
             dto.setUserType(staff.getStaffType().toString());
         }
         // If it's neither (e.g., just a base CustomUser),

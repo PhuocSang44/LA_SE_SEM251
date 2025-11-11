@@ -1,7 +1,11 @@
 package org.minhtrinh.hcmuttssbackend.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "student")
@@ -11,25 +15,21 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class Student {
-
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "student_id")
-    private Long studentId;
+    private String studentId;
 
-    // Link to application user by id; we avoid FK at DB-level for compatibility
-    @Column(name = "user_id", nullable = false, unique = true)
-    private Integer userId;
+    @OneToOne
+    @JoinColumn(name = "user_id")
+    private User user;
 
-    @Column(name = "official_id", nullable = false, unique = true)
-    private Long officialId;
+    @ManyToOne
+    @JoinColumn(name = "department_id")
+    private Department department;
 
-    @Column(name = "department_name", nullable = false)
-    private String departmentName;
-
-    @Column(name = "program")
-    private String program; // e.g., Computer Science
+    @Column(name = "major")
+    private String major;
 
     @Column(name = "academic_level")
-    private String academicLevel; // e.g., Undergraduate/Graduate
+    private String academicLevel;
 }
