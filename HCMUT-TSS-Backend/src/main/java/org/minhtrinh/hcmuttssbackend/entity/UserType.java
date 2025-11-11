@@ -2,7 +2,8 @@ package org.minhtrinh.hcmuttssbackend.entity;
 
 public enum UserType {
     STUDENT,
-    TUTOR,
-    ADMINISTRATOR,
-    COOPERATOR
+    UNIVERSITY_STAFF,
+    //TUTOR,
+    //ADMINISTRATOR,
+    //COOPERATOR
 }

@@ -1,51 +1,52 @@
 CREATE TABLE IF NOT EXISTS department(
-    departmentCode VARCHAR(20) PRIMARY KEY,
-    departmentName VARCHAR(100) NOT NULL,
-    CONSTRAINT uk_department_name UNIQUE (departmentName)
+    department_code VARCHAR(20) PRIMARY KEY,
+    department_name VARCHAR(100) NOT NULL,
+    CONSTRAINT uk_department_name UNIQUE (department_name)
 );
 
 CREATE TABLE IF NOT EXISTS student(
-    studentID INT PRIMARY KEY,
-    userID INT NOT NULL,
-    departmentCode VARCHAR(20) NOT NULL,
+    studentid INT PRIMARY KEY,
+    userid INT NOT NULL,
+    department_code VARCHAR(20) NOT NULL,
     major VARCHAR(100) NOT NULL,
-    academicLevel VARCHAR(50),
-    CONSTRAINT fk_student_user FOREIGN KEY (userID) REFERENCES user(userID) 
+    academic_level VARCHAR(50),
+    CONSTRAINT fk_student_user FOREIGN KEY (userid) REFERENCES user(userid) 
         ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_student_department FOREIGN KEY (departmentCode) REFERENCES department(departmentCode) 
+    CONSTRAINT fk_student_department FOREIGN KEY (department_code) REFERENCES department(department_code) 
         ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT uk_student_user UNIQUE (userID)
+    CONSTRAINT uk_student_user UNIQUE (userid)
 );
 
-CREATE TABLE IF NOT EXISTS UniversityStaff(
-    staffID INT PRIMARY KEY,
-    userID INT NOT NULL,
-    departmentCode VARCHAR(20) NOT NULL,
-    staffRole VARCHAR(100), -- "Professor", "Lecturer", "Assistant"
-    staffType VARCHAR(50), -- "TUTOR", "COOPERATOR", "ADMINISTRATOR"
-    CONSTRAINT fk_staff_user FOREIGN KEY (userID) REFERENCES user(userID) 
+CREATE TABLE IF NOT EXISTS university_staff(
+    staffid INT PRIMARY KEY,
+    userid INT NOT NULL,
+    department_code VARCHAR(20) NOT NULL,
+    staff_role VARCHAR(100), -- "Professor", "Lecturer", "Assistant"
+    staff_type VARCHAR(50), -- "TUTOR", "COOPERATOR", "ADMINISTRATOR"
+    CONSTRAINT fk_staff_user FOREIGN KEY (userid) REFERENCES user(userid) 
         ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_staff_department FOREIGN KEY (departmentCode) REFERENCES department(departmentCode) 
+    CONSTRAINT fk_staff_department FOREIGN KEY (department_code) REFERENCES department(department_code) 
         ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT uk_staff_user UNIQUE (userID)
+    CONSTRAINT uk_staff_user UNIQUE (userid)
 );
 
 CREATE TABLE IF NOT EXISTS course(
-    courseID INT AUTO_INCREMENT PRIMARY KEY,
-    courseName VARCHAR(100) NOT NULL,
-    courseSyllabus TEXT,
-    departmentCode VARCHAR(20) NOT NULL,
+    courseid INT AUTO_INCREMENT PRIMARY KEY,
+    course_name VARCHAR(100) NOT NULL,
+    course_syllabus TEXT,
+    department_code VARCHAR(20) NOT NULL,
     credit INT NOT NULL,
-    CONSTRAINT fk_course_department FOREIGN KEY (departmentCode) REFERENCES department(departmentCode) 
+    CONSTRAINT fk_course_department FOREIGN KEY (department_code) REFERENCES department(department_code) 
         ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT uk_course_name UNIQUE (courseName)
+    CONSTRAINT uk_course_name UNIQUE (course_name)
 );
+
 CREATE TABLE IF NOT EXISTS prerequisite(
-    courseID INT,
-    prerequisiteID INT,
-    PRIMARY KEY (courseID, prerequisiteID),
-    CONSTRAINT fk_prerequisite_course FOREIGN KEY (courseID) REFERENCES course(courseID) 
+    courseid INT,
+    prerequisiteid INT,
+    PRIMARY KEY (courseid, prerequisiteid),
+    CONSTRAINT fk_prerequisite_course FOREIGN KEY (courseid) REFERENCES course(courseid) 
         ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_prerequisite_prereq_course FOREIGN KEY (prerequisiteID) REFERENCES course(courseID) 
+    CONSTRAINT fk_prerequisite_prereq_course FOREIGN KEY (prerequisiteid) REFERENCES course(courseid) 
         ON DELETE CASCADE ON UPDATE CASCADE
 );
