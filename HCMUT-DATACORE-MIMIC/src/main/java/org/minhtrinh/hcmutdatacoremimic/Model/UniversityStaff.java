@@ -7,13 +7,12 @@ import lombok.Setter;
 @Setter
 public class UniversityStaff extends CustomUser{
     String role;
-    Department hostDepartment;
     StaffType staffType;
 
     public UniversityStaff(int OfficialID, String Email,
                            String FirstName, String MiddleName, String LastName, Type UserType,
-                           String Role, Department HostDepartment, StaffType staffType) {
-        super(OfficialID, Email, FirstName, MiddleName, LastName, UserType, HostDepartment);
+                           String Role, Department hostDepartment, StaffType staffType) {
+        super(OfficialID, Email, FirstName, MiddleName, LastName, UserType, hostDepartment);
 
         this.role = Role;
         this.staffType = staffType;
