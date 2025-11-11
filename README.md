@@ -85,6 +85,49 @@ làm phần nào thì vào vẽ ERD và RM phần đó (vẽ thêm vào để ho
 
 link Sheet: https://docs.google.com/spreadsheets/d/1BhJfF3xaPIYVZtvTy55Cjk9PK278R5m_zCideKBOugM/edit?gid=0#gid=0
 
+## Mock Credentials
+
+### HCMUT-SSO-MIMIC (Authentication Service)
+**Password cho tất cả users:** `pass`
+
+**Available Users:**
+- an.nguyen@hcmut.edu.vn
+- binh.le@hcmut.edu.vn  
+- chi.tran@hcmut.edu.vn
+- dung.pham@hcmut.edu.vn
+- giang.vo@hcmut.edu.vn
+- thanh.nguyen@hcmut.edu.vn
+- hang.vu@hcmut.edu.vn
+- long.dinh@hcmut.edu.vn
+- phuong.mai@hcmut.edu.vn
+- tuan.ly@hcmut.edu.vn
+
+### HCMUT-DATACORE-MIMIC (Data Service)
+**Internal API Key:** `YourVeryStrongAndSecretKeyHere12345`
+
+**Chi tiết tài khoản và role** (xem trong `DatacoreService.java`):
+
+**Students (Type: STUDENT):**
+- an.nguyen@hcmut.edu.vn - ID: 2110001 - An Van Nguyen - Computer Science (Undergraduate) - CSE Dept
+- binh.le@hcmut.edu.vn - ID: 2110002 - Binh Minh Le - Chemical Engineering (Undergraduate) - CHE Dept  
+- chi.tran@hcmut.edu.vn - ID: 2010003 - Chi Thi Tran - Data Science (Graduate) - CSE Dept
+- dung.pham@hcmut.edu.vn - ID: 2210004 - Dung Huu Pham - Civil Engineering (Undergraduate) - FME Dept
+- giang.vo@hcmut.edu.vn - ID: 1910005 - Giang Thanh Vo - Telecommunications (Graduate) - CHE Dept
+
+**University Staff (Type: STAFF):**
+- thanh.nguyen@hcmut.edu.vn - ID: 5001 - Thanh Cong Nguyen - Professor - CSE Dept - **Role: TUTOR**
+- hang.vu@hcmut.edu.vn - ID: 5002 - Hang Thu Vu - Department Secretary - CSE Dept - **Role: COOPERATOR**
+- long.dinh@hcmut.edu.vn - ID: 5003 - Long Bao Dinh - Lecturer - CHE Dept - **Role: TUTOR**
+- phuong.mai@hcmut.edu.vn - ID: 5004 - Phuong Anh Mai - Researcher - FME Dept - **Role: TUTOR**
+- tuan.ly@hcmut.edu.vn - ID: 5005 - Tuan Anh Ly - Academic Advisor - FME Dept - **Role: ADMINISTRATOR**
+
+**Departments:**
+- CSE: Computer Science & Engineering
+- CHE: Chemical Engineering  
+- FME: Civil Engineering
+
+*Note: Thông tin này được lưu trong `users.json` (SSO) và `DatacoreService.java` (DATACORE). Tất cả password đều được hash bằng BCrypt với plain text là "secret".* ---> ??
+
 
 
 
