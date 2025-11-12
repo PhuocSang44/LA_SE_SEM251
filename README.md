@@ -1,3 +1,77 @@
+## 🚀 Quick Start
+
+### Option 1: VS Code Integrated Terminals (Recommended for Development)
+
+**Run services inside VS Code terminals** - easier to view logs and debug:
+
+1. Press `Ctrl+Shift+P` (Command Palette)
+2. Type: `Tasks: Run Task`
+3. Select: `Start All Services`
+
+This creates 4 separate terminals in VS Code, one for each service. Perfect for development!
+
+### Option 2: External PowerShell Windows
+
+**Run services in separate windows** - better for multiple monitors:
+
+```powershell
+.\scripts\start-all.ps1
+```
+
+### Option 3: Interactive Development Menu
+
+```powershell
+.\scripts\dev-menu.ps1
+```
+Opens an interactive menu with all development commands.
+
+---
+
+### Other Useful Commands
+
+**Check Service Status**
+```powershell
+.\scripts\check-status.ps1
+```
+
+**Stop All Services**
+```powershell
+.\scripts\stop-all.ps1
+```
+
+**Restart Individual Service**
+```powershell
+.\scripts\restart-service.ps1 backend   # or sso, datacore, frontend
+```
+
+📚 **For detailed development guide, see [scripts/DEV_GUIDE.md](./scripts/DEV_GUIDE.md)**
+
+---
+
+## � Project Structure
+
+```
+LA_SE_SEM251/
+├── scripts/                    # 🆕 Development automation scripts
+│   ├── dev-menu.ps1           # Interactive menu (⭐ Start here!)
+│   ├── start-all.ps1          # Start all services
+│   ├── stop-all.ps1           # Stop all services
+│   ├── check-status.ps1       # Check service status
+│   ├── restart-service.ps1    # Restart single service
+│   ├── view-logs.ps1          # View logs helper
+│   ├── DEV_GUIDE.md           # Complete development guide
+│   └── README.md              # Scripts documentation
+│
+├── HCMUT-SSO-MIMIC/           # SSO Server (Port 10003)
+├── HCMUT-DATACORE-MIMIC/      # Datacore Server (Port 10005)
+├── HCMUT-TSS-Backend/         # Main Backend (Port 10001)
+└── HCMUT-TSS-Frontend/        # React Frontend (Port 10004)
+```
+
+---
+
+## 📋 Architecture Overview
+
 Thì hiện tại cái project mình sẽ có 4 server đang chạy.
 Sẽ phải thêm vô 1 server nữa tên là Library để retrieve materials cho các course
 
@@ -31,11 +105,46 @@ Hiện taị tui chỉ mới tạo 1 cái bảng USER thôi với UserController
 
 các thông tin cấu hình đều nằm trong application.properties (cấu hình application) pom.xml (dependency & maven plugins) docker-compose.yaml (chạy database)
 
-cách chạy mở 4 terminals 
-./mvnw clean
-./mvnw spring-boot:run -X
+---
+
+## 🛠️ Manual Start (Alternative)
+
+Nếu không muốn dùng script tự động, có thể mở 4 terminals thủ công:
+
+```powershell
+# Terminal 1 - SSO (Port 10003)
+cd HCMUT-SSO-MIMIC
+./mvnw spring-boot:run
+
+# Terminal 2 - Datacore (Port 10005)
+cd HCMUT-DATACORE-MIMIC
+./mvnw spring-boot:run
+
+# Terminal 3 - TSS Backend (Port 10001)
+cd HCMUT-TSS-Backend
+./mvnw spring-boot:run
+
+# Terminal 4 - Frontend (Port 10004)
+cd HCMUT-TSS-Frontend
 npm run dev
-Ctrl C
+```
+
+Để dừng: `Ctrl + C` trong mỗi terminal
+
+---
+
+## 🎯 Service Ports
+
+| Service | Port | URL |
+|---------|------|-----|
+| TSS Backend | 10001 | http://localhost:10001 |
+| SSO Server | 10003 | http://localhost:10003 |
+| TSS Frontend | 10004 | http://localhost:10004 |
+| Datacore | 10005 | http://localhost:10005 |
+| MySQL | 10000 | localhost:10000 |
+| Redis | 10002 | localhost:10002 |
+
+---
 
 <img width="1170" height="769" alt="Screenshot 2025-11-04 at 20 03 13" src="https://github.com/user-attachments/assets/b09b094e-ac69-4488-81d7-62e81663aff9" />
 

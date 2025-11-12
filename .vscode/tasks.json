@@ -1,0 +1,63 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start SSO Server",
+            "type": "shell",
+            "command": "cd HCMUT-SSO-MIMIC; .\\mvnw.cmd spring-boot:run",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "focus": false
+            },
+            "isBackground": true
+        },
+        {
+            "label": "Start Datacore Server",
+            "type": "shell",
+            "command": "cd HCMUT-DATACORE-MIMIC; .\\mvnw.cmd spring-boot:run",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "focus": false
+            },
+            "isBackground": true
+        },
+        {
+            "label": "Start TSS Backend",
+            "type": "shell",
+            "command": "cd HCMUT-TSS-Backend; .\\mvnw.cmd spring-boot:run",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "focus": false
+            },
+            "isBackground": true
+        },
+        {
+            "label": "Start TSS Frontend",
+            "type": "shell",
+            "command": "cd HCMUT-TSS-Frontend; npm run dev",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "focus": false
+            },
+            "isBackground": true
+        },
+        {
+            "label": "Start All Services",
+            "dependsOn": [
+                "Start SSO Server",
+                "Start Datacore Server",
+                "Start TSS Backend",
+                "Start TSS Frontend"
+            ],
+            "problemMatcher": []
+        }
+    ]
+}
