@@ -19,9 +19,14 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.minhtrinh.hcmuttssbackend.dto.UpdateClassRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class ClassService {
+
+    // Thêm Logger để debug
+    private static final Logger log = LoggerFactory.getLogger(ClassService.class);
 
     private final ClassRepository classRepository;
     private final CourseRepository courseRepository;
@@ -41,23 +46,23 @@ public class ClassService {
     @Transactional
     public ClassResponse createClass(CreateClassRequest request, Integer userId) {
         // Find or create course
-                // Race-safe course lookup/creation
-                String code = request.courseCode();
-                Optional<Course> existing = courseRepository.findByCode(code);
-                Course course = existing.orElseGet(() -> {
-                        Course newCourse = Course.builder()
-                                        .code(request.courseCode())
-                                        .name(request.courseName())
-                                        .description(request.courseDescription())
-                                        .build();
-                        try {
-                                return courseRepository.save(newCourse);
-                        } catch (DataIntegrityViolationException ex) {
-                                // Another inserted the same course.
-                                return courseRepository.findByCode(code)
-                                                .orElseThrow(() -> new RuntimeException("Failed to create or find course: " + code, ex));
-                        }
-                });
+        // Race-safe course lookup/creation
+        String code = request.courseCode();
+        Optional<Course> existing = courseRepository.findByCode(code);
+        Course course = existing.orElseGet(() -> {
+            Course newCourse = Course.builder()
+                    .code(request.courseCode())
+                    .name(request.courseName())
+                    .description(request.courseDescription())
+                    .build();
+            try {
+                return courseRepository.save(newCourse);
+            } catch (DataIntegrityViolationException ex) {
+                // Another inserted the same course.
+                return courseRepository.findByCode(code)
+                        .orElseThrow(() -> new RuntimeException("Failed to create or find course: " + code, ex));
+            }
+        });
 
         // Find tutor by userId
         UniversityStaff tutor = staffRepository.findByUserId(userId)
@@ -109,60 +114,74 @@ public class ClassService {
                 .collect(Collectors.toList());
     }
 
-        @Transactional
-        public void deleteClass(Long classId, Integer userId) {
-                Class classEntity = classRepository.findById(classId)
-                                .orElseThrow(() -> new RuntimeException("Class not found"));
-                if (classEntity.getTutor() == null || !classEntity.getTutor().getUserId().equals(userId)) {
-                        throw new RuntimeException("Not authorized to delete this class");
-                }
-                classRepository.delete(classEntity);
+    @Transactional
+    public void deleteClass(Long classId, Integer userId) {
+        Class classEntity = classRepository.findById(classId)
+                .orElseThrow(() -> new RuntimeException("Class not found"));
+        if (classEntity.getTutor() == null || !classEntity.getTutor().getUserId().equals(userId)) {
+            throw new RuntimeException("Not authorized to delete this class");
+        }
+        classRepository.delete(classEntity);
+    }
+
+    @Transactional
+    public ClassResponse updateClass(Long classId, UpdateClassRequest req, Integer userId) {
+        log.info("Bắt đầu update classId: {} cho userId: {}", classId, userId);
+        
+        Class classEntity = classRepository.findById(classId)
+                .orElseThrow(() -> new RuntimeException("Class not found"));
+        if (classEntity.getTutor() == null || !classEntity.getTutor().getUserId().equals(userId)) {
+            log.warn("Authorization FAILED cho userId: {} khi update classId: {}", userId, classId);
+            throw new RuntimeException("Not authorized to update this class");
         }
 
-        @Transactional
-        public ClassResponse updateClass(Long classId, UpdateClassRequest req, Integer userId) {
-                Class classEntity = classRepository.findById(classId)
-                                .orElseThrow(() -> new RuntimeException("Class not found"));
-                if (classEntity.getTutor() == null || !classEntity.getTutor().getUserId().equals(userId)) {
-                        throw new RuntimeException("Not authorized to update this class");
+        // update semester/capacity
+        if (req.getSemester() != null) classEntity.setSemester(req.getSemester());
+        if (req.getCapacity() != null) classEntity.setCapacity(req.getCapacity());
+        
+        Course courseToSet = null;
+
+        // Kịch bản 1: User cung cấp Course Code (muốn đổi/tạo course mới)
+        if (req.getCourseCode() != null && !req.getCourseCode().isBlank()) {
+            String code = req.getCourseCode();
+            String name = (req.getCourseName() == null || req.getCourseName().isBlank())
+                    ? "" // Cần 1 tên default nếu tạo mới
+                    : req.getCourseName();
+
+            log.info("Kịch bản 1: Tìm/tạo course với code {} và tên {}", code, name);
+
+            Optional<Course> existing = courseRepository.findByCode(code);
+            
+            if (existing.isPresent()) {
+                courseToSet = existing.get();
+                // Nếu user CŨNG cung cấp tên MỚI -> update tên của course đó
+                if (!name.isEmpty() && !name.equals(courseToSet.getName())) {
+                    log.info("Updating name cho course đã có {}: {}", code, name);
+                    courseToSet.setName(name);
+                    courseToSet = courseRepository.save(courseToSet);
                 }
-
-                // update semester/capacity
-                if (req.semester() != null) classEntity.setSemester(req.semester());
-                if (req.capacity() != null) classEntity.setCapacity(req.capacity());
-
-                // if course code/name provided, try to find or create course and set it on the class
-                if (req.courseCode() != null && !req.courseCode().isBlank()) {
-                        String code = req.courseCode();
-                        Optional<Course> existing = courseRepository.findByCode(code);
-                        Course course = existing.orElseGet(() -> {
-                                Course newCourse = Course.builder()
-                                                .code(code)
-                                                .name(req.courseName() == null ? "" : req.courseName())
-                                                .description("")
-                                                .build();
-                                try {
-                                        return courseRepository.save(newCourse);
-                                } catch (DataIntegrityViolationException ex) {
-                                        return courseRepository.findByCode(code)
-                                                        .orElseThrow(() -> new RuntimeException("Failed to create or find course: " + code, ex));
-                                }
-                        });
-                        classEntity.setCourse(course);
-                }
-
-                // allow renaming the existing course (if only courseName provided)
-                if ((req.courseCode() == null || req.courseCode().isBlank()) && req.courseName() != null) {
-                        Course current = classEntity.getCourse();
-                        if (current != null) {
-                                current.setName(req.courseName());
-                                courseRepository.save(current);
-                        }
-                }
-
-                Class saved = classRepository.save(classEntity);
-                return mapToResponse(saved);
+            } else {
+                // Course code không tồn tại -> Tạo mới
+                log.info("Tạo course mới với code {} và tên {}", code, name);
+                Course newCourse = Course.builder()
+                        .code(code)
+                        .name(name)
+                        .description("") // Có thể copy description cũ nếu muốn
+                        .build();
+                courseToSet = courseRepository.save(newCourse); 
+            }
+            classEntity.setCourse(courseToSet);
+        
+        // Kịch bản 2: User KHÔNG cung cấp code, chỉ cung cấp tên (muốn đổi tên cho riêng class này)
+        } else if (req.getCourseName() != null && !req.getCourseName().isBlank()) {
+            log.info("Kịch bản 2: Chỉ đổi tên -> sử dụng customName: {}", req.getCourseName());
+            // Chỉ set customName trên Class; không tạo Course mới
+            classEntity.setCustomName(req.getCourseName());
         }
+
+        Class saved = classRepository.save(classEntity);
+        return mapToResponse(saved);
+    }
 
     private ClassResponse mapToResponse(Class classEntity) {
         UniversityStaff tutor = classEntity.getTutor();
@@ -174,13 +193,31 @@ public class ClassService {
                 ((tutorUser.getFirstName() == null ? "" : tutorUser.getFirstName()) + " " +
                         (tutorUser.getLastName() == null ? "" : tutorUser.getLastName())).trim();
 
+        Long tutorOfficialId = null;
+        if (tutor != null) {
+            tutorOfficialId = tutor.getOfficialId();
+        }
+
+        // Prepare course fields for response. Prefer class.customName if present.
+        Course course = classEntity.getCourse();
+        String responseCourseCode = null;
+        String responseCourseName = null;
+        if (course != null) {
+            responseCourseCode = course.getCode();
+            responseCourseName = (classEntity.getCustomName() != null && !classEntity.getCustomName().isBlank())
+                    ? classEntity.getCustomName()
+                    : course.getName();
+        } else {
+            responseCourseName = classEntity.getCustomName();
+        }
+
         return new ClassResponse(
                 classEntity.getClassId(),
-                classEntity.getCourse().getCode(),
-                classEntity.getCourse().getName(),
+                responseCourseCode,
+                responseCourseName,
                 classEntity.getSemester(),
                 tutorName,
-                tutor == null ? null : tutor.getOfficialId(),
+                tutorOfficialId,
                 classEntity.getStatus(),
                 classEntity.getCapacity(),
                 classEntity.getEnrolledCount()

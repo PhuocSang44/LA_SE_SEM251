@@ -29,6 +29,8 @@ const CourseDetails = () => {
   // 'course' is the canonical source of truth for this component (fullCourse when available, otherwise initialCourse)
   const course = fullCourse ?? initialCourse;
 
+  const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:10001';
+
   // Determine ownership using datacore official ID (frontend User does not expose DB id)
   const userOfficialIdNum = user?.officialId ? Number(user.officialId) : null;
   const isTutor = user?.role === 'tutor';
@@ -170,7 +172,7 @@ const CourseDetails = () => {
     }
     setRenaming(true);
     try {
-      const res = await fetch(`/api/classes/${course.id}`, {
+      const res = await fetch(`${apiBase}/api/classes/${course.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -184,6 +186,7 @@ const CourseDetails = () => {
 
       const updatedData = await res.json();
 
+      const baseCourse = fullCourse ?? initialCourse; 
       setFullCourse({
         id: updatedData.classId,
         name: updatedData.courseName,
@@ -214,7 +217,7 @@ const CourseDetails = () => {
     }
     setDeleting(true);
     try {
-      const res = await fetch(`/api/classes/${course.id}`, {
+      const res = await fetch(`${apiBase}/api/classes/${course.id}`, {
         method: 'DELETE',
         credentials: 'include'
       });

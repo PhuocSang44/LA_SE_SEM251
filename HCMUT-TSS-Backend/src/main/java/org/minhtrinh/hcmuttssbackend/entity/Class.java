@@ -36,6 +36,9 @@ public class Class {
     private String status; // e.g. ACTIVE, INACTIVE, CANCELLED, COMPLETED
     @Column(name = "capacity")
     private Integer capacity; // maximum number of students, null = unlimited
+    
+    @Column(name = "custom_name", length = 255, nullable = true)
+    private String customName;
 
     @Column(name = "enrolled_count")
     @Builder.Default
