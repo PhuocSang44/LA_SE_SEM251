@@ -34,6 +34,11 @@ const Navbar = () => {
       roles: ['tutor', 'student']
     },
     {
+      path: "/create-class",
+      label: { en: "My Class", vi: "Lớp của tôi" },
+      roles: ['tutor']
+    },
+    {
       path: "/admin",
       label: { en: "Admin Panel", vi: "Quản lý" },
       roles: ['administrator', 'cooperator'] // <-- Both roles can see this

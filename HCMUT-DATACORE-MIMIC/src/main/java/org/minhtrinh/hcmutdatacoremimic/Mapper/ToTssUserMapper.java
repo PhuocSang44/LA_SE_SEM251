@@ -23,9 +23,9 @@ public interface ToTssUserMapper {
             // It's a Student
             dto.setUserType(Type.STUDENT.toString());
         }
-        else if (customUser instanceof UniversityStaff staff) {
+        else if (customUser instanceof UniversityStaff) {
+            UniversityStaff staff = (UniversityStaff) customUser;
             dto.setUserType(staff.getStaffType().toString());
-
         }
         // If it's neither (e.g., just a base CustomUser),
         // both fields will remain null.

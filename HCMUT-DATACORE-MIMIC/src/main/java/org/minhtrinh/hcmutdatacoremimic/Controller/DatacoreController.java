@@ -34,4 +34,11 @@ public class DatacoreController {
 
         return ResponseEntity.ok(toTssUserMapper.toTssUserDtoMapper(userEntity));
     }
+
+    @GetMapping("/courses/{courseCode}/eligible")
+    public ResponseEntity<java.util.Map<String, Object>> checkCourseEligibility(@PathVariable String courseCode,
+                                                                                 @org.springframework.web.bind.annotation.RequestParam String email) {
+        var resp = datacoreService.checkPrerequisitesForStudent(email, courseCode);
+        return ResponseEntity.ok(resp);
+    }
 }
