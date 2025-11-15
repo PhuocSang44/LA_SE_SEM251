@@ -7,6 +7,8 @@ public record ClassResponse(
         String semester,
         String tutorName,
         Long tutorId,
+        String tutorDepartment,
+        String tutorSpecialization,
         String status,
         Integer capacity,
         Integer enrolledCount

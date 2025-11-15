@@ -24,6 +24,8 @@ const MyCourses = () => {
   
   const { user } = useAuth();
 
+  const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
+
   // Numeric user id for ownership checks: use datacore `officialId` (frontend `User` doesn't expose DB id)
   const numericUserId = user?.officialId ? Number(user.officialId) : null;
 
@@ -37,37 +39,50 @@ const MyCourses = () => {
   const [courses, setCourses] = useState<any[]>([]);
   const [availableCoursesWithSessions, setAvailableCoursesWithSessions] = useState<any[]>([]);
 
-  useEffect(() => {
-    // Load classes from backend
-    fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:10001"}/api/classes`, { credentials: 'include' })
+  const loadCourses = () => {
+    // Load only enrolled courses for the current student
+    fetch(`${apiBase}/course-registrations/me`, { credentials: 'include' })
       .then(res => res.ok ? res.json() : Promise.reject(res))
       .then((data: any[]) => {
-        // Exclude classes that are created by the current user when viewing as a student
-        const filteredData = (user && user.role === 'student') ? data.filter(d => (d.tutorId ?? null) !== numericUserId) : data;
-
-        // Map ClassResponse to a simple course card model
-        const mapped = filteredData.map(c => ({
-          id: c.classId,
-          name: c.courseName,
-          tutor: c.tutorName || "",
-          tutorId: c.tutorId ?? null,
-          semester: c.semester || "",
+        // data is CourseRegistrationResponse[]
+        // Map registration -> course card model
+        const mapped = data.map(r => ({
+          registrationId: r.registrationId,
+          id: r.classId,
+          name: r.courseName,
+          tutor: r.tutorName || "",
+          tutorId: r.tutorId ?? null,
+          semester: r.semester || "",
           sessions: 1,
           color: "bg-blue-500",
           progress: 0
         }));
         setCourses(mapped);
-        // For available sessions, map classes grouped by course code
-        const byCourse: Record<string, any> = {};
-        filteredData.forEach(c => {
-          const key = c.courseCode || c.courseName;
-          byCourse[key] = byCourse[key] || { name: c.courseName, code: c.courseCode, category: "", sessions: [] };
-          byCourse[key].sessions.push({ id: c.classId, tutor: c.tutorName, date: c.semester, time: "", topic: c.courseName, tutorId: c.tutorId });
-        });
-        setAvailableCoursesWithSessions(Object.values(byCourse));
+
+        // available sessions still map from all classes for discovery purposes
+        // we keep the existing availableCoursesWithSessions logic by calling /api/classes
+        fetch(`${apiBase}/api/classes`, { credentials: 'include' })
+          .then(res => res.ok ? res.json() : Promise.reject(res))
+          .then((all: any[]) => {
+            // Remove classes that the user already enrolled in from available sessions
+            const enrolledIds = new Set(mapped.map(m => m.id));
+            const byCourse: Record<string, any> = {};
+            all.forEach(c => {
+              if (enrolledIds.has(c.classId)) return; // skip already-enrolled classes
+              const key = c.courseCode || c.courseName;
+              byCourse[key] = byCourse[key] || { name: c.courseName, code: c.courseCode, category: "", sessions: [] };
+              byCourse[key].sessions.push({ id: c.classId, tutor: c.tutorName, date: c.semester, time: "", topic: c.courseName, tutorId: c.tutorId });
+            });
+            setAvailableCoursesWithSessions(Object.values(byCourse));
+          }).catch(() => setAvailableCoursesWithSessions([]));
       }).catch(err => {
-        console.error("Failed to load classes", err);
+        console.error("Failed to load enrolled courses", err);
+        setCourses([]);
       });
+  };
+
+  useEffect(() => {
+    loadCourses();
   }, [user]);
 
   const handleJoinSessionClick = () => {
@@ -139,8 +154,11 @@ const MyCourses = () => {
       body: JSON.stringify(payload)
     }).then(async res => {
       if (res.ok) {
-        setJoinSessionStatus("confirmed");
-        toast({ title: "Tutor Confirmed! / Tutor đã xác nhận!", description: "Your tutoring session has been confirmed" });
+        // Simple success UX: notify and refresh My Courses/available sessions
+        toast({ title: "Enrolled", description: "You have been enrolled successfully" });
+        loadCourses();
+        // close dialog and reset dialog state
+        closeJoinSessionDialog();
       } else {
         const text = await res.text();
         throw new Error(text || 'Enrollment failed');

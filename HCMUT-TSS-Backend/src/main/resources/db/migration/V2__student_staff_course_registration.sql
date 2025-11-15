@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS university_staff (
     official_id     BIGINT NOT NULL,
     position_title  VARCHAR(100) NULL,
     department_name VARCHAR(255) NOT NULL,
+    specialization  VARCHAR(255) NULL,
     CONSTRAINT uk_staff_official_id UNIQUE (official_id),
     CONSTRAINT uk_staff_user_id UNIQUE (user_id),
     INDEX idx_staff_user_id (user_id)

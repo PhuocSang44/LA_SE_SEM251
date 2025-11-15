@@ -3,7 +3,7 @@ import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, User, Clock, BookOpen, Plus, CheckCircle2 } from "lucide-react";
+import { Calendar, User, Clock, BookOpen, Plus, CheckCircle2, LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -34,6 +34,7 @@ const CourseDetails = () => {
   // Determine ownership using datacore official ID (frontend User does not expose DB id)
   const userOfficialIdNum = user?.officialId ? Number(user.officialId) : null;
   const isTutor = user?.role === 'tutor';
+  const isStudent = user?.role?.toLowerCase?.() === 'student';
 
   // Compute owner status from the (possibly updated) `course` object
   const courseTutorIdNum = course?.tutorId ?? null;
@@ -98,6 +99,10 @@ const CourseDetails = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
+  // Exit class states (for students)
+  const [showExitDialog, setShowExitDialog] = useState(false);
+  const [exitConfirmText, setExitConfirmText] = useState("");
+  const [isExiting, setIsExiting] = useState(false);
 
   // Mock available sessions for this tutor/course
   const availableSessions = [
@@ -232,6 +237,47 @@ const CourseDetails = () => {
     }
   };
 
+  const handleExit = async () => {
+    if (!course?.id) return;
+    if (exitConfirmText !== (course.name || '')) {
+      toast({ title: 'Confirmation mismatch', description: 'Type the class name exactly to confirm', variant: 'destructive' });
+      return;
+    }
+    setIsExiting(true);
+    try {
+      // Resolve registrationId if missing
+      if (!course?.registrationId) {
+        try {
+          const me = await fetch(`${apiBase}/course-registrations/me`, { credentials: 'include' });
+          if (me.ok) {
+            const regs = await me.json();
+            const found = regs.find((r: any) => r.classId === course.id || r.classId === course.classId);
+            if (found) course.registrationId = found.registrationId;
+          }
+        } catch (e) { console.error(e); }
+      }
+      if (!course?.registrationId) {
+        toast({ title: 'Error', description: 'Registration id not found', variant: 'destructive' });
+        return;
+      }
+
+      const res = await fetch(`${apiBase}/course-registrations/${course.registrationId}`, { method: 'DELETE', credentials: 'include' });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || 'Failed to exit class');
+      }
+      toast({ title: 'Exited', description: 'You have left the class' });
+      setShowExitDialog(false);
+      navigate('/my-courses');
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: 'Error', description: String(e.message || e), variant: 'destructive' });
+    } finally {
+      setIsExiting(false);
+      setExitConfirmText('');
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -240,13 +286,13 @@ const CourseDetails = () => {
           <Button 
             variant="ghost" 
             onClick={() => {
-              // If current user is a tutor, go to the Create Class (My Class) page
+              // If current user is a tutor -> My Class page
               if (user?.role === 'tutor') {
                 navigate('/create-class');
                 return;
               }
 
-              // If student and has joined this course (semester present) go to My Courses
+              // If student -> My Courses
               if (course?.semester) {
                 navigate('/my-courses');
                 return;
@@ -259,140 +305,151 @@ const CourseDetails = () => {
           >
             {user?.role === 'tutor' ? '← Back to My Class' : (course?.semester ? '← Back to My Courses' : '← Back to Available Courses')}
           </Button>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Course Info Card */}
-            <div className="lg:col-span-2">
-              <Card className="rounded-xl shadow-md">
-                <CardHeader>
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <CardTitle className="text-3xl mb-2">{course?.name}</CardTitle>
-                      <Badge className={`${course?.color || 'bg-blue-500'} text-white border-0`}>
-                        {course?.sessions ?? 0} sessions total
-                      </Badge>
-                    </div>
-
-                    {/* Top-right tutor controls (only visible to class owner) */}
-                      {isOwner ? (
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" onClick={() => navigate('/create-quiz', { state: { course } })}>
+            {}
+            {/*Title*/}
+            <div className="flex justify-between items-start mb-6">
+              {/* Class + badge */}
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-900">{course?.name}</h1>
+                <Badge className={`${course?.color || 'bg-blue-500'} text-white border-0 mt-2`}>
+                  {course?.sessions ?? 0} sessions total
+                </Badge>
+              </div>
+              {}
+            </div>
+            
+            {/* main pannel */}
+            <div className="grid lg:grid-cols-3 gap-6 items-start">
+              <div className="lg:col-span-2">
+                <Card className="rounded-xl shadow-md relative">
+                  {/* action panel*/}
+                  {isOwner && (
+                    <div className="absolute top-4 right-4">
+                      <div className="bg-white shadow-sm rounded-md p-2 flex items-center gap-2">
+                        <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700 rounded-md px-3 py-1" onClick={() => navigate('/create-quiz', { state: { course } })}>
                           Create Quiz
                         </Button>
-                        <Button size="sm" onClick={() => toast({ title: 'Upload Materials', description: 'Upload materials coming soon' })}>
+                        <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700 rounded-md px-3 py-1" onClick={() => toast({ title: 'Upload Materials', description: 'Upload materials coming soon' })}>
                           Upload
                         </Button>
-                        <Button size="sm" onClick={() => { setRenameValue(course?.name || ''); setShowRenameDialog(true); }}>
+                        <Button size="sm" variant="outline" className="bg-white text-blue-600 border-blue-500 hover:bg-blue-50 rounded-md px-3 py-1" onClick={() => { setRenameValue(course?.name || ''); setShowRenameDialog(true); }}>
                           Rename
                         </Button>
                       </div>
-                    ) : null}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <User className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Tutor</p>
-                        <p className="font-medium">{course?.tutor}</p>
-                      </div>
                     </div>
-                    
-                    <div className="flex items-center gap-3">
-                      <Clock className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Semester</p>
-                        <p className="font-medium">
-                          {course?.semester || <span className="text-muted-foreground italic">Not specified</span>}
-                        </p>
-                      </div>
-                    </div>
+                  )}
 
-                    <div className="flex items-center gap-3">
-                      <BookOpen className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Progress</p>
-                        <p className="font-medium">{course?.progress ?? 0}%</p>
-                      </div>
-                    </div>
-                  </div>
+                  {/* <CardHeader>  */}
+                  <CardContent className="pt-6 space-y-6"> 
+                    <div className="space-y-4">
+                              <div className="flex items-center gap-3">
+                                <User className="h-5 w-5 text-muted-foreground" />
+                                <div>
+                                  <p className="text-sm text-muted-foreground">Tutor</p>
+                                  <p className="font-medium">{course?.tutor}</p>
+                                </div>
+                              </div>
 
-                  <div className="pt-4 border-t">
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-muted-foreground">Course Progress</span>
-                      <span className="font-semibold text-foreground">{course?.progress ?? 0}%</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-3">
-                      <div 
-                        className={`${course?.color || 'bg-blue-500'} h-3 rounded-full transition-all`}
-                        style={{ width: `${course?.progress ?? 0}%` }}
-                      />
-                    </div>
-                  </div>
+                              <div className="flex items-center gap-3">
+                                <Clock className="h-5 w-5 text-muted-foreground" />
+                                <div>
+                                  <p className="text-sm text-muted-foreground">Semester</p>
+                                  <p className="font-medium">
+                                    {course?.semester || <span className="text-muted-foreground italic">Not specified</span>}
+                                  </p>
+                                </div>
+                              </div>
 
-                       {/* Owner-only: delete (danger zone) kept in content; management buttons are in header */}
-                          {/* Owner-only: show full-width Add Session button (owner) */}
-                          {isOwner && (
-                            <div className="pt-4">
-                              <Button onClick={() => navigate('/create-session', { state: { course } })} className="w-full flex items-center justify-center gap-2 mb-3">
-                                <Plus className="h-4 w-4" /> Add Session
-                              </Button>
-
-                              <div className="text-sm text-muted-foreground">Danger Zone</div>
-                              <Button variant="destructive" className="mt-2" onClick={() => setShowDeleteDialog(true)}>
-                                Delete Class
-                              </Button>
-                              <p className="text-xs text-muted-foreground mt-2">Deleting a class is permanent. This action is restricted.</p>
+                              <div className="flex items-center gap-3">
+                                <BookOpen className="h-5 w-5 text-muted-foreground" />
+                                <div>
+                                  <p className="text-sm text-muted-foreground">Progress</p>
+                                  <p className="font-medium">{course?.progress ?? 0}%</p>
+                                </div>
+                              </div>
                             </div>
-                          )}
 
-                          {/* Non-owner users (students and tutors who didn't create this class) can join sessions */}
-                          {!isOwner && (
-                            <div className="pt-4">
+                            <div className="pt-4 border-t">
+                              <div className="flex justify-between text-sm mb-2">
+                                <span className="text-muted-foreground">Course Progress</span>
+                                <span className="font-semibold text-foreground">{course?.progress ?? 0}%</span>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-3">
+                                <div 
+                                  className={`${course?.color || 'bg-blue-500'} h-3 rounded-full transition-all`}
+                                  style={{ width: `${course?.progress ?? 0}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {isOwner && (
+                              <div className="pt-4">
+                                <Button onClick={() => navigate('/create-session', { state: { course } })} className="w-full flex items-center justify-center gap-2 mb-3">
+                                  <Plus className="h-4 w-4" /> Add Session
+                                </Button>
+                                <div className="text-sm text-muted-foreground">Danger Zone</div>
+                                <Button variant="destructive" className="mt-2 rounded-md px-3 py-1" onClick={() => setShowDeleteDialog(true)}>
+                                  Delete Class
+                                </Button>
+                                <p className="text-xs text-muted-foreground mt-2">Deleting a class is permanent. This action is restricted.</p>
+                              </div>
+                            )}
+                            {/* For students Show join button + danger zone exit */}
+                            {!isOwner && (
+                              <div className="pt-4">
+                                <Button 
+                                  onClick={handleJoinSessionClick}
+                                  className="w-full flex items-center justify-center gap-2"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                  Join a Session / Tham gia buổi học
+                                </Button>
+                                <p className="text-xs text-muted-foreground text-center mt-2">
+                                  Join a tutoring session to sign up for sessions
+                                </p>
+
+                                <div className="mt-6 text-sm text-muted-foreground">Danger Zone</div>
+                                {user?.role?.toLowerCase?.() === 'student' && course?.registrationId && (
+                                  <div>
+                                    <Button variant="destructive" className="mt-2 rounded-md px-3 py-1" onClick={() => setShowExitDialog(true)}>
+                                      Exit Class
+                                    </Button>
+                                    <p className="text-xs text-muted-foreground mt-2">Leaving a class will remove your registration.</p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      {/* Sessions Overview Card */}
+                      <div className="lg:col-span-1">
+                        <Card className="rounded-xl shadow-md">
+                          <CardHeader>
+                            <CardTitle className="text-xl">Available Sessions</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-3">
+                              {availableSessions.slice(0, 3).map((session) => (
+                                <div key={session.id} className="p-3 rounded-lg border bg-accent/30">
+                                  <p className="font-medium text-sm">{session.topic}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">{session.date}</p>
+                                  <p className="text-xs text-muted-foreground">{session.time}</p>
+                                </div>
+                              ))}
                               <Button 
+                                variant="outline" 
+                                className="w-full mt-2"
                                 onClick={handleJoinSessionClick}
-                                className="w-full flex items-center justify-center gap-2"
                               >
-                                <Plus className="h-4 w-4" />
-                                Join a Session / Tham gia buổi học
+                                View All Sessions
                               </Button>
-                              <p className="text-xs text-muted-foreground text-center mt-2">
-                                Join a tutoring session to sign up for sessions
-                              </p>
                             </div>
-                          )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Sessions Overview Card */}
-            <div className="lg:col-span-1">
-              <Card className="rounded-xl shadow-md">
-                <CardHeader>
-                  <CardTitle className="text-xl">Available Sessions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {availableSessions.slice(0, 3).map((session) => (
-                      <div key={session.id} className="p-3 rounded-lg border bg-accent/30">
-                        <p className="font-medium text-sm">{session.topic}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{session.date}</p>
-                        <p className="text-xs text-muted-foreground">{session.time}</p>
+                          </CardContent>
+                        </Card>
                       </div>
-                    ))}
-                    <Button 
-                      variant="outline" 
-                      className="w-full mt-2"
-                      onClick={handleJoinSessionClick}
-                    >
-                      View All Sessions
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+                    </div>
 
           {/* Join Session Dialog */}
           <Dialog open={showJoinSessionDialog} onOpenChange={(open) => !open && closeJoinSessionDialog()}>
@@ -458,6 +515,23 @@ const CourseDetails = () => {
                   </div>
                 </div>
               )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Exit Confirmation Dialog (Student) */}
+          <Dialog open={showExitDialog} onOpenChange={(open) => !open && setShowExitDialog(false)}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Exit Class</DialogTitle>
+                <DialogDescription>This will remove your registration for this class. Type the class name to confirm.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <input className="w-full border rounded p-2" placeholder="Type class name to confirm" value={exitConfirmText} onChange={(e) => setExitConfirmText(e.target.value)} />
+                <div className="flex gap-2">
+                  <Button variant="destructive" onClick={handleExit} disabled={isExiting || exitConfirmText !== (course?.name || '')}>{isExiting ? 'Leaving...' : 'Exit Class'}</Button>
+                  <Button variant="outline" onClick={() => setShowExitDialog(false)}>Cancel</Button>
+                </div>
+              </div>
             </DialogContent>
           </Dialog>
 

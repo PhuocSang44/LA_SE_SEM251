@@ -29,4 +29,7 @@ public class UniversityStaff {
 
     @Column(name = "department_name", nullable = false)
     private String departmentName;
+
+    @Column(name = "specialization") 
+    private String specialization;
 }

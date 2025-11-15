@@ -16,9 +16,12 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const AvailableCourses = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const { user } = useAuth();
+  const isStudent = user?.role?.toUpperCase() === 'STUDENT';
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [selectedTutor, setSelectedTutor] = useState("");
   const [enrollmentStatus, setEnrollmentStatus] = useState<"idle" | "waiting" | "confirmed">("idle");
@@ -31,32 +34,55 @@ const AvailableCourses = () => {
   const [foundCourse, setFoundCourse] = useState<any>(null);
 
   const [availableCourses, setAvailableCourses] = useState<any[]>([]);
+  const [enrolledClassIds, setEnrolledClassIds] = useState<Set<number>>(new Set());
+
+  // Load courses and exclude classes the user already enrolled in
+  const loadAvailableCourses = () => {
+    const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
+    // First fetch enrolled class IDs
+    return fetch(`${apiBase}/course-registrations/me`, { credentials: 'include' })
+      .then(res => res.ok ? res.json() : Promise.resolve([]))
+      .then((enrolledList: any[]) => {
+        const enrolledIds = new Set(enrolledList.map((r: any) => r.classId));
+        setEnrolledClassIds(enrolledIds);
+        // Then fetch all classes and group, skipping enrolled class ids
+        return fetch(`${apiBase}/api/classes`, { credentials: 'include' })
+          .then(res => res.ok ? res.json() : Promise.reject(res))
+          .then((data: any[]) => {
+            const byCourse: Record<string, any> = {};
+            data.forEach(c => {
+              if (enrolledIds.has(c.classId)) return; // skip classes already enrolled
+              const key = c.courseCode || c.courseName;
+              if (!byCourse[key]) {
+                byCourse[key] = {
+                  id: key,
+                  name: c.courseName,
+                  code: c.courseCode,
+                  category: "",
+                  prerequisites: "",
+                  description: "",
+                  color: "bg-blue-500",
+                  tutors: []
+                };
+              }
+              byCourse[key].tutors.push({ 
+                id: c.classId, 
+                name: c.tutorName, 
+                tutorId: c.tutorId, 
+                capacity: c.capacity, 
+                enrolledCount: c.enrolledCount,
+                specialization: c.tutorSpecialization,
+                department: c.tutorDepartment      
+            });
+            });
+            setAvailableCourses(Object.values(byCourse));
+          });
+      }).catch(err => console.error('Failed to load available courses', err));
+  };
 
   useEffect(() => {
-    // Load classes from backend and group by course
-    fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:10001"}/api/classes`, { credentials: 'include' })
-      .then(res => res.ok ? res.json() : Promise.reject(res))
-      .then((data: any[]) => {
-        const byCourse: Record<string, any> = {};
-        data.forEach(c => {
-          const key = c.courseCode || c.courseName;
-          if (!byCourse[key]) {
-            byCourse[key] = {
-              id: key,
-              name: c.courseName,
-              code: c.courseCode,
-              category: "",
-              prerequisites: "",
-              description: "",
-              color: "bg-blue-500",
-              tutors: []
-            };
-          }
-          byCourse[key].tutors.push({ id: c.classId, name: c.tutorName, tutorId: c.tutorId, capacity: c.capacity, enrolledCount: c.enrolledCount });
-        });
-        setAvailableCourses(Object.values(byCourse));
-      }).catch(err => console.error('Failed to load available courses', err));
-  }, []);
+    loadAvailableCourses();
+  }, [user]);
 
   const handleEnrollClick = (course: any) => {
     setSelectedCourse(course);
@@ -73,17 +99,39 @@ const AvailableCourses = () => {
       });
       return;
     }
-    
+
     setEnrollmentStatus("waiting");
-    
-    // Simulate tutor confirmation after 2 seconds
-    setTimeout(() => {
-      setEnrollmentStatus("confirmed");
-      toast({
-        title: "Enrollment Confirmed! / Đã xác nhận đăng ký!",
-        description: "Your tutor has confirmed the enrollment",
-      });
-    }, 2000);
+
+    const payload = { classId: parseInt(selectedTutor, 10) };
+    const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
+
+    fetch(`${apiBase}/course-registrations/enroll`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(async res => {
+      if (res.ok) {
+        setEnrollmentStatus("confirmed");
+        toast({ title: "Enrolled", description: "You have been enrolled successfully" });
+        // Refresh lists so the newly enrolled class is excluded
+        loadAvailableCourses();
+        // close dialog after short delay so user sees confirmation
+        setTimeout(() => closeDialog(), 600);
+      } else {
+        const text = await res.text();
+        try {
+          const err = JSON.parse(text);
+          throw new Error(err.message || text || 'Enrollment failed');
+        } catch (e) {
+          throw new Error(text || 'Enrollment failed');
+        }
+      }
+    }).catch(err => {
+      console.error(err);
+      setEnrollmentStatus("idle");
+      toast({ title: "Failed to enroll", description: String(err), variant: "destructive" });
+    });
   };
 
   const closeDialog = () => {
@@ -123,7 +171,28 @@ const AvailableCourses = () => {
           setFoundCourse(null);
           return;
         }
-        const courseObj = { name: list[0].courseName, code: list[0].courseCode, category: "", description: "", tutors: list.map((cl: any) => ({ id: cl.classId, name: cl.tutorName, tutorId: cl.tutorId })) };
+
+        const filteredList = list.filter((cl: any) => !enrolledClassIds.has(cl.classId));
+
+        if (filteredList.length === 0) {
+            toast({ title: "Course Found", description: "You are already enrolled in all available classes for this course.", variant: "default" });
+            setFoundCourse(null);
+            return;
+        }
+
+        const courseObj = { 
+            name: filteredList[0].courseName, 
+            code: filteredList[0].courseCode, 
+            category: "", 
+            description: "", 
+            tutors: filteredList.map((cl: any) => ({ 
+                id: cl.classId, 
+                name: cl.tutorName, 
+                tutorId: cl.tutorId,
+                specialization: cl.tutorSpecialization, 
+                department: cl.tutorDepartment       
+            })) 
+        };
         setFoundCourse(courseObj);
         toast({ title: "Course found!", description: `${courseObj.name} (${courseObj.code})` });
       }).catch(err => { console.error(err); toast({ title: "Error", description: "Failed to fetch course info", variant: "destructive" }); });
@@ -149,8 +218,10 @@ const AvailableCourses = () => {
       body: JSON.stringify(payload)
     }).then(async res => {
       if (res.ok) {
-        setJoinEnrollmentStatus("confirmed");
-        toast({ title: "Enrollment Confirmed! / Đã xác nhận đăng ký!", description: "Your tutor has confirmed the enrollment" });
+        // Notify success, refresh available courses (exclude newly-enrolled class), and close dialog
+        toast({ title: "Enrolled", description: "You have been enrolled successfully" });
+        loadAvailableCourses();
+        closeJoinDialog();
       } else {
         const text = await res.text();
         throw new Error(text || 'Enrollment failed');

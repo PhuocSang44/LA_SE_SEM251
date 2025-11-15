@@ -1,10 +1,12 @@
 //vuong
 package org.minhtrinh.hcmuttssbackend.service;
 
+import java.time.Instant;
 import org.minhtrinh.hcmuttssbackend.TssUserPrincipal;
 import org.minhtrinh.hcmuttssbackend.dto.EnrollmentRequest;
 import org.minhtrinh.hcmuttssbackend.dto.RegisterCourseRequest;
 import org.minhtrinh.hcmuttssbackend.entity.Class;
+import org.minhtrinh.hcmuttssbackend.entity.Course;
 import org.minhtrinh.hcmuttssbackend.entity.CourseRegistration;
 import org.minhtrinh.hcmuttssbackend.entity.Student;
 import org.minhtrinh.hcmuttssbackend.entity.User;
@@ -101,10 +103,22 @@ public class CourseRegistrationService {
             throw new IllegalStateException("Cannot enroll in a class you are teaching");
         }
         
-        // Check if already registered
+        // --- Ensure we do not register the same COURSE twice (DB constraint checks by course)
+        Course course = classEntity.getCourse();
+        if (course == null) {
+            throw new IllegalStateException("Class " + classEntity.getClassId() + " has no associated course.");
+        }
+
+        // 1) Check by course (prevents duplicate course registration across classes)
+        registrationRepository.findByStudent_StudentIdAndCourse_CourseId(student.getStudentId(), course.getCourseId())
+            .ifPresent(existing -> {
+                throw new IllegalStateException("Already registered for this COURSE (in class " + existing.getClassEntity().getClassId() + ")");
+            });
+
+        // 2) Check by exact class (previous logic)
         registrationRepository.findByStudent_StudentIdAndClassEntity_ClassId(student.getStudentId(), classEntity.getClassId())
                 .ifPresent(existing -> {
-                    throw new IllegalStateException("Already registered for this class");
+                    throw new IllegalStateException("Already registered for this specific CLASS.");
                 });
 
         // Capacity check
@@ -126,14 +140,14 @@ public class CourseRegistrationService {
             log.warn("Prerequisite check failed or Datacore unavailable, allowing enrollment by default", ex);
         }
         
-        // Add prerequisite checking by calling DATACORE <-?
-        // Skip prerequisite checks (hardcoded in DATACORE as mentioned)
-        
-        // Create registration
+
+        // Create registration (course already validated above)
         CourseRegistration registration = CourseRegistration.builder()
-                .student(student)
-                .classEntity(classEntity)
-                .build();
+            .student(student)
+            .classEntity(classEntity)
+            .course(course)
+            .registeredAt(Instant.now())
+            .build();
         
         CourseRegistration saved = registrationRepository.save(registration);
         // increment enrolledCount and persist class
@@ -164,13 +178,24 @@ public class CourseRegistrationService {
         Student student = studentRepository.findById(studentId)
             .orElseThrow(() -> new IllegalArgumentException("Student not found: " + studentId));
 
-        // Check if not already registered
+        // 1) Check course-level duplicate first (matches DB unique constraint)
+        Course course = classEntity.getCourse();
+        if (course == null) {
+            throw new IllegalStateException("Class " + classId + " has no associated course.");
+        }
+
+        registrationRepository.findByStudent_StudentIdAndCourse_CourseId(student.getStudentId(), course.getCourseId())
+            .ifPresent(existing -> { throw new IllegalStateException("Already registered for this COURSE (in class " + existing.getClassEntity().getClassId() + ")"); });
+
+        // 2) Then check exact class
         registrationRepository.findByStudent_StudentIdAndClassEntity_ClassId(studentId, classId)
-            .ifPresent(existing -> {throw new IllegalStateException("Already registered for this class");});
+            .ifPresent(existing -> {throw new IllegalStateException("Already registered for this specific CLASS.");});
 
         CourseRegistration cr = CourseRegistration.builder()
                 .student(student)
                 .classEntity(classEntity)
+                .course(course)
+                .registeredAt(Instant.now())
                 .build();
         return registrationRepository.save(cr);
     }
@@ -186,5 +211,34 @@ public class CourseRegistrationService {
         User user = userRepository.findByEmail(email).orElseThrow(() -> new IllegalArgumentException("User not found by email: " + email));
         Student student = studentRepository.findByUserId(user.getUserId()).orElseThrow(() -> new IllegalStateException("Student profile not found for user: " + email));
         return student.getStudentId();
+    }
+
+    @Transactional
+    public void exitClass(Long registrationId, TssUserPrincipal principal) {
+        CourseRegistration reg = registrationRepository.findById(registrationId)
+                .orElseThrow(() -> new IllegalArgumentException("Registration not found: " + registrationId));
+
+        // Resolve current user and student profile
+        User user = userRepository.findByEmail(principal.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + principal.getEmail()));
+        Student student = studentRepository.findByUserId(user.getUserId())
+                .orElseThrow(() -> new IllegalStateException("Student profile not found for user: " + user.getEmail()));
+
+        if (!reg.getStudent().getStudentId().equals(student.getStudentId())) {
+            throw new IllegalStateException("Not authorized to remove this registration");
+        }
+
+        // Decrement enrolledCount on class if present
+        Class classEntity = reg.getClassEntity();
+        try {
+            Integer ec = classEntity.getEnrolledCount() == null ? 0 : classEntity.getEnrolledCount();
+            if (ec > 0) classEntity.setEnrolledCount(ec - 1);
+            classRepository.save(classEntity);
+        } catch (Exception ex) {
+            log.warn("Failed to decrement enrolledCount for class {}: {}", classEntity.getClassId(), ex.getMessage());
+        }
+
+        registrationRepository.delete(reg);
+        log.info("Student {} exited registration {} (class {})", student.getStudentId(), registrationId, classEntity.getClassId());
     }
 }

@@ -14,6 +14,7 @@ import org.minhtrinh.hcmuttssbackend.repository.UserRepository;
 import org.minhtrinh.hcmuttssbackend.service.CourseRegistrationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -75,6 +76,15 @@ public class CourseRegistrationController {
                 .collect(Collectors.toList());
         return ResponseEntity.ok(list);
     }
+
+        // --- New endpoint: student leaves a class ---
+        @DeleteMapping("/{registrationId}")
+        @PreAuthorize("hasAnyAuthority('STUDENT')")
+        public ResponseEntity<Void> exitClass(@PathVariable Long registrationId,
+                                                                                  @AuthenticationPrincipal TssUserPrincipal principal) {
+                rService.exitClass(registrationId, principal);
+                return ResponseEntity.noContent().build();
+        }
 
     private CourseRegistrationResponse mapToResponse(CourseRegistration cr) {
         var clazz = cr.getClassEntity();

@@ -7,8 +7,7 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "course_registration")
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -26,6 +25,10 @@ public class CourseRegistration {
     @ManyToOne
     @JoinColumn(name = "class_id", nullable = false)
     private Class classEntity;
+
+    @ManyToOne
+    @JoinColumn(name = "course_id", nullable = false)
+    private Course course;
 
     @Column(name = "registered_at", nullable = false)
     private Instant registeredAt = Instant.now();
