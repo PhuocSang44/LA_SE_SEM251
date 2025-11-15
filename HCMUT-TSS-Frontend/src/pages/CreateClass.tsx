@@ -51,9 +51,13 @@ const CreateClass = () => {
 
   // Map backend ClassResponse to frontend course model (consistent with MyCourses.tsx)
   const mapResponseToCourse = (c: any) => {
+    // Prefer canonical name from HARDCODED_COURSES when available (shows original course name)
+    const codeNorm = String(c.courseCode || '').trim().toUpperCase();
+    const canonical = HARDCODED_COURSES.find(x => String(x.code).trim().toUpperCase() === codeNorm);
+    const displayName = canonical ? canonical.name : c.courseName;
     return {
       id: c.classId,
-      name: c.courseName,
+      name: displayName,
       code: c.courseCode,
       tutor: c.tutorName,
       tutorId: c.tutorId,

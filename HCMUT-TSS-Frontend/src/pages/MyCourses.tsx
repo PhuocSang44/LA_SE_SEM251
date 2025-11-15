@@ -46,10 +46,28 @@ const MyCourses = () => {
       .then((data: any[]) => {
         // data is CourseRegistrationResponse[]
         // Map registration -> course card model
+        // Prefer canonical names for display when possible
+        const HARDCODED_COURSES = [
+          { code: 'MT1003', name: 'Calculus' },
+          { code: 'MT1005', name: 'Calculus 2' },
+          { code: 'MT1004', name: 'Linear Algebra' },
+          { code: 'MT2001', name: 'Discrete Mathematics' },
+          { code: 'CS1010', name: 'Intro to Programming' }
+        ];
+
+        const getDisplayName = (code: string | null | undefined, fallback: string) => {
+          if (!code) return fallback;
+          const codeNorm = String(code).trim().toUpperCase();
+          const found = HARDCODED_COURSES.find(c => String(c.code).trim().toUpperCase() === codeNorm);
+          return found ? found.name : fallback;
+        };
+
         const mapped = data.map(r => ({
           registrationId: r.registrationId,
           id: r.classId,
-          name: r.courseName,
+          // Prefer the class display name returned by the backend (r.courseName)
+          // If backend didn't provide a display/class name, fall back to canonical mapping
+          name: (r.courseName && String(r.courseName).trim() !== '') ? r.courseName : getDisplayName(r.courseCode, r.courseName),
           tutor: r.tutorName || "",
           tutorId: r.tutorId ?? null,
           semester: r.semester || "",

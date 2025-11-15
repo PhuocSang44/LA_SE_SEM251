@@ -93,17 +93,20 @@ public class CourseRegistrationController {
         String tutorName = userRepository.findById(tutor.getUserId())
                 .map(u -> buildFullName(u))
                 .orElse(null);
+        String responseCourseName = (clazz.getCustomName() != null && !clazz.getCustomName().isBlank())
+            ? clazz.getCustomName()
+            : course.getName();
         return new CourseRegistrationResponse(
-                cr.getRegistrationId(),
-                clazz.getClassId(),
-                course.getCode(),
-                course.getName(),
-                clazz.getSemester(),
-                tutor.getOfficialId(),
-                tutorName,
-                cr.getStudent().getStudentId(),
-                clazz.getStatus(),
-                cr.getRegisteredAt()
+            cr.getRegistrationId(),
+            clazz.getClassId(),
+            course.getCode(),
+            responseCourseName,
+            clazz.getSemester(),
+            tutor.getOfficialId(),
+            tutorName,
+            cr.getStudent().getStudentId(),
+            clazz.getStatus(),
+            cr.getRegisteredAt()
         );
     }
 
@@ -114,16 +117,19 @@ public class CourseRegistrationController {
         String tutorName = userRepository.findById(tutor.getUserId())
                 .map(u -> buildFullName(u))
                 .orElse(null);
+        String responseCourseName2 = (clazz.getCustomName() != null && !clazz.getCustomName().isBlank())
+            ? clazz.getCustomName()
+            : course.getName();
         return new EnrollmentResponse(
-                cr.getRegistrationId(),
-                clazz.getClassId(),
-                course.getCode(),
-                course.getName(),
-                clazz.getSemester(),
-                tutor.getOfficialId(),
-                tutorName,
-                clazz.getStatus(),
-                cr.getRegisteredAt()
+            cr.getRegistrationId(),
+            clazz.getClassId(),
+            course.getCode(),
+            responseCourseName2,
+            clazz.getSemester(),
+            tutor.getOfficialId(),
+            tutorName,
+            clazz.getStatus(),
+            cr.getRegisteredAt()
         );
     }
 
