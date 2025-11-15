@@ -13,4 +13,6 @@ public interface CourseRegistrationRepository extends JpaRepository<CourseRegist
     long countByClassEntity_ClassId(Long classId);
     // Find registration by student and course (used to enforce unique student-course constraint)
     Optional<CourseRegistration> findByStudent_StudentIdAndCourse_CourseId(Long studentId, Long courseId);
+    // Check if student is enrolled in a class
+    boolean existsByStudent_StudentIdAndClassEntity_ClassId(Long studentId, Long classId);
 }
