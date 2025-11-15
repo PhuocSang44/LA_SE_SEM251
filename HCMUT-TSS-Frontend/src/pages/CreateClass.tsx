@@ -18,7 +18,13 @@ const CreateClass = () => {
   // form state
   const [courseCode, setCourseCode] = useState("");
   const [courseName, setCourseName] = useState("");
+  // display value for the code-name field (shows "CODE - Name")
+  const [courseDisplay, setCourseDisplay] = useState("");
+  // whether a canonical course has been selected (locks the input)
+  const [courseSelected, setCourseSelected] = useState(false);
   const [courseDescription, setCourseDescription] = useState("");
+  // restored: user-provided display name for the class (optional)
+  const [customClassName, setCustomClassName] = useState("");
   const [semester, setSemester] = useState("");
   const [capacity, setCapacity] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,6 +33,15 @@ const CreateClass = () => {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef<number | null>(null as any);
+
+  // Hard-coded canonical course list (code + name) for quick suggestions
+  const HARDCODED_COURSES = [
+    { code: 'MT1003', name: 'Calculus' },
+    { code: 'MT1005', name: 'Calculus 2' },
+    { code: 'MT1004', name: 'Linear Algebra' },
+    { code: 'MT2001', name: 'Discrete Mathematics' },
+    { code: 'CS1010', name: 'Intro to Programming' }
+  ];
 
   // my classes
   const [myClasses, setMyClasses] = useState<any[]>([]);
@@ -57,11 +72,39 @@ const CreateClass = () => {
       .catch(err => console.error('Failed to load my classes', err));
   }, [apiBase]);
 
+  // compute a default semester string based on current month/year
+  const computeDefaultSemester = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1; // 1-12
+    // Term mapping: Jan-May -> Spring, Jun-Aug -> Summer, Sep-Dec -> Fall
+    let term = 'Spring';
+    if (month >= 9) term = 'Fall';
+    else if (month >= 6) term = 'Summer';
+    return `${term} ${year}`;
+  };
+
+  // Set default semester on mount if empty
+  useEffect(() => {
+    if (!semester) setSemester(computeDefaultSemester());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const fetchSuggestions = (q: string) => {
     if (!q || q.trim().length < 1) {
       setSuggestions([]);
       return;
     }
+    const up = q.trim().toUpperCase();
+    // If user types a prefix like "MT" use the hardcoded list to suggest standard courses
+    if (up.startsWith('MT') || up.startsWith('CS') || up.length <= 3) {
+      const local = HARDCODED_COURSES.filter(c => (`${c.code} ${c.name}`).toUpperCase().includes(up))
+        .map(c => ({ courseId: c.code, code: c.code, name: c.name, description: '' }));
+      setSuggestions(local);
+      return;
+    }
+
+    // fallback to server-side suggestions for other queries
     fetch(`${apiBase}/api/courses?q=${encodeURIComponent(q)}`, { credentials: 'include' })
       .then(res => res.ok ? res.json() : Promise.reject(res))
       .then((list: any[]) => setSuggestions(list || []))
@@ -69,7 +112,10 @@ const CreateClass = () => {
   };
 
   const onCourseCodeChange = (value: string) => {
+    // allow typing a prefix; clear selected courseName when user types
     setCourseCode(value);
+    setCourseName("");
+    setCourseDisplay(value);
     setShowSuggestions(true);
     if (debounceRef.current) window.clearTimeout(debounceRef.current as any);
     debounceRef.current = window.setTimeout(() => fetchSuggestions(value), 250) as any;
@@ -78,25 +124,62 @@ const CreateClass = () => {
   const selectSuggestion = (s: any) => {
     setCourseCode(s.code);
     setCourseName(s.name);
+    setCourseDisplay(`${s.code} - ${s.name}`);
     setShowSuggestions(false);
     setSuggestions([]);
+    setCourseSelected(true);
+  };
+
+  const onCourseBlur = () => {
+    // Delay validation slightly so a click on a suggestion (onMouseDown)
+    // has time to run selectSuggestion and update state before blur logic.
+    setTimeout(() => {
+      // If user already selected a course from suggestions, keep it
+      if (courseSelected || courseName) return;
+
+      // Enforce selection from HARDCODED_COURSES or previously fetched suggestions.
+      if (!courseCode) {
+        setCourseDisplay("");
+        setCourseName("");
+        return;
+      }
+
+      // If a combined display was used, try to parse code
+      const parsedCode = courseCode.includes(' - ') ? courseCode.split(' - ')[0].trim() : courseCode.trim();
+      const found = HARDCODED_COURSES.find(c => c.code === parsedCode) || suggestions.find((s: any) => s.code === parsedCode);
+      if (found) {
+        setCourseCode(found.code);
+        setCourseName(found.name);
+        setCourseDisplay(`${found.code} - ${found.name}`);
+        setCourseSelected(true);
+        return;
+      }
+
+      // Not a valid selection → clear and notify
+      setCourseCode("");
+      setCourseName("");
+      setCourseDisplay("");
+      setSuggestions([]);
+      toast({ title: 'Invalid course', description: 'Please select a course from the list', variant: 'destructive' });
+    }, 120);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!courseCode || !courseName || !semester) {
-      toast({ title: "Missing fields", description: "Please fill course code, name and semester", variant: "destructive" });
+      toast({ title: "Missing fields", description: "Please pick a valid course and fill semester", variant: "destructive" });
       return;
     }
     setLoading(true);
     try {
-      const payload = {
-        courseCode,
-        courseName,
-        courseDescription,
-        semester,
-        capacity
-      };
+        const payload = {
+          courseCode,
+          courseName,
+          customClassName,
+          courseDescription,
+          semester,
+          capacity
+        };
       const res = await fetch(`${apiBase}/api/classes`, {
         method: 'POST',
         credentials: 'include',
@@ -111,11 +194,12 @@ const CreateClass = () => {
       toast({ title: 'Class created', description: `${data.courseName} (${data.courseCode}) created` });
       // refresh my classes
       setMyClasses(prev => [mapResponseToCourse(data), ...prev]);
-      // clear
+      // clear (semester -> default)
       setCourseCode("");
       setCourseName("");
+      setCustomClassName("");
       setCourseDescription("");
-      setSemester("");
+      setSemester(computeDefaultSemester());
       setCapacity(null);
     } catch (err: any) {
       console.error(err);
@@ -149,12 +233,17 @@ const CreateClass = () => {
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <Label htmlFor="courseCode">Course Code or Name</Label>
-                    <Input id="courseCode" value={courseCode} onChange={(e) => onCourseCodeChange(e.target.value)} placeholder="Type code or name to search" />
+                    <Label htmlFor="courseCode">Course (code — name)</Label>
+                    <div className="flex items-center gap-2">
+                      <Input id="courseCode" value={courseDisplay || courseCode} onChange={(e) => { setCourseSelected(false); onCourseCodeChange(e.target.value); }} onBlur={onCourseBlur} placeholder="Type code or name to search" readOnly={courseSelected} />
+                      {courseSelected ? (
+                        <Button size="sm" variant="outline" onClick={() => { setCourseSelected(false); setCourseCode(''); setCourseName(''); setCourseDisplay(''); }}>Clear</Button>
+                      ) : null}
+                    </div>
                     {showSuggestions && suggestions.length > 0 && (
                       <div className="bg-card border rounded mt-2 max-h-48 overflow-auto">
                         {suggestions.map(s => (
-                          <div key={s.courseId} className="p-2 hover:bg-muted cursor-pointer" onClick={() => selectSuggestion(s)}>
+                          <div key={s.courseId} className="p-2 hover:bg-muted cursor-pointer" onMouseDown={() => selectSuggestion(s)}>
                             <div className="font-medium">{s.code} — {s.name}</div>
                             <div className="text-xs text-muted-foreground">{s.description}</div>
                           </div>
@@ -162,10 +251,11 @@ const CreateClass = () => {
                       </div>
                     )}
                   </div>
+ 
 
                   <div>
-                    <Label htmlFor="courseName">Course Name</Label>
-                    <Input id="courseName" value={courseName} onChange={(e) => setCourseName(e.target.value)} placeholder="Course name" />
+                    <Label htmlFor="customClassName">Class name (optional)</Label>
+                    <Input id="customClassName" value={customClassName} onChange={(e) => setCustomClassName(e.target.value)} placeholder="Display name for the class (optional)" />
                   </div>
 
                   <div>
@@ -185,7 +275,7 @@ const CreateClass = () => {
 
                   <div className="flex gap-2">
                     <Button type="submit" disabled={loading}>{loading ? 'Creating...' : 'Create'}</Button>
-                    <Button type="button" variant="outline" onClick={() => { setCourseCode(''); setCourseName(''); setCourseDescription(''); setSemester(''); setCapacity(null); }}>Reset</Button>
+                    <Button type="button" variant="outline" onClick={() => { setCourseCode(''); setCourseName(''); setCourseDisplay(''); setCourseSelected(false); setCourseDescription(''); setSemester(computeDefaultSemester()); setCapacity(null); }}>Reset</Button>
                   </div>
                 </form>
               </CardContent>

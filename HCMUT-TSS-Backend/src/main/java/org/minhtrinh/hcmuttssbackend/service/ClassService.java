@@ -96,15 +96,21 @@ public class ClassService {
                 .orElseThrow(() -> new RuntimeException("Tutor not found for userId: " + userId));
 
         // Create new class
+        // Set the class custom name separately from the Course's canonical name.
+        // If the client provided a customClassName use that, otherwise leave null
+        // so the UI can fall back to the Course name when displaying.
+        String providedClassName = request.customClassName();
+        String classCustomName = (providedClassName == null || providedClassName.isBlank()) ? null : providedClassName;
+
         Class newClass = Class.builder()
-                .course(course)
-                .tutor(tutor)
-                .semester(request.semester())
-                .capacity(request.capacity())
-                .createdAt(LocalDateTime.now())
-                .status("ACTIVE")
-                .customName(request.courseName())
-                .build();
+            .course(course)
+            .tutor(tutor)
+            .semester(request.semester())
+            .capacity(request.capacity())
+            .createdAt(LocalDateTime.now())
+            .status("ACTIVE")
+            .customName(classCustomName)
+            .build();
 
         Class savedClass = classRepository.save(newClass);
 
