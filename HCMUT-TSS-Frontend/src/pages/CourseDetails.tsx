@@ -3,7 +3,7 @@ import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, User, Clock, BookOpen, Plus, CheckCircle2, LogOut } from "lucide-react";
+import { Calendar, User, Clock, BookOpen, Plus, CheckCircle2, LogOut, MessageSquare, Star } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -103,6 +103,17 @@ const CourseDetails = () => {
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [exitConfirmText, setExitConfirmText] = useState("");
   const [isExiting, setIsExiting] = useState(false);
+
+  // Feedback states
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [feedbackImageUrl, setFeedbackImageUrl] = useState("");
+  const [feedbackRatings, setFeedbackRatings] = useState([
+    { question: "How would you rate the course content?", ratingValue: 0 },
+    { question: "How would you rate the instructor's teaching?", ratingValue: 0 },
+    { question: "How would you rate the course difficulty?", ratingValue: 0 }
+  ]);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
   // Mock available sessions for this tutor/course
   const availableSessions = [
@@ -235,6 +246,98 @@ const CourseDetails = () => {
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handleSubmitFeedback = async () => {
+    // Validate required ratings
+    const hasInvalidRating = feedbackRatings.some(r => r.ratingValue < 1 || r.ratingValue > 5);
+    if (hasInvalidRating) {
+      toast({
+        title: "Please select rating stars",
+        description: "All rating questions must have a value between 1-5 stars",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmittingFeedback(true);
+
+    // Better courseId and classId resolution
+    const courseIdToUse = course?.courseId || course?.id;
+    const classIdToUse = course?.classId || course?.id;
+
+    console.log("DEBUG: Submitting feedback with:", {
+      courseId: courseIdToUse,
+      classId: classIdToUse,
+      course: course
+    });
+
+    const payload = {
+      courseId: courseIdToUse,
+      classId: classIdToUse,
+      comment: feedbackComment || null,
+      imageUrl: feedbackImageUrl || null,
+      ratings: feedbackRatings.filter(r => r.ratingValue > 0)
+    };
+
+    console.log("DEBUG: Feedback payload:", payload);
+
+    try {
+      const res = await fetch(`${apiBase}/api/feedback/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      });
+
+      console.log("DEBUG: Response status:", res.status);
+
+      if (res.ok) {
+        const result = await res.json();
+        console.log("DEBUG: Success response:", result);
+        toast({
+          title: "Feedback submitted successfully",
+          description: "Thank you for your feedback!"
+        });
+        setShowFeedbackDialog(false);
+        // Reset form
+        setFeedbackComment("");
+        setFeedbackImageUrl("");
+        setFeedbackRatings([
+          { question: "How would you rate the course content?", ratingValue: 0 },
+          { question: "How would you rate the instructor's teaching?", ratingValue: 0 },
+          { question: "How would you rate the course difficulty?", ratingValue: 0 }
+        ]);
+      } else {
+        const text = await res.text();
+        console.error("DEBUG: Error response:", text);
+        let errorMessage = 'Feedback submission failed';
+        try {
+          const err = JSON.parse(text);
+          errorMessage = err.error || err.message || text || errorMessage;
+        } catch (e) {
+          errorMessage = text || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+    } catch (err: any) {
+      console.error("DEBUG: Fetch error:", err);
+      const errorMsg = err.message || String(err);
+      toast({
+        title: "Failed to submit feedback",
+        description: errorMsg,
+        variant: "destructive"
+      });
+    } finally {
+      console.log("DEBUG: Setting isSubmittingFeedback to false");
+      setIsSubmittingFeedback(false);
+    }
+  };
+
+  const handleRatingChange = (index: number, value: number) => {
+    const newRatings = [...feedbackRatings];
+    newRatings[index].ratingValue = value;
+    setFeedbackRatings(newRatings);
   };
 
   const handleExit = async () => {
@@ -399,14 +502,26 @@ const CourseDetails = () => {
                               <div className="pt-4">
                                 <Button 
                                   onClick={handleJoinSessionClick}
-                                  className="w-full flex items-center justify-center gap-2"
+                                  className="w-full flex items-center justify-center gap-2 mb-3"
                                 >
                                   <Plus className="h-4 w-4" />
                                   Join a Session / Tham gia buổi học
                                 </Button>
-                                <p className="text-xs text-muted-foreground text-center mt-2">
+                                <p className="text-xs text-muted-foreground text-center mb-4">
                                   Join a tutoring session to sign up for sessions
                                 </p>
+
+                                {/* Submit Feedback Button */}
+                                {user?.role?.toLowerCase?.() === 'student' && course?.registrationId && (
+                                  <Button
+                                    onClick={() => setShowFeedbackDialog(true)}
+                                    variant="outline"
+                                    className="w-full flex items-center justify-center gap-2 mb-4"
+                                  >
+                                    <MessageSquare className="h-4 w-4" />
+                                    Submit Feedback / Gửi đánh giá
+                                  </Button>
+                                )}
 
                                 <div className="mt-6 text-sm text-muted-foreground">Danger Zone</div>
                                 {user?.role?.toLowerCase?.() === 'student' && course?.registrationId && (
@@ -515,6 +630,89 @@ const CourseDetails = () => {
                   </div>
                 </div>
               )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Feedback Dialog */}
+          <Dialog open={showFeedbackDialog} onOpenChange={(open) => !open && setShowFeedbackDialog(false)}>
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Submit Feedback / Gửi đánh giá</DialogTitle>
+                <DialogDescription>
+                  Share your feedback about {course?.name}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6">
+                {/* Rating Questions */}
+                <div className="space-y-4">
+                  {feedbackRatings.map((rating, index) => (
+                    <div key={index} className="space-y-2">
+                      <label className="text-sm font-medium">{rating.question} <span className="text-red-500">*</span></label>
+                      <div className="flex gap-2">
+                        {[1, 2, 3, 4, 5].map((value) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => handleRatingChange(index, value)}
+                            className={`p-2 transition-colors ${
+                              rating.ratingValue >= value 
+                                ? 'text-yellow-500' 
+                                : 'text-gray-300 hover:text-yellow-400'
+                            }`}
+                          >
+                            <Star className="h-8 w-8 fill-current" />
+                          </button>
+                        ))}
+                        <span className="ml-2 text-sm text-muted-foreground self-center">
+                          {rating.ratingValue > 0 ? `${rating.ratingValue} stars` : 'Not rated'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Comment (Optional) */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Additional Comments (Optional)</label>
+                  <textarea
+                    placeholder="Share your thoughts about the course..."
+                    value={feedbackComment}
+                    onChange={(e) => setFeedbackComment(e.target.value)}
+                    className="w-full border rounded-md p-3 min-h-[100px] resize-y"
+                  />
+                </div>
+
+                {/* Image URL (Optional) */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Image URL (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="https://example.com/image.jpg"
+                    value={feedbackImageUrl}
+                    onChange={(e) => setFeedbackImageUrl(e.target.value)}
+                    className="w-full border rounded-md p-2"
+                  />
+                  <p className="text-xs text-muted-foreground">Provide a URL to an image related to your feedback</p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 justify-end pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowFeedbackDialog(false)}
+                    disabled={isSubmittingFeedback}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSubmitFeedback}
+                    disabled={isSubmittingFeedback || feedbackRatings.some(r => r.ratingValue === 0)}
+                  >
+                    {isSubmittingFeedback ? 'Submitting...' : 'Submit Feedback'}
+                  </Button>
+                </div>
+              </div>
             </DialogContent>
           </Dialog>
 

@@ -119,17 +119,20 @@ const AvailableCourses = () => {
         setTimeout(() => closeDialog(), 600);
       } else {
         const text = await res.text();
+        let errorMessage = 'Enrollment failed';
         try {
           const err = JSON.parse(text);
-          throw new Error(err.message || text || 'Enrollment failed');
+          errorMessage = err.error || err.message || text || errorMessage;
         } catch (e) {
-          throw new Error(text || 'Enrollment failed');
+          errorMessage = text || errorMessage;
         }
+        throw new Error(errorMessage);
       }
     }).catch(err => {
       console.error(err);
       setEnrollmentStatus("idle");
-      toast({ title: "Failed to enroll", description: String(err), variant: "destructive" });
+      const errorMsg = err.message || String(err);
+      toast({ title: "Failed to enroll", description: errorMsg, variant: "destructive" });
     });
   };
 
@@ -223,9 +226,21 @@ const AvailableCourses = () => {
         closeJoinDialog();
       } else {
         const text = await res.text();
-        throw new Error(text || 'Enrollment failed');
+        let errorMessage = 'Enrollment failed';
+        try {
+          const err = JSON.parse(text);
+          errorMessage = err.error || err.message || text || errorMessage;
+        } catch (e) {
+          errorMessage = text || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
-    }).catch(err => { console.error(err); setJoinEnrollmentStatus("idle"); toast({ title: "Failed to enroll", description: String(err), variant: "destructive" }); });
+    }).catch(err => {
+      console.error(err);
+      setJoinEnrollmentStatus("idle");
+      const errorMsg = err.message || String(err);
+      toast({ title: "Failed to enroll", description: errorMsg, variant: "destructive" });
+    });
   };
 
   const closeJoinDialog = () => {

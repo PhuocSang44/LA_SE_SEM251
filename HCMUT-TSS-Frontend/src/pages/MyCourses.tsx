@@ -161,12 +161,20 @@ const MyCourses = () => {
         closeJoinSessionDialog();
       } else {
         const text = await res.text();
-        throw new Error(text || 'Enrollment failed');
+        let errorMessage = 'Enrollment failed';
+        try {
+          const err = JSON.parse(text);
+          errorMessage = err.error || err.message || text || errorMessage;
+        } catch (e) {
+          errorMessage = text || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
     }).catch(err => {
       console.error(err);
       setJoinSessionStatus("idle");
-      toast({ title: "Failed to enroll", description: String(err), variant: "destructive" });
+      const errorMsg = err.message || String(err);
+      toast({ title: "Failed to enroll", description: errorMsg, variant: "destructive" });
     });
   };
 
