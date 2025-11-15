@@ -39,7 +39,6 @@ const AvailableCourses = () => {
   // Load courses and exclude classes the user already enrolled in
   const loadAvailableCourses = () => {
     const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
-    // First fetch enrolled class IDs
     return fetch(`${apiBase}/course-registrations/me`, { credentials: 'include' })
       .then(res => res.ok ? res.json() : Promise.resolve([]))
       .then((enrolledList: any[]) => {

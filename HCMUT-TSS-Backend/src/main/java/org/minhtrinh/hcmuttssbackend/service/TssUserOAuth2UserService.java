@@ -31,8 +31,6 @@ public class TssUserOAuth2UserService implements OAuth2UserService<OidcUserReque
     @Override
     public OidcUser loadUser(OidcUserRequest userRequest) throws OAuth2AuthenticationException {
 
-        // OidcUser oidcUser = new OidcUserService().loadUser(userRequest); // <-- do not use this line
-
         OidcIdToken idToken = userRequest.getIdToken();
         String userNameAttributeName = userRequest.getClientRegistration().getProviderDetails().getUserInfoEndpoint().getUserNameAttributeName();
 

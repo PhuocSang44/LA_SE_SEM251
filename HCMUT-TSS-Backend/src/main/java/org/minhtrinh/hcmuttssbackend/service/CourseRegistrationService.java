@@ -41,19 +41,17 @@ public class CourseRegistrationService {
         this.datacoreClient = datacoreClient;
     }
 
-    /**
-     * Enhanced enrollment with tutor selection and eligibility checks
-     */
+
     @Transactional
     public CourseRegistration enrollInClass(EnrollmentRequest req, TssUserPrincipal principal) {
         log.info("Processing enrollment request: classId={}, courseCode={}, tutorId={}", 
                 req.classId(), req.courseCode(), req.tutorId());
         
-        // Get authenticated user
+        // Authenticated user
         User user = userRepository.findByEmail(principal.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + principal.getEmail()));
         
-        // Verify user is a student
+        // Verify 
         Student student = studentRepository.findByUserId(user.getUserId())
                 .orElseThrow(() -> new IllegalStateException("Only students can enroll in courses. No student profile found for user: " + user.getEmail()));
         
@@ -68,7 +66,7 @@ public class CourseRegistrationService {
                     .orElseThrow(() -> new IllegalArgumentException(
                             "No class found for course " + req.courseCode() + " with tutor ID " + req.tutorId()));
         } else if (req.courseCode() != null) {
-            // Auto-match tutor: find available classes for the course and pick the one with most available seats
+        // Auto-match tutor: find available classes for the course and pick the one with most available seats ( REMEMBER TO IMPLEMENT THIS!!!!!!!)
             var candidates = classRepository.findByCourse_Code(req.courseCode()).stream()
                     .filter(c -> c.getStatus() != null && c.getStatus().equalsIgnoreCase("ACTIVE"))
                     .toList();
@@ -178,7 +176,7 @@ public class CourseRegistrationService {
         Student student = studentRepository.findById(studentId)
             .orElseThrow(() -> new IllegalArgumentException("Student not found: " + studentId));
 
-        // 1) Check course-level duplicate first (matches DB unique constraint)
+        // Check dup
         Course course = classEntity.getCourse();
         if (course == null) {
             throw new IllegalStateException("Class " + classId + " has no associated course.");
@@ -187,7 +185,7 @@ public class CourseRegistrationService {
         registrationRepository.findByStudent_StudentIdAndCourse_CourseId(student.getStudentId(), course.getCourseId())
             .ifPresent(existing -> { throw new IllegalStateException("Already registered for this COURSE (in class " + existing.getClassEntity().getClassId() + ")"); });
 
-        // 2) Then check exact class
+        // Chheck exact class
         registrationRepository.findByStudent_StudentIdAndClassEntity_ClassId(studentId, classId)
             .ifPresent(existing -> {throw new IllegalStateException("Already registered for this specific CLASS.");});
 
