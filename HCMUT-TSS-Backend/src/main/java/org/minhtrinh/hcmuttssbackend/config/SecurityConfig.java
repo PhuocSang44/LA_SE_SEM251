@@ -11,6 +11,7 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
+import org.springframework.http.HttpMethod;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -42,8 +43,10 @@ public class SecurityConfig {
         http
                 .cors(Customizer.withDefaults()) // <-- Enable CORS
                 .csrf(csrf -> csrf
-                        // This is the absolute bypass for the 403 error on this endpoint.
-                        .ignoringRequestMatchers("/auth/logout")
+                        // Bypass CSRF for auth logout and certain API endpoints used by the frontend during development.
+                        // NOTE: In production, prefer sending CSRF tokens from the FRONTEND !!! 
+                        // Ignore CSRF for all class endpoints (including PATCH/DELETE on /api/classes/{id})
+                        .ignoringRequestMatchers("/auth/logout", "/api/classes/**", "/course-registrations/**")
                 )
                 .authorizeHttpRequests(authorize -> authorize
                         // Allow the /auth/me endpoint (which we will protect)
@@ -55,6 +58,7 @@ public class SecurityConfig {
 
                         .requestMatchers("/auth/me").authenticated()
                         .requestMatchers("/error").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // All other requests must be authenticated
                         .anyRequest().authenticated()
                 )
@@ -98,7 +102,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         // --- UPDATE THIS LINE ---
         configuration.setAllowedOrigins(List.of(frontendUrl));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true); // <-- CRITICAL
 

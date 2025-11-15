@@ -9,5 +9,5 @@ public record ToFEUserDto(
         String middleName,
         String lastName,
         String userType,
-        String departmentName
+        String departmentName// <-?
 ) {}

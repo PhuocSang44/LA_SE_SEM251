@@ -77,7 +77,35 @@ public class DatacoreService {
     public void initData() {
         createDepartment();
         createUser();
+                createPrereqsAndCompletions();
     }
+
+        private final java.util.Map<String, java.util.List<String>> coursePrereqs = new java.util.HashMap<>();
+        private final java.util.Map<String, java.util.List<String>> completedCoursesByEmail = new java.util.HashMap<>();
+
+        private void createPrereqsAndCompletions() {
+                // Hardcoded prerequisites: CSE201 requires CSE101; CSE301 requires CSE201
+                coursePrereqs.put("CSE201", java.util.List.of("CSE101"));
+                coursePrereqs.put("CSE301", java.util.List.of("CSE201"));
+
+                // Hardcoded completed courses for some students
+                completedCoursesByEmail.put("an.nguyen@hcmut.edu.vn", java.util.List.of("CSE101"));
+                completedCoursesByEmail.put("binh.le@hcmut.edu.vn", java.util.List.of());
+                completedCoursesByEmail.put("chi.tran@hcmut.edu.vn", java.util.List.of("CSE101", "CSE201"));
+        }
+
+        public java.util.Map<String, Object> checkPrerequisitesForStudent(String email, String courseCode) {
+                java.util.List<String> reqs = coursePrereqs.getOrDefault(courseCode, java.util.List.of());
+                java.util.List<String> completed = completedCoursesByEmail.getOrDefault(email, java.util.List.of());
+                java.util.List<String> missing = new java.util.ArrayList<>();
+                for (String r : reqs) {
+                        if (!completed.contains(r)) missing.add(r);
+                }
+                java.util.Map<String, Object> resp = new java.util.HashMap<>();
+                resp.put("eligible", missing.isEmpty());
+                resp.put("missing", missing);
+                return resp;
+        }
 
 
     //Getter

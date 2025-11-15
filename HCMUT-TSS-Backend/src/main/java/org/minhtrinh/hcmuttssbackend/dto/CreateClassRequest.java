@@ -1,0 +1,9 @@
+package org.minhtrinh.hcmuttssbackend.dto;
+
+public record CreateClassRequest(
+        String courseCode,
+        String courseName,
+        String courseDescription,
+        String semester,
+        Integer capacity
+) {}

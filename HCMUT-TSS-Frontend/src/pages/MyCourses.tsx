@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar, User, Clock, Plus, CheckCircle2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import {
   Dialog,
@@ -21,6 +22,13 @@ import { toast } from "@/hooks/use-toast";
 const MyCourses = () => {
   const navigate = useNavigate();
   
+  const { user } = useAuth();
+
+  const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
+
+  // Numeric user id for ownership checks: use datacore `officialId` (frontend `User` doesn't expose DB id)
+  const numericUserId = user?.officialId ? Number(user.officialId) : null;
+
   // Join session states
   const [showJoinSessionDialog, setShowJoinSessionDialog] = useState(false);
   const [courseId, setCourseId] = useState("");
@@ -28,88 +36,54 @@ const MyCourses = () => {
   const [joinSessionStatus, setJoinSessionStatus] = useState<"idle" | "waiting" | "confirmed">("idle");
   const [foundCourse, setFoundCourse] = useState<any>(null);
 
-  const courses = [
-    {
-      id: 1,
-      name: "Calculus 1",
-      tutor: "Dr. Nguyen Van A",
-      schedule: "Mon, Wed 9:00 - 10:30",
-      sessions: 8,
-      color: "bg-blue-500",
-      progress: 75
-    },
-    {
-      id: 2,
-      name: "Physics",
-      tutor: "Dr. Tran Thi B",
-      schedule: "Tue, Thu 14:00 - 15:30",
-      sessions: 6,
-      color: "bg-purple-500",
-      progress: 60
-    },
-    {
-      id: 3,
-      name: "Programming Fundamentals",
-      tutor: "Dr. Le Van C",
-      schedule: "Fri 10:00 - 11:30",
-      sessions: 10,
-      color: "bg-green-500",
-      progress: 85
-    },
-    {
-      id: 4,
-      name: "General Chemistry",
-      tutor: "Dr. Pham Thi D",
-      schedule: "Wed, Fri 13:00 - 14:30",
-      sessions: 7,
-      color: "bg-orange-500",
-      progress: 70
-    },
-    {
-      id: 5,
-      name: "Linear Algebra",
-      tutor: "Dr. Hoang Van E",
-      schedule: "", // Empty schedule - hasn't joined a session yet
-      sessions: 8,
-      color: "bg-blue-600",
-      progress: 0
-    }
-  ];
+  const [courses, setCourses] = useState<any[]>([]);
+  const [availableCoursesWithSessions, setAvailableCoursesWithSessions] = useState<any[]>([]);
 
-  // Available courses with sessions
-  const availableCoursesWithSessions = [
-    {
-      id: 1,
-      name: "Linear Algebra",
-      code: "MT1003",
-      category: "Mathematics",
-      sessions: [
-        { id: 1, tutor: "Dr. Hoang Van E", date: "Mon, Nov 4", time: "9:00 - 10:30", topic: "Matrix Operations" },
-        { id: 2, tutor: "Dr. Nguyen Thi M", date: "Wed, Nov 6", time: "14:00 - 15:30", topic: "Determinants" },
-        { id: 3, tutor: "Dr. Hoang Van E", date: "Fri, Nov 8", time: "9:00 - 10:30", topic: "Vector Spaces" }
-      ]
-    },
-    {
-      id: 2,
-      name: "Data Structures",
-      code: "CO2003",
-      category: "Computer Science",
-      sessions: [
-        { id: 4, tutor: "Dr. Nguyen Thi F", date: "Tue, Nov 5", time: "10:00 - 11:30", topic: "Binary Trees" },
-        { id: 5, tutor: "Dr. Pham Van N", date: "Thu, Nov 7", time: "15:00 - 16:30", topic: "Graph Algorithms" }
-      ]
-    },
-    {
-      id: 3,
-      name: "Organic Chemistry",
-      code: "CH1004",
-      category: "Chemistry",
-      sessions: [
-        { id: 6, tutor: "Dr. Tran Van G", date: "Wed, Nov 6", time: "10:00 - 11:30", topic: "Reaction Mechanisms" },
-        { id: 7, tutor: "Dr. Tran Van G", date: "Fri, Nov 8", time: "13:00 - 14:30", topic: "Synthesis" }
-      ]
-    }
-  ];
+  const loadCourses = () => {
+    // Load only enrolled courses for the current student
+    fetch(`${apiBase}/course-registrations/me`, { credentials: 'include' })
+      .then(res => res.ok ? res.json() : Promise.reject(res))
+      .then((data: any[]) => {
+        // data is CourseRegistrationResponse[]
+        // Map registration -> course card model
+        const mapped = data.map(r => ({
+          registrationId: r.registrationId,
+          id: r.classId,
+          name: r.courseName,
+          tutor: r.tutorName || "",
+          tutorId: r.tutorId ?? null,
+          semester: r.semester || "",
+          sessions: 1,
+          color: "bg-blue-500",
+          progress: 0
+        }));
+        setCourses(mapped);
+
+        // available sessions still map from all classes for discovery purposes
+        // we keep the existing availableCoursesWithSessions logic by calling /api/classes
+        fetch(`${apiBase}/api/classes`, { credentials: 'include' })
+          .then(res => res.ok ? res.json() : Promise.reject(res))
+          .then((all: any[]) => {
+            // Remove classes that the user already enrolled in from available sessions
+            const enrolledIds = new Set(mapped.map(m => m.id));
+            const byCourse: Record<string, any> = {};
+            all.forEach(c => {
+              if (enrolledIds.has(c.classId)) return; // skip already-enrolled classes
+              const key = c.courseCode || c.courseName;
+              byCourse[key] = byCourse[key] || { name: c.courseName, code: c.courseCode, category: "", sessions: [] };
+              byCourse[key].sessions.push({ id: c.classId, tutor: c.tutorName, date: c.semester, time: "", topic: c.courseName, tutorId: c.tutorId });
+            });
+            setAvailableCoursesWithSessions(Object.values(byCourse));
+          }).catch(() => setAvailableCoursesWithSessions([]));
+      }).catch(err => {
+        console.error("Failed to load enrolled courses", err);
+        setCourses([]);
+      });
+  };
+
+  useEffect(() => {
+    loadCourses();
+  }, [user]);
 
   const handleJoinSessionClick = () => {
     setShowJoinSessionDialog(true);
@@ -129,22 +103,27 @@ const MyCourses = () => {
       return;
     }
 
-    const course = availableCoursesWithSessions.find(c => c.code.toLowerCase() === courseId.trim().toLowerCase());
-    
-    if (course) {
-      setFoundCourse(course);
-      toast({
-        title: "Course found!",
-        description: `${course.name} (${course.code}) - ${course.sessions.length} sessions available`,
+    const code = courseId.trim();
+    fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:10001"}/api/classes/course/${encodeURIComponent(code)}`, { credentials: 'include' })
+      .then(res => {
+        if (res.ok) return res.json();
+        if (res.status === 404) return Promise.resolve([]);
+        return Promise.reject(res);
+      })
+      .then((list: any[]) => {
+        if (!list || list.length === 0) {
+          toast({ title: "Course not found", description: "No course matches this ID or no sessions available.", variant: "destructive" });
+          setFoundCourse(null);
+          return;
+        }
+        // Convert class list into a pseudo-course with sessions
+        const courseObj = { name: list[0].courseName, code: list[0].courseCode, category: "", sessions: list.map((cl: any) => ({ id: cl.classId, tutor: cl.tutorName, date: cl.semester, time: "", topic: cl.courseName, tutorId: cl.tutorId })) };
+        setFoundCourse(courseObj);
+        toast({ title: "Course found!", description: `${courseObj.name} (${courseObj.code}) - ${courseObj.sessions.length} sessions available` });
+      }).catch(err => {
+        console.error(err);
+        toast({ title: "Error", description: "Failed to fetch course info" , variant: "destructive"});
       });
-    } else {
-      toast({
-        title: "Course not found",
-        description: "No course matches this ID or no sessions available. Please check and try again.",
-        variant: "destructive"
-      });
-      setFoundCourse(null);
-    }
   };
 
   const handleSessionSelect = () => {
@@ -156,17 +135,47 @@ const MyCourses = () => {
       });
       return;
     }
-    
+    // Ensure user is not trying to join their own class (compare numeric IDs)
+    const sessionId = parseInt(selectedSession, 10);
+    const sessionOwnerId = foundCourse?.sessions?.find((s: any) => s.id === sessionId)?.tutorId;
+        if (sessionOwnerId != null && numericUserId != null && sessionOwnerId === numericUserId) {
+      toast({ title: 'Cannot join your own class', description: 'You are the tutor of this class and cannot enroll as a student.', variant: 'destructive' });
+      return;
+    }
+
     setJoinSessionStatus("waiting");
-    
-    // Simulate tutor confirmation after 2-3 seconds
-    setTimeout(() => {
-      setJoinSessionStatus("confirmed");
-      toast({
-        title: "Tutor Confirmed! / Tutor đã xác nhận!",
-        description: "Your tutoring session has been confirmed",
-      });
-    }, 2500);
+
+    // Call backend to enroll in class (selectedSession holds classId)
+    const payload = { classId: parseInt(selectedSession, 10) };
+    fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:10001"}/course-registrations/enroll`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(async res => {
+      if (res.ok) {
+        // Simple success UX: notify and refresh My Courses/available sessions
+        toast({ title: "Enrolled", description: "You have been enrolled successfully" });
+        loadCourses();
+        // close dialog and reset dialog state
+        closeJoinSessionDialog();
+      } else {
+        const text = await res.text();
+        let errorMessage = 'Enrollment failed';
+        try {
+          const err = JSON.parse(text);
+          errorMessage = err.error || err.message || text || errorMessage;
+        } catch (e) {
+          errorMessage = text || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+    }).catch(err => {
+      console.error(err);
+      setJoinSessionStatus("idle");
+      const errorMsg = err.message || String(err);
+      toast({ title: "Failed to enroll", description: errorMsg, variant: "destructive" });
+    });
   };
 
   const closeJoinSessionDialog = () => {
@@ -217,7 +226,7 @@ const MyCourses = () => {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4" />
-                      <span>{course.schedule || <span className="italic">No session joined yet</span>}</span>
+                      <span>{course.semester || <span className="italic">Not specified</span>}</span>
                     </div>
                   </div>
                   
@@ -286,11 +295,13 @@ const MyCourses = () => {
                   <div>
                     <h4 className="text-sm font-medium mb-3">Available Sessions / Các buổi học có sẵn:</h4>
                     <RadioGroup value={selectedSession} onValueChange={setSelectedSession}>
-                      {foundCourse.sessions.map((session: any) => (
-                        <div key={session.id} className="flex items-start space-x-3 space-y-0 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
-                          <RadioGroupItem value={session.id.toString()} id={`session-${session.id}`} />
-                          <Label htmlFor={`session-${session.id}`} className="flex-1 cursor-pointer">
-                            <div className="font-medium">{session.topic}</div>
+                      {foundCourse.sessions.map((session: any) => {
+                        const isOwnClass = numericUserId != null && session.tutorId === numericUserId;
+                        return (
+                        <div key={session.id} className={`flex items-start space-x-3 space-y-0 rounded-lg border p-4 ${isOwnClass ? '' : 'hover:bg-accent/50'} transition-colors`}>
+                          <RadioGroupItem value={session.id.toString()} id={`session-${session.id}`} disabled={isOwnClass} />
+                          <Label htmlFor={`session-${session.id}`} className={`flex-1 cursor-pointer ${isOwnClass ? 'opacity-60' : ''}`}>
+                            <div className="font-medium">{session.topic} {isOwnClass && <span className="text-xs text-muted-foreground">(Your class)</span>}</div>
                             <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
                               <User className="h-3 w-3" />
                               {session.tutor}
@@ -301,7 +312,7 @@ const MyCourses = () => {
                             </div>
                           </Label>
                         </div>
-                      ))}
+                      )})}
                     </RadioGroup>
                   </div>
                   

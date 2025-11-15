@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, BookOpen, CheckCircle2, Clock, Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,9 +16,12 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const AvailableCourses = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const { user } = useAuth();
+  const isStudent = user?.role?.toUpperCase() === 'STUDENT';
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [selectedTutor, setSelectedTutor] = useState("");
   const [enrollmentStatus, setEnrollmentStatus] = useState<"idle" | "waiting" | "confirmed">("idle");
@@ -30,84 +33,55 @@ const AvailableCourses = () => {
   const [joinEnrollmentStatus, setJoinEnrollmentStatus] = useState<"idle" | "waiting" | "confirmed">("idle");
   const [foundCourse, setFoundCourse] = useState<any>(null);
 
-  const availableCourses = [
-    {
-      id: 1,
-      name: "Linear Algebra",
-      code: "MT1003",
-      category: "Mathematics",
-      prerequisites: "Basic Mathematics",
-      description: "Study of vector spaces, linear transformations, matrices, and determinants",
-      color: "bg-blue-500",
-      tutors: [
-        { id: 1, name: "Dr. Hoang Van E", department: "Applied Mathematics", specialization: "Linear Algebra" },
-        { id: 2, name: "Dr. Nguyen Thi M", department: "Pure Mathematics", specialization: "Abstract Algebra" }
-      ]
-    },
-    {
-      id: 2,
-      name: "Data Structures",
-      code: "CO2003",
-      category: "Computer Science",
-      prerequisites: "Programming Fundamentals",
-      description: "Introduction to fundamental data structures and algorithms",
-      color: "bg-green-500",
-      tutors: [
-        { id: 3, name: "Dr. Nguyen Thi F", department: "Computer Science", specialization: "Algorithms" },
-        { id: 4, name: "Dr. Pham Van N", department: "Software Engineering", specialization: "Data Structures" }
-      ]
-    },
-    {
-      id: 3,
-      name: "Organic Chemistry",
-      code: "CH1004",
-      category: "Chemistry",
-      prerequisites: "General Chemistry",
-      description: "Study of carbon compounds, reactions, and mechanisms",
-      color: "bg-orange-500",
-      tutors: [
-        { id: 5, name: "Dr. Tran Van G", department: "Organic Chemistry", specialization: "Reaction Mechanisms" }
-      ]
-    },
-    {
-      id: 4,
-      name: "Electromagnetism",
-      code: "PH1005",
-      category: "Physics",
-      prerequisites: "Physics I",
-      description: "Electric and magnetic fields, Maxwell's equations, electromagnetic waves",
-      color: "bg-purple-500",
-      tutors: [
-        { id: 6, name: "Dr. Le Thi H", department: "Physics", specialization: "Electromagnetism" },
-        { id: 7, name: "Dr. Bui Van O", department: "Applied Physics", specialization: "Field Theory" }
-      ]
-    },
-    {
-      id: 5,
-      name: "Discrete Mathematics",
-      code: "MT1007",
-      category: "Mathematics",
-      prerequisites: "None",
-      description: "Logic, sets, relations, graph theory, and combinatorics",
-      color: "bg-blue-500",
-      tutors: [
-        { id: 8, name: "Dr. Pham Van I", department: "Discrete Mathematics", specialization: "Graph Theory" }
-      ]
-    },
-    {
-      id: 6,
-      name: "Database Systems",
-      code: "CO3001",
-      category: "Computer Science",
-      prerequisites: "Data Structures",
-      description: "Design and implementation of database systems, SQL, and database management",
-      color: "bg-green-500",
-      tutors: [
-        { id: 9, name: "Dr. Vo Thi K", department: "Information Systems", specialization: "Database Design" },
-        { id: 10, name: "Dr. Dang Van P", department: "Computer Science", specialization: "Database Management" }
-      ]
-    }
-  ];
+  const [availableCourses, setAvailableCourses] = useState<any[]>([]);
+  const [enrolledClassIds, setEnrolledClassIds] = useState<Set<number>>(new Set());
+
+  // Load courses and exclude classes the user already enrolled in
+  const loadAvailableCourses = () => {
+    const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
+    return fetch(`${apiBase}/course-registrations/me`, { credentials: 'include' })
+      .then(res => res.ok ? res.json() : Promise.resolve([]))
+      .then((enrolledList: any[]) => {
+        const enrolledIds = new Set(enrolledList.map((r: any) => r.classId));
+        setEnrolledClassIds(enrolledIds);
+        // Then fetch all classes and group, skipping enrolled class ids
+        return fetch(`${apiBase}/api/classes`, { credentials: 'include' })
+          .then(res => res.ok ? res.json() : Promise.reject(res))
+          .then((data: any[]) => {
+            const byCourse: Record<string, any> = {};
+            data.forEach(c => {
+              if (enrolledIds.has(c.classId)) return; // skip classes already enrolled
+              const key = c.courseCode || c.courseName;
+              if (!byCourse[key]) {
+                byCourse[key] = {
+                  id: key,
+                  name: c.courseName,
+                  code: c.courseCode,
+                  category: "",
+                  prerequisites: "",
+                  description: "",
+                  color: "bg-blue-500",
+                  tutors: []
+                };
+              }
+              byCourse[key].tutors.push({ 
+                id: c.classId, 
+                name: c.tutorName, 
+                tutorId: c.tutorId, 
+                capacity: c.capacity, 
+                enrolledCount: c.enrolledCount,
+                specialization: c.tutorSpecialization,
+                department: c.tutorDepartment      
+            });
+            });
+            setAvailableCourses(Object.values(byCourse));
+          });
+      }).catch(err => console.error('Failed to load available courses', err));
+  };
+
+  useEffect(() => {
+    loadAvailableCourses();
+  }, [user]);
 
   const handleEnrollClick = (course: any) => {
     setSelectedCourse(course);
@@ -124,17 +98,42 @@ const AvailableCourses = () => {
       });
       return;
     }
-    
+
     setEnrollmentStatus("waiting");
-    
-    // Simulate tutor confirmation after 2 seconds
-    setTimeout(() => {
-      setEnrollmentStatus("confirmed");
-      toast({
-        title: "Enrollment Confirmed! / Đã xác nhận đăng ký!",
-        description: "Your tutor has confirmed the enrollment",
-      });
-    }, 2000);
+
+    const payload = { classId: parseInt(selectedTutor, 10) };
+    const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
+
+    fetch(`${apiBase}/course-registrations/enroll`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(async res => {
+      if (res.ok) {
+        setEnrollmentStatus("confirmed");
+        toast({ title: "Enrolled", description: "You have been enrolled successfully" });
+        // Refresh lists so the newly enrolled class is excluded
+        loadAvailableCourses();
+        // close dialog after short delay so user sees confirmation
+        setTimeout(() => closeDialog(), 600);
+      } else {
+        const text = await res.text();
+        let errorMessage = 'Enrollment failed';
+        try {
+          const err = JSON.parse(text);
+          errorMessage = err.error || err.message || text || errorMessage;
+        } catch (e) {
+          errorMessage = text || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+    }).catch(err => {
+      console.error(err);
+      setEnrollmentStatus("idle");
+      const errorMsg = err.message || String(err);
+      toast({ title: "Failed to enroll", description: errorMsg, variant: "destructive" });
+    });
   };
 
   const closeDialog = () => {
@@ -161,22 +160,44 @@ const AvailableCourses = () => {
       return;
     }
 
-    const course = availableCourses.find(c => c.code.toLowerCase() === courseId.trim().toLowerCase());
-    
-    if (course) {
-      setFoundCourse(course);
-      toast({
-        title: "Course found!",
-        description: `${course.name} (${course.code})`,
-      });
-    } else {
-      toast({
-        title: "Course not found",
-        description: "No course matches this ID. Please check and try again.",
-        variant: "destructive"
-      });
-      setFoundCourse(null);
-    }
+    const code = courseId.trim();
+    fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:10001"}/api/classes/course/${encodeURIComponent(code)}`, { credentials: 'include' })
+      .then(res => {
+        if (res.ok) return res.json();
+        if (res.status === 404) return Promise.resolve([]);
+        return Promise.reject(res);
+      })
+      .then((list: any[]) => {
+        if (!list || list.length === 0) {
+          toast({ title: "Course not found", description: "No course matches this ID.", variant: "destructive" });
+          setFoundCourse(null);
+          return;
+        }
+
+        const filteredList = list.filter((cl: any) => !enrolledClassIds.has(cl.classId));
+
+        if (filteredList.length === 0) {
+            toast({ title: "Course Found", description: "You are already enrolled in all available classes for this course.", variant: "default" });
+            setFoundCourse(null);
+            return;
+        }
+
+        const courseObj = { 
+            name: filteredList[0].courseName, 
+            code: filteredList[0].courseCode, 
+            category: "", 
+            description: "", 
+            tutors: filteredList.map((cl: any) => ({ 
+                id: cl.classId, 
+                name: cl.tutorName, 
+                tutorId: cl.tutorId,
+                specialization: cl.tutorSpecialization, 
+                department: cl.tutorDepartment       
+            })) 
+        };
+        setFoundCourse(courseObj);
+        toast({ title: "Course found!", description: `${courseObj.name} (${courseObj.code})` });
+      }).catch(err => { console.error(err); toast({ title: "Error", description: "Failed to fetch course info", variant: "destructive" }); });
   };
 
   const handleJoinTutorSelect = () => {
@@ -190,15 +211,36 @@ const AvailableCourses = () => {
     }
     
     setJoinEnrollmentStatus("waiting");
-    
-    // Simulate tutor confirmation after 2 seconds
-    setTimeout(() => {
-      setJoinEnrollmentStatus("confirmed");
-      toast({
-        title: "Enrollment Confirmed! / Đã xác nhận đăng ký!",
-        description: "Your tutor has confirmed the enrollment",
-      });
-    }, 2000);
+    // call backend enroll API using classId stored in joinSelectedTutor
+    const payload = { classId: parseInt(joinSelectedTutor, 10) };
+    fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:10001"}/course-registrations/enroll`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(async res => {
+      if (res.ok) {
+        // Notify success, refresh available courses (exclude newly-enrolled class), and close dialog
+        toast({ title: "Enrolled", description: "You have been enrolled successfully" });
+        loadAvailableCourses();
+        closeJoinDialog();
+      } else {
+        const text = await res.text();
+        let errorMessage = 'Enrollment failed';
+        try {
+          const err = JSON.parse(text);
+          errorMessage = err.error || err.message || text || errorMessage;
+        } catch (e) {
+          errorMessage = text || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+    }).catch(err => {
+      console.error(err);
+      setJoinEnrollmentStatus("idle");
+      const errorMsg = err.message || String(err);
+      toast({ title: "Failed to enroll", description: errorMsg, variant: "destructive" });
+    });
   };
 
   const closeJoinDialog = () => {
@@ -250,7 +292,7 @@ const AvailableCourses = () => {
             {filteredCourses.map((course) => (
               <Card key={course.id} className="rounded-xl shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-start justify-between mb-2">
                     <Badge variant="secondary" className={`${course.color} text-white border-0`}>
                       {course.category}
                     </Badge>
@@ -275,6 +317,18 @@ const AvailableCourses = () => {
                   </div>
 
                   <div className="pt-2 border-t">
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="text-muted-foreground">Seats</span>
+                      <span className="font-semibold text-foreground">
+                        {(() => {
+                          // compute total seats left across tutors; if any tutor has null capacity show "Unlimited"
+                          const tutors = course.tutors || [];
+                          if (tutors.some((t: any) => t.capacity === null || t.capacity === undefined)) return 'Unlimited';
+                          const totalLeft = tutors.reduce((acc: number, t: any) => acc + Math.max(0, (t.capacity || 0) - (t.enrolledCount || 0)), 0);
+                          return `${totalLeft} seats left`;
+                        })()}
+                      </span>
+                    </div>
                     <Button 
                       className="w-full rounded-lg"
                       onClick={() => handleEnrollClick(course)}
@@ -308,9 +362,8 @@ const AvailableCourses = () => {
                           <Label htmlFor={`tutor-${tutor.id}`} className="flex-1 cursor-pointer">
                             <div className="font-medium">{tutor.name}</div>
                             <div className="text-sm text-muted-foreground">{tutor.department}</div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              Specialization: {tutor.specialization}
-                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">Specialization: {tutor.specialization}</div>
+                            <div className="text-xs text-muted-foreground mt-2">Seats left: {tutor.capacity == null ? 'Unlimited' : Math.max(0, (tutor.capacity || 0) - (tutor.enrolledCount || 0))}/{tutor.capacity}</div>
                           </Label>
                         </div>
                       ))}
