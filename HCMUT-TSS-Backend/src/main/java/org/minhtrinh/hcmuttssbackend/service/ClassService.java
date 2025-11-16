@@ -92,7 +92,7 @@ public class ClassService {
         });
 
         // Find tutor by userId
-        UniversityStaff tutor = staffRepository.findByUserId(userId)
+        UniversityStaff tutor = staffRepository.findByUser_UserId(userId)
                 .orElseThrow(() -> new RuntimeException("Tutor not found for userId: " + userId));
 
         // Create new class
@@ -139,7 +139,7 @@ public class ClassService {
         public List<ClassResponse> getClassesByTutor(TssUserPrincipal principal) {
         User user = getUserFromPrincipal(principal);
         Integer userId = user.getUserId();
-        UniversityStaff tutor = staffRepository.findByUserId(userId)
+        UniversityStaff tutor = staffRepository.findByUser_UserId(userId)
             .orElseThrow(() -> new RuntimeException("Tutor not found"));
         return classRepository.findByTutor_StaffId(tutor.getStaffId()).stream()
             .map(this::mapToResponse)
@@ -229,13 +229,13 @@ public class ClassService {
                 ((tutorUser.getFirstName() == null ? "" : tutorUser.getFirstName()) + " " +
                         (tutorUser.getLastName() == null ? "" : tutorUser.getLastName())).trim();
 
-        Long tutorOfficialId = null;
+        String tutorOfficialId = null;
         String tutorSpecialization = null;
         String tutorDepartment = null;
         if (tutor != null) {
-            tutorOfficialId = tutor.getOfficialId();
-            tutorSpecialization = tutor.getSpecialization();
-            tutorDepartment = tutor.getDepartmentName();
+            tutorOfficialId = tutor.getStaffId();
+            //tutorSpecialization = tutor.getSpecialization();
+            tutorDepartment = tutor.getDepartment().getDepartmentName();
         }
 
         // Prepare course fields for response. Prefer class.customName if present.

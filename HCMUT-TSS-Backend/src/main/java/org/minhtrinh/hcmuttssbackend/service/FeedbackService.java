@@ -46,7 +46,7 @@ public class FeedbackService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userEmail));
 
-        Student student = studentRepository.findByUserId(user.getUserId())
+        Student student = studentRepository.findByUser_UserId(user.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("Student profile not found for user: " + userEmail));
 
         List<CourseRegistration> registrations = courseRegistrationRepository.findByStudent_StudentId(student.getStudentId());
@@ -87,7 +87,7 @@ public class FeedbackService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userEmail));
 
-        Student student = studentRepository.findByUserId(user.getUserId())
+        Student student = studentRepository.findByUser_UserId(user.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("Student profile not found for user: " + userEmail));
 
         // Validate course exists
@@ -170,7 +170,7 @@ public class FeedbackService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userEmail));
 
-        Student student = studentRepository.findByUserId(user.getUserId())
+        Student student = studentRepository.findByUser_UserId(user.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("Student profile not found for user: " + userEmail));
 
         List<Feedback> feedbackList = feedbackRepository.findByStudent_StudentId(student.getStudentId());

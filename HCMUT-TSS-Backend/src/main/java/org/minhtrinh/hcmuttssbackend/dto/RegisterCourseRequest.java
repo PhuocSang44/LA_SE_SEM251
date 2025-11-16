@@ -4,6 +4,6 @@ package org.minhtrinh.hcmuttssbackend.dto;
 //when omitted -> backend uses the authenticated user ( Extraa )
 public record RegisterCourseRequest(
         Long classId,
-        Long studentId,
+        String studentId,
         String studentEmail
 ) {}

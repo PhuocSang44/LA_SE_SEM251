@@ -52,7 +52,7 @@ public class CourseRegistrationService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + principal.getEmail()));
         
         // Verify 
-        Student student = studentRepository.findByUserId(user.getUserId())
+        Student student = studentRepository.findByUser_UserId(user.getUserId())
                 .orElseThrow(() -> new IllegalStateException("Only students can enroll in courses. No student profile found for user: " + user.getEmail()));
         
         // Find the class
@@ -171,9 +171,9 @@ public class CourseRegistrationService {
         Class classEntity = classRepository.findById(classId)
             .orElseThrow(() -> new IllegalArgumentException("Cannot found class: " + classId));
 
-        Long studentId = resolveStudentId(req, principal);
+        String studentId = resolveStudentId(req, principal);
 
-        Student student = studentRepository.findById(studentId)
+        Student student = studentRepository.findByStudentId(studentId)
             .orElseThrow(() -> new IllegalArgumentException("Student not found: " + studentId));
 
         // Check dup
@@ -198,16 +198,16 @@ public class CourseRegistrationService {
         return registrationRepository.save(cr);
     }
 
-    private Long resolveStudentId(RegisterCourseRequest req, TssUserPrincipal principal) {
+    private String resolveStudentId(RegisterCourseRequest req, TssUserPrincipal principal) {
         if (req.studentId() != null) {
             // 2nd layer check if student exists
-            Student s = studentRepository.findById(req.studentId()).orElseThrow(() -> new IllegalArgumentException("Student not found: " + req.studentId()));
+            Student s = studentRepository.findByStudentId(req.studentId()).orElseThrow(() -> new IllegalArgumentException("Student not found: " + req.studentId()));
             return s.getStudentId();
         }
 
         String email = req.studentEmail() != null ? req.studentEmail() : principal.getEmail();
         User user = userRepository.findByEmail(email).orElseThrow(() -> new IllegalArgumentException("User not found by email: " + email));
-        Student student = studentRepository.findByUserId(user.getUserId()).orElseThrow(() -> new IllegalStateException("Student profile not found for user: " + email));
+        Student student = studentRepository.findByUser_UserId(user.getUserId()).orElseThrow(() -> new IllegalStateException("Student profile not found for user: " + email));
         return student.getStudentId();
     }
 
@@ -219,7 +219,7 @@ public class CourseRegistrationService {
         // Resolve current user and student profile
         User user = userRepository.findByEmail(principal.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + principal.getEmail()));
-        Student student = studentRepository.findByUserId(user.getUserId())
+        Student student = studentRepository.findByUser_UserId(user.getUserId())
                 .orElseThrow(() -> new IllegalStateException("Student profile not found for user: " + user.getEmail()));
 
         if (!reg.getStudent().getStudentId().equals(student.getStudentId())) {

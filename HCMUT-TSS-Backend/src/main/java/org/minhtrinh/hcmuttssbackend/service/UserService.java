@@ -5,6 +5,7 @@ import jakarta.transaction.Transactional;
 import org.minhtrinh.hcmuttssbackend.TssUserPrincipal;
 import org.minhtrinh.hcmuttssbackend.dto.RecvDatacoreDto;
 import org.minhtrinh.hcmuttssbackend.dto.UpdateStudentRequest;
+import org.minhtrinh.hcmuttssbackend.dto.UpdateStaffRequest;
 import org.minhtrinh.hcmuttssbackend.entity.*;
 import org.minhtrinh.hcmuttssbackend.mapper.FromDatacoreMapper;
 import org.minhtrinh.hcmuttssbackend.mapper.ToFEUserMapper;
@@ -91,7 +92,7 @@ public class UserService {
     }
 
     @Transactional
-    public void updateStaffProfile(Integer userId, UpdateStudentRequest request) {
+    public void updateStaffProfile(Integer userId, UpdateStaffRequest request) {
         UniversityStaff staff = universityStaffRepository.findByUser_UserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Staff profile not found for user: " + userId));
         staff.setDepartment(

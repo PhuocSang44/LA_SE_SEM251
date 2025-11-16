@@ -16,15 +16,19 @@ import lombok.Setter;
 @Builder
 public class Student {
     @Id
-    @Column(name = "student_id")
-    private String studentId;
+    @Column(name = "user_id")
+    private Integer userId;
 
+    @MapsId                           
     @OneToOne
     @JoinColumn(name = "user_id")
     private User user;
 
+    @Column(name = "student_id", unique = true, nullable = false)
+    private String studentId;
+
     @ManyToOne
-    @JoinColumn(name = "department_id")
+    @JoinColumn(name = "department_id", nullable = false)
     private Department department;
 
     @Column(name = "major")

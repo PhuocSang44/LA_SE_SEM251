@@ -9,7 +9,7 @@ import java.util.List;
 @Repository
 public interface FeedbackRepository extends JpaRepository<Feedback, Long> {
 
-    List<Feedback> findByStudent_StudentId(Long studentId);
+    List<Feedback> findByStudent_StudentId(String studentId);
 
     List<Feedback> findByCourse_CourseId(Long courseId);
 
@@ -17,6 +17,6 @@ public interface FeedbackRepository extends JpaRepository<Feedback, Long> {
 
     List<Feedback> findByStatus(String status);
 
-    boolean existsByStudent_StudentIdAndClassEntity_ClassId(Long studentId, Long classId);
+    boolean existsByStudent_StudentIdAndClassEntity_ClassId(String studentId, Long classId);
 }
 

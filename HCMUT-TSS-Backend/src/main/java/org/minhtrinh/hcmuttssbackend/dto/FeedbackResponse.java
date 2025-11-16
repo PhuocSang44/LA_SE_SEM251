@@ -15,7 +15,7 @@ import java.util.List;
 public class FeedbackResponse {
 
     private Long feedbackId;
-    private Long studentId;
+    private String studentId;
     private String studentName;
     private Long courseId;
     private String courseName;
