@@ -30,13 +30,10 @@ public class TssUserPrincipal implements OidcUser, Serializable {
     }
 
     // --- Provide getters for your custom data ---
-    public Integer getOfficialID() {
+    public String getOfficialID() {
         return datacoreUser.officialID();
     }
 
-    public String getDepartmentCode() {
-        return datacoreUser.departmentCode();
-    }
     public String getDepartmentName() {
         return datacoreUser.departmentName();
     }

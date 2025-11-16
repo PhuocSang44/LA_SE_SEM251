@@ -16,8 +16,9 @@ import lombok.Setter;
 @Builder
 public class Department {
     @Id
-    @Column(name = "department_code")
-    private String departmentCode;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "department_id")
+    private Integer departmentId;
 
     @Column(name = "department_name", nullable = false, unique = true, length = 200)
     private String departmentName;

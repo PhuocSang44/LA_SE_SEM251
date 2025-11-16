@@ -1,28 +1,29 @@
 package org.minhtrinh.hcmuttssbackend.service;
 
 
+import jakarta.transaction.Transactional;
 import org.minhtrinh.hcmuttssbackend.TssUserPrincipal;
 import org.minhtrinh.hcmuttssbackend.dto.RecvDatacoreDto;
-import org.minhtrinh.hcmuttssbackend.dto.UpdateStaffRequest;
 import org.minhtrinh.hcmuttssbackend.dto.UpdateStudentRequest;
-import org.minhtrinh.hcmuttssbackend.mapper.FromDatacoreMapper;
-import org.minhtrinh.hcmuttssbackend.mapper.ToFEUserMapper;
 import org.minhtrinh.hcmuttssbackend.entity.*;
 import org.minhtrinh.hcmuttssbackend.mapper.FromDatacoreMapper;
 import org.minhtrinh.hcmuttssbackend.mapper.ToFEUserMapper;
 import org.minhtrinh.hcmuttssbackend.repository.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+
+import java.util.List;
 import java.util.Optional;
-import org.springframework.transaction.annotation.Transactional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 @Service
 public class UserService {
+
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
@@ -51,7 +52,7 @@ public class UserService {
         String email = principal.getEmail();
         if (userRepository.findByEmail(email).isPresent())
             return;
-        
+
         RecvDatacoreDto datacoreUser = datacoreWebClient.get()
                 .uri("/users/by-email/{email}", email)
                 .retrieve()

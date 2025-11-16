@@ -12,7 +12,7 @@ import org.minhtrinh.hcmutdatacoremimic.Model.UniversityStaff;
 
 @Mapper(componentModel = "spring")
 public interface ToTssUserMapper {
-
+    
     @Mapping(source = "hostDepartment.departmentName", target = "departmentName")
     ToTssUserDto toTssUserDtoMapper(CustomUser customUser);
 
