@@ -1,10 +1,10 @@
 package org.minhtrinh.hcmuttssbackend.repository;
 
-import org.minhtrinh.hcmuttssbackend.entity.Class;
-import org.springframework.data.jpa.repository.JpaRepository;
-
 import java.util.List;
 import java.util.Optional;
+
+import org.minhtrinh.hcmuttssbackend.entity.Class;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ClassRepository extends JpaRepository<Class, Long> {
     List<Class> findByCourse_CourseId(Long courseId);
