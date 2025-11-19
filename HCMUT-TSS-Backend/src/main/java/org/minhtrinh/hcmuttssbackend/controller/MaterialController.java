@@ -28,9 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class MaterialController {
 
     private final MaterialService materialService;
-
-    // TODO enforce role-based checks for tutors/students once security roles are wired
-
+    
     @GetMapping("/library/search")
     public List<LibraryItemResponse> searchLibrary(@RequestParam(value = "query", required = false) String query,
                                                    @RequestParam(value = "courseCode", required = false) String courseCode) {
