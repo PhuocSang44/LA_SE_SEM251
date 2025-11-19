@@ -17,24 +17,24 @@ import lombok.Setter;
 public class User{
 
     @Id
+    @Column(name = "user_id")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "userID")
     private Integer userId;
 
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
-    @Column(name = "firstName", nullable = false, length = 100)
+    @Column(name = "first_name", nullable = false, length = 100)
     private String firstName;
 
-    @Column(name = "middleName", length = 100)
+    @Column(name = "middle_name", length = 100)
     private String middleName;
 
-    @Column(name = "lastName", nullable = false, length = 100)
+    @Column(name = "last_name", nullable = false, length = 100)
     private String lastName;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "userType", nullable = false)
+    @Column(name = "user_type", nullable = false)
     private UserType userType;
 
 }

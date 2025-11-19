@@ -8,7 +8,7 @@ public record EnrollmentResponse(
         String courseCode,
         String courseName,
         String semester,
-        Long tutorId,
+        String tutorId,
         String tutorName,
         String status,
         Instant enrolledAt

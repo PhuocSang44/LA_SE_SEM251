@@ -6,7 +6,7 @@ public record ClassResponse(
         String courseName,
         String semester,
         String tutorName,
-        Long tutorId,
+        String tutorId,
         String tutorDepartment,
         String tutorSpecialization,
         String status,

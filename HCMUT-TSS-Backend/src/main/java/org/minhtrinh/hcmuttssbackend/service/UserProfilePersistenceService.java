@@ -4,6 +4,7 @@ package org.minhtrinh.hcmuttssbackend.service;
 import org.minhtrinh.hcmuttssbackend.TssUserPrincipal;
 import org.minhtrinh.hcmuttssbackend.dto.RecvDatacoreDto;
 import org.minhtrinh.hcmuttssbackend.entity.*;
+import org.minhtrinh.hcmuttssbackend.repository.DepartmentRepository;
 import org.minhtrinh.hcmuttssbackend.repository.StudentRepository;
 import org.minhtrinh.hcmuttssbackend.repository.UniversityStaffRepository;
 import org.minhtrinh.hcmuttssbackend.repository.UserRepository;
@@ -19,12 +20,18 @@ public class UserProfilePersistenceService {
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
     private final UniversityStaffRepository staffRepository;
+    private final DepartmentRepository departmentRepository;
 
-    public UserProfilePersistenceService(WebClient datacoreWebClient, UserRepository userRepository, StudentRepository studentRepository,                                     UniversityStaffRepository staffRepository) {
+    public UserProfilePersistenceService(WebClient datacoreWebClient,
+                                         UserRepository userRepository,
+                                         StudentRepository studentRepository,
+                                         UniversityStaffRepository staffRepository,
+                                         DepartmentRepository departmentRepository) {
         this.datacoreWebClient = datacoreWebClient;
         this.userRepository = userRepository;  
         this.studentRepository = studentRepository;
         this.staffRepository = staffRepository;
+        this.departmentRepository = departmentRepository;
     }
 
     @Transactional
@@ -43,30 +50,36 @@ public class UserProfilePersistenceService {
 
         // Persist into Student or UniversityStaff table based on resolved userType
         UserType userType = user.getUserType();
-        // Ensure departmentName is non-null because DB columns are not nullable
-        String deptName = dto.departmentName() == null ? "" : dto.departmentName();
+
+        Department department = departmentRepository
+                .findByDepartmentName(dto.departmentName())
+                .orElseGet(() -> departmentRepository.save(
+                        Department.builder()
+                                .departmentName(dto.departmentName())
+                                .build()
+                ));
 
         if (userType == UserType.STUDENT) {
-            studentRepository.findByUserId(user.getUserId()).or(() -> studentRepository.findByOfficialId(Long.valueOf(dto.officialID())))
-            .orElseGet(() -> studentRepository.save(
-                            Student.builder().userId(user.getUserId())
-                                    .officialId(Long.valueOf(dto.officialID()))
-                                    .departmentName(deptName)
-                                    .program(null)
-                                    .academicLevel(null)
+            studentRepository.findByUser_UserId(user.getUserId())
+                    .orElseGet(() -> studentRepository.save(
+                            Student.builder()
+                                    .user(user)
+                                    .studentId(dto.officialID())
+                                    .department(department)
+                                    .major(dto.major())
+                                    .academicLevel(dto.academicLevel())
                                     .build()
-            ));
+                    ));
         } else {
             // TUTOR/ADMIN are staff sub-types
-            staffRepository.findByUserId(user.getUserId()).or(() -> staffRepository.findByOfficialId(Long.valueOf(dto.officialID())))
-            .orElseGet(() -> staffRepository.save(
+            staffRepository.findByUser_UserId(user.getUserId())
+                    .orElseGet(() -> staffRepository.save(
                             UniversityStaff.builder()
-                                    .userId(user.getUserId())
-                                    .officialId(Long.valueOf(dto.officialID()))
-                                    .positionTitle(null)
-                                    .departmentName(deptName)
+                                    .user(user)
+                                    .staffId(dto.officialID())
+                                    .department(department)
                                     .build()
-            ));
+                    ));
         }
     }
 }

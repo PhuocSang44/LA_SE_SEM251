@@ -1,109 +1,116 @@
 package org.minhtrinh.hcmuttssbackend.service;
 
 
+import jakarta.transaction.Transactional;
 import org.minhtrinh.hcmuttssbackend.TssUserPrincipal;
 import org.minhtrinh.hcmuttssbackend.dto.RecvDatacoreDto;
-import org.minhtrinh.hcmuttssbackend.entity.User;
-import org.minhtrinh.hcmuttssbackend.dto.UpdateStaffRequest;
 import org.minhtrinh.hcmuttssbackend.dto.UpdateStudentRequest;
-import org.minhtrinh.hcmuttssbackend.entity.Student;
-import org.minhtrinh.hcmuttssbackend.entity.UniversityStaff;
+import org.minhtrinh.hcmuttssbackend.dto.UpdateStaffRequest;
+import org.minhtrinh.hcmuttssbackend.entity.*;
 import org.minhtrinh.hcmuttssbackend.mapper.FromDatacoreMapper;
 import org.minhtrinh.hcmuttssbackend.mapper.ToFEUserMapper;
-import org.minhtrinh.hcmuttssbackend.repository.UserRepository;
-import org.minhtrinh.hcmuttssbackend.repository.StudentRepository;
-import org.minhtrinh.hcmuttssbackend.repository.UniversityStaffRepository;
+import org.minhtrinh.hcmuttssbackend.repository.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+
+import java.util.List;
 import java.util.Optional;
-import org.springframework.transaction.annotation.Transactional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 @Service
 public class UserService {
 
-    private final UserRepository userRepository;
-    private final WebClient datacoreWebClient;
-    private final FromDatacoreMapper fromDatacoreMapper;
-    // --- THÊM REPOSITORIES ---
-    private final StudentRepository studentRepository;
-    private final UniversityStaffRepository staffRepository;
-    // --- HẾT THÊM ---
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
+    private final UserRepository userRepository;
+    private final StudentRepository studentRepository;
+    private final UniversityStaffRepository universityStaffRepository;
+    private final DepartmentRepository departmentRepository;
+    private final WebClient datacoreWebClient;
+    private final FromDatacoreMapper fromDatacoreMapper;
+    
     public UserService(UserRepository userRepository,
+                        StudentRepository studentRepository,
+                       UniversityStaffRepository universityStaffRepository,
+                        DepartmentRepository departmentRepository,
                        WebClient datacoreWebClient,
-                       FromDatacoreMapper fromDatacoreMapper,
-                       // --- THÊM VÀO CONSTRUCTOR ---
-                       StudentRepository studentRepository,
-                       UniversityStaffRepository staffRepository) {
+                       FromDatacoreMapper fromDatacoreMapper
+                       ) {
         this.userRepository = userRepository;
+        this.studentRepository = studentRepository;
+        this.universityStaffRepository = universityStaffRepository;
+        this.departmentRepository = departmentRepository;
         this.datacoreWebClient = datacoreWebClient;
         this.fromDatacoreMapper = fromDatacoreMapper;
-        // --- THÊM VÀO CONSTRUCTOR ---
-        this.studentRepository = studentRepository;
-        this.staffRepository = staffRepository;
     }
 
     @Transactional
     public void getAndStoreUserFromDatacore(@AuthenticationPrincipal TssUserPrincipal principal){
+        String email = principal.getEmail();
+        if (userRepository.findByEmail(email).isPresent())
+            return;
 
         RecvDatacoreDto datacoreUser = datacoreWebClient.get()
-                .uri("/users/by-email/{email}", principal.getEmail())
+                .uri("/users/by-email/{email}", email)
                 .retrieve()
                 .bodyToMono(RecvDatacoreDto.class).block();
-
-        if (datacoreUser == null) {
-            log.warn("Datacore returned no user for email={}", principal.getEmail());
-            return;
-        }
-
-        User incoming = fromDatacoreMapper.toUser(datacoreUser);
-
-        // Upsert: if user exists by email, update fields; otherwise insert
-        Optional<User> existingOpt = userRepository.findByEmail(incoming.getEmail());
-        if (existingOpt.isPresent()) {
-            User existing = existingOpt.get();
-            // Update commonly synced fields
-            existing.setFirstName(incoming.getFirstName());
-            existing.setLastName(incoming.getLastName());
-            existing.setMiddleName(incoming.getMiddleName());
-            existing.setEmail(incoming.getEmail());
-            existing.setUserType(incoming.getUserType());
-            userRepository.save(existing);
-            log.debug("Updated existing user {} from datacore", existing.getEmail());
-        } else {
-            userRepository.save(incoming);
-            log.debug("Inserted new user {} from datacore", incoming.getEmail());
-        }
+        //Debugging
+        System.out.println("Datacore user fetched: " + datacoreUser);
+        if (datacoreUser == null)
+            throw new RuntimeException("User not found in Datacore");
+        User user = fromDatacoreMapper.toUser(datacoreUser);
+        userRepository.save(user);
+        Department department = departmentRepository
+            .findByDepartmentName(datacoreUser.departmentName())
+            .orElseGet(() -> departmentRepository.save(
+                Department.builder()
+                    .departmentName(datacoreUser.departmentName())
+                    .build()
+            )); 
+        if (user.getUserType() == UserType.STUDENT) createStudent(datacoreUser, user, department);
+        else createStaff(datacoreUser, user, department);
     }
 
+    private void createStudent(RecvDatacoreDto dto, User user, Department department){
+        Student student = fromDatacoreMapper.toStudent(dto);
+        student.setUser(user);
+        student.setDepartment(department);
+        studentRepository.save(student);
+    }
+    private void createStaff(RecvDatacoreDto dto, User user, Department department){
+        UniversityStaff staff = fromDatacoreMapper.toUniversityStaff(dto);
+        staff.setUser(user);
+        staff.setDepartment(department);
+        universityStaffRepository.save(staff);
+    }
     public Optional<User> getUserFromDatabase(@AuthenticationPrincipal TssUserPrincipal principal){
         return userRepository.findByEmail(principal.getEmail());
     }
 
-    // --- STAFF ---
     @Transactional
     public void updateStaffProfile(Integer userId, UpdateStaffRequest request) {
-        UniversityStaff staff = staffRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Staff profile not found for user: " + userId));
-        staff.setDepartmentName(request.getDepartmentName());
-        staff.setPositionTitle(request.getPositionTitle());
-        staff.setSpecialization(request.getSpecialization());
+        UniversityStaff staff = universityStaffRepository.findByUser_UserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Staff profile not found for user: " + userId));
+        staff.setDepartment(
+                departmentRepository.findByDepartmentName(request.getDepartmentName())
+                        .orElseThrow(() -> new IllegalArgumentException("Department not found: " + request.getDepartmentName()))
+        );
 
-        staffRepository.save(staff);
+        universityStaffRepository.save(staff);
     }
-
-    // --- STUDENT ---
     @Transactional
     public void updateStudentProfile(Integer userId, UpdateStudentRequest request) {
-        Student student = studentRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Student profile not found for user: " + userId));
-        student.setDepartmentName(request.getDepartmentName());
-        student.setProgram(request.getProgram());
+        Student student = studentRepository.findByUser_UserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Student profile not found for user: " + userId));
+        student.setDepartment(
+                departmentRepository.findByDepartmentName(request.getDepartmentName())
+                        .orElseThrow(() -> new IllegalArgumentException("Department not found: " + request.getDepartmentName()))
+        );
+        student.setMajor(request.getMajor());
         student.setAcademicLevel(request.getAcademicLevel());
 
         studentRepository.save(student);

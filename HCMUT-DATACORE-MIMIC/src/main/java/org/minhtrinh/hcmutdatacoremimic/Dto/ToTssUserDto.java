@@ -13,5 +13,7 @@ public class ToTssUserDto {
     String middleName;
     String lastName;
     String userType;
+    String major;
+    String academicLevel;
     String departmentName;
 }
