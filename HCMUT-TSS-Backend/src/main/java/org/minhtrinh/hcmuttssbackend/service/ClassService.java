@@ -1,5 +1,6 @@
 package org.minhtrinh.hcmuttssbackend.service;
 
+import jakarta.persistence.EntityManager;
 import org.minhtrinh.hcmuttssbackend.TssUserPrincipal;
 import org.minhtrinh.hcmuttssbackend.dto.ClassResponse;
 import org.minhtrinh.hcmuttssbackend.dto.CreateClassRequest;
@@ -35,17 +36,20 @@ public class ClassService {
     private final UniversityStaffRepository staffRepository;
     private final UserRepository userRepository;
     private final UserProfilePersistenceService userProfilePersistenceService;
+    private final EntityManager entityManager;
 
     public ClassService(ClassRepository classRepository,
                         CourseRepository courseRepository,
                         UniversityStaffRepository staffRepository,
                         UserRepository userRepository,
-                        UserProfilePersistenceService userProfilePersistenceService) {
+                        UserProfilePersistenceService userProfilePersistenceService,
+                        EntityManager entityManager) {
         this.classRepository = classRepository;
         this.courseRepository = courseRepository;
         this.staffRepository = staffRepository;
         this.userRepository = userRepository;
         this.userProfilePersistenceService = userProfilePersistenceService;
+        this.entityManager = entityManager;
     }
 
     // Helper: ensure subprofile exists and return User entity
@@ -72,28 +76,33 @@ public class ClassService {
 
         log.info("Creating class. Code: {}, Name: {}", request.courseCode(), request.courseName());
 
+        // Find tutor first to get department for Course creation if needed
+        UniversityStaff tutor = staffRepository.findByUser_UserId(userId)
+                .orElseThrow(() -> new RuntimeException("Tutor not found for userId: " + userId));
+
         // --- Ensure Course exists (create-if-missing) ---
         String code = request.courseCode();
         Optional<Course> existing = courseRepository.findByCode(code);
         Course course = existing.orElseGet(() -> {
             log.info("Course code {} not found. Creating new Course.", code);
+            
             Course newCourse = Course.builder()
                     .code(request.courseCode())
                     .name(request.courseName())
                     .description(request.courseDescription())
+                    .department(tutor.getDepartment())
+                    .departmentName(tutor.getDepartment().getDepartmentName())
                     .build();
             try {
                 return courseRepository.save(newCourse);
             } catch (DataIntegrityViolationException ex) {
                 log.warn("Race condition on creating course {}, fetching again.", code);
+                // Clear the session to avoid Hibernate AssertionFailure
+                entityManager.clear();
                 return courseRepository.findByCode(code)
                         .orElseThrow(() -> new RuntimeException("Failed to create or find course: " + code, ex));
             }
         });
-
-        // Find tutor by userId
-        UniversityStaff tutor = staffRepository.findByUser_UserId(userId)
-                .orElseThrow(() -> new RuntimeException("Tutor not found for userId: " + userId));
 
         // Create new class
         Class newClass = Class.builder()
