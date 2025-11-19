@@ -11,7 +11,7 @@ import org.minhtrinh.hcmuttssbackend.entity.Session;
 import org.minhtrinh.hcmuttssbackend.entity.SessionEnrollment;
 import org.minhtrinh.hcmuttssbackend.entity.User;
 import org.minhtrinh.hcmuttssbackend.repository.ClassRepository;
-import org.minhtrinh.hcmuttssbackend.repository.SessionRepository;
+import org.minhtrinh.hcmuttssbackend.repository.jpaSessionRepository;
 import org.minhtrinh.hcmuttssbackend.repository.UniversityStaffRepository;
 import org.minhtrinh.hcmuttssbackend.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Objects;
 @Service
 public class SessionService {
-    private final SessionRepository sessionRepository;
+    private final jpaSessionRepository sessionRepository;
     private final ClassRepository classRepository;
     private final UniversityStaffRepository staffRepository;
     private final UserProfilePersistenceService userProfilePersistenceService;
@@ -33,7 +33,7 @@ public class SessionService {
     private final StudentRepository studentRepository;
     private final SessionRegistrationRepository sessionRegistrationRepository;
 
-    public SessionService(SessionRepository sessionRepository, ClassRepository classRepository,
+    public SessionService(jpaSessionRepository sessionRepository, ClassRepository classRepository,
                           UniversityStaffRepository staffRepository,
                           UserProfilePersistenceService userProfilePersistenceService, 
                           UserRepository userRepository, 

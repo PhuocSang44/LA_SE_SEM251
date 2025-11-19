@@ -10,7 +10,7 @@ import org.minhtrinh.hcmuttssbackend.entity.SessionEnrollment;
 import org.minhtrinh.hcmuttssbackend.entity.Student;
 import org.minhtrinh.hcmuttssbackend.entity.User;
 import org.minhtrinh.hcmuttssbackend.repository.SessionRegistrationRepository;
-import org.minhtrinh.hcmuttssbackend.repository.SessionRepository;
+import org.minhtrinh.hcmuttssbackend.repository.jpaSessionRepository;
 import org.minhtrinh.hcmuttssbackend.repository.StudentRepository;
 import org.minhtrinh.hcmuttssbackend.repository.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -22,12 +22,12 @@ import jakarta.transaction.Transactional;
 
 @Service
 public class SessionRegistrationService {
-    private final SessionRepository sessionRepository;
+    private final jpaSessionRepository sessionRepository;
     private final SessionRegistrationRepository sessionRegistrationRepository;
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
 
-    public SessionRegistrationService(SessionRepository sessionRepository,
+    public SessionRegistrationService(jpaSessionRepository sessionRepository,
                                SessionRegistrationRepository sessionRegistrationRepository,
                                UserRepository userRepository,
                                StudentRepository studentRepository) {
