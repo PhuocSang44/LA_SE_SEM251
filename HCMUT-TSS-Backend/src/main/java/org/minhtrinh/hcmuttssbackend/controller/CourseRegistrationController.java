@@ -93,11 +93,14 @@ public class CourseRegistrationController {
         String tutorName = userRepository.findById(tutor.getUserId())
                 .map(u -> buildFullName(u))
                 .orElse(null);
+        String responseCourseName = (clazz.getCustomName() != null && !clazz.getCustomName().isBlank())
+            ? clazz.getCustomName()
+            : course.getName();
         return new CourseRegistrationResponse(
                 cr.getRegistrationId(),
                 clazz.getClassId(),
                 course.getCode(),
-                course.getName(),
+                responseCourseName,
                 clazz.getSemester(),
                 tutor.getStaffId(),
                 tutorName,
@@ -114,11 +117,14 @@ public class CourseRegistrationController {
         String tutorName = userRepository.findById(tutor.getUserId())
                 .map(u -> buildFullName(u))
                 .orElse(null);
+        String responseCourseName2 = (clazz.getCustomName() != null && !clazz.getCustomName().isBlank())
+            ? clazz.getCustomName()
+            : course.getName();
         return new EnrollmentResponse(
                 cr.getRegistrationId(),
                 clazz.getClassId(),
                 course.getCode(),
-                course.getName(),
+                responseCourseName2,
                 clazz.getSemester(),
                 tutor.getStaffId(),
                 tutorName,
