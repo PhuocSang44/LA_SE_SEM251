@@ -59,14 +59,16 @@ public class Session {
     private String sessionType; // e.g., LECTURE, LAB, TUTORIAL
 
     @Column(name = "max_students")
-    private Integer maxStudents; // optional per-session capacity
+    @Builder.Default
+    private Integer maxStudents = 30; // optional per-session capacity, defaults to 30
 
     @Column(name = "current_students")
     @Builder.Default
     private Integer currentStudents = 0; // tracked attendance for this specific session
 
     @Column(name = "status", length = 20)
-    private String status; // ACTIVE, CANCELLED, COMPLETED
+    @Builder.Default
+    private String status = "SCHEDULED"; // SCHEDULED (default), ACTIVE, CANCELLED, COMPLETED
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

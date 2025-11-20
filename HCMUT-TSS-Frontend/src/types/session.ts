@@ -1,7 +1,7 @@
 export interface Session {
   id: number;
   classId: number; // parent class
-  topic: string;
+  title: string;
   startTime: string; // ISO string
   endTime: string;   // ISO string
   tutorId: number;
@@ -11,13 +11,17 @@ export interface Session {
 
 export interface CreateSessionPayload {
   classId: number;
-  topic: string;
+  title: string;
   startTime: string; // ISO
   endTime: string;   // ISO
+  location?: string;
+  sessionType?: string;
+  capacity?: number;
+  description?: string;
 }
 
 export interface UpdateSessionPayload {
-  topic?: string;
+  title?: string;
   startTime?: string;
   endTime?: string;
   status?: 'scheduled' | 'cancelled' | 'completed';

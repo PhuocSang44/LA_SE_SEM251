@@ -97,7 +97,7 @@ public class SessionService {
         String endTime = request.endTime();
         String location = request.location();
         String sessionType = request.sessionType();
-        Integer capacity = request.capacity();
+        Integer capacity = request.capacity(); // Will use entity default (30) if null
         String description = request.description();
         String title = request.title();
 
@@ -107,17 +107,22 @@ public class SessionService {
         java.time.LocalDateTime parsedEndTime = java.time.OffsetDateTime.parse(endTime)
                 .toLocalDateTime();
 
-        Session newSession = Session.builder()
+        Session.SessionBuilder sessionBuilder = Session.builder()
                 .clazz(existingClass.get())
                 .title(title)
                 .startTime(parsedStartTime)
                 .endTime(parsedEndTime)
                 .location(location)
                 .sessionType(sessionType)
-                .maxStudents(capacity)
                 .description(description)
-                .createdAt(java.time.LocalDateTime.now())
-                .build();
+                .createdAt(java.time.LocalDateTime.now());
+        
+        // Only set maxStudents if provided, otherwise use entity default (30)
+        if (capacity != null) {
+            sessionBuilder.maxStudents(capacity);
+        }
+        
+        Session newSession = sessionBuilder.build(); // status defaults to "SCHEDULED" via @Builder.Default
 
         sessionRepository.save(newSession);
     }

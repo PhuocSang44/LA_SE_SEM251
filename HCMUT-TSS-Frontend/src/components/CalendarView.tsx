@@ -18,9 +18,13 @@ const CalendarView = () => {
   const [showScheduler, setShowScheduler] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedClassId, setSelectedClassId] = useState<string>("");
-  const [topic, setTopic] = useState("");
+  const [title, setTitle] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [sessionLocation, setSessionLocation] = useState("");
+  const [sessionType, setSessionType] = useState("");
+  const [capacity, setCapacity] = useState("");
+  const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
@@ -173,9 +177,9 @@ const CalendarView = () => {
                     <div
                       key={session.id}
                       className={`bg-blue-600 text-white text-xs p-1 rounded truncate`}
-                      title={`${session.topic} - ${range}`}
+                      title={`${session.title} - ${range}`}
                     >
-                      <div className="font-medium">{session.topic}</div>
+                      <div className="font-medium">{session.title}</div>
                       <div className="flex items-center gap-1 opacity-90">
                         <Clock className="h-2.5 w-2.5" />
                         <span>{range.split(' ').slice(-2)[0]}</span>
@@ -200,9 +204,13 @@ const CalendarView = () => {
       <Dialog open={showScheduler} onOpenChange={(open) => {
         setShowScheduler(open);
         if (!open) {
-          setTopic("");
+          setTitle("");
           setStartTime("");
           setEndTime("");
+          setSessionLocation("");
+          setSessionType("");
+          setCapacity("");
+          setDescription("");
           setSelectedClassId("");
         }
       }}>
@@ -229,7 +237,7 @@ const CalendarView = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="calendar-topic">Topic</Label>
-              <Input id="calendar-topic" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="E.g: Chapter 3 Review" />
+              <Input id="calendar-topic" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="E.g: Chapter 3 Review" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -241,8 +249,36 @@ const CalendarView = () => {
                 <Input type="time" id="calendar-end" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
               </div>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="calendar-location">Location (optional)</Label>
+              <Input id="calendar-location" value={sessionLocation} onChange={(e) => setSessionLocation(e.target.value)} placeholder="e.g. Room 101 or Zoom link" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="calendar-sessionType">Session Type (optional)</Label>
+                <Select value={sessionType} onValueChange={setSessionType}>
+                  <SelectTrigger id="calendar-sessionType">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="LECTURE">Lecture</SelectItem>
+                    <SelectItem value="LAB">Lab</SelectItem>
+                    <SelectItem value="TUTORIAL">Tutorial</SelectItem>
+                    <SelectItem value="DISCUSSION">Discussion</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="calendar-capacity">Capacity (optional, default: 30)</Label>
+                <Input type="number" id="calendar-capacity" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="30" min="1" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="calendar-description">Description (optional)</Label>
+              <Input id="calendar-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Additional notes or requirements" />
+            </div>
             <Button disabled={submitting || !ownedClasses.length} onClick={async () => {
-              if (!selectedDate || !selectedClassId || !topic || !startTime || !endTime) {
+              if (!selectedDate || !selectedClassId || !title || !startTime || !endTime) {
                 toast({ title: 'Missing information', description: 'Please fill in class, topic, start/end time', variant: 'destructive' });
                 return;
               }
@@ -253,9 +289,18 @@ const CalendarView = () => {
                 return;
               }
               setSubmitting(true);
-              const created = await createSession({ classId: Number(selectedClassId), topic, startTime: startIso, endTime: endIso });
+              const created = await createSession({ 
+                classId: Number(selectedClassId), 
+                title, 
+                startTime: startIso, 
+                endTime: endIso,
+                location: sessionLocation || undefined,
+                sessionType: sessionType || undefined,
+                capacity: capacity ? parseInt(capacity) : undefined,
+                description: description || undefined,
+              });
               if (created) {
-                toast({ title: 'Session created', description: `${topic} • ${selectedDate}` });
+                toast({ title: 'Session created', description: `${title} • ${selectedDate}` });
                 await refreshSessions();
                 setShowScheduler(false);
               } else {

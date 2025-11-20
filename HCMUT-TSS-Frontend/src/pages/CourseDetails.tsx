@@ -39,7 +39,7 @@ const CourseDetails = () => {
   const isStudent = user?.role?.toLowerCase?.() === 'student';
 
   // Compute owner status from the (possibly updated) `course` object
-  const courseTutorIdNum = course?.tutorId ?? null;
+  const courseTutorIdNum = course?.tutorId != null ? Number(course.tutorId) : null;
   const isOwner = courseTutorIdNum != null && userOfficialIdNum != null && courseTutorIdNum === userOfficialIdNum;
   // --- DEBUG LOGS: inspect owner check values each render ---
   console.log("--- DEBUG COURSE DETAILS RENDER ---");

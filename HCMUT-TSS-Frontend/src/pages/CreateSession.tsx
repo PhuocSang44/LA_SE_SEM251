@@ -31,19 +31,27 @@ const CreateSession = () => {
   const course = location.state?.course || null;
   const presetDate: string | undefined = location.state?.presetDate;
 
-  const [topic, setTopic] = useState("");
+  const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [sessionLocation, setSessionLocation] = useState("");
+  const [sessionType, setSessionType] = useState("");
+  const [capacity, setCapacity] = useState("");
+  const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [classOptions, setClassOptions] = useState<any[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<number | null>(course?.id ?? null);
   const [loadingClasses, setLoadingClasses] = useState(false);
   const resetForm = () => {
-    setTopic("");
+    setTitle("");
     setDate(presetDate || "");
     setStartTime("");
     setEndTime("");
+    setSessionLocation("");
+    setSessionType("");
+    setCapacity("");
+    setDescription("");
     if (!course) {
       setSelectedClassId(null);
     }
@@ -81,7 +89,7 @@ const CreateSession = () => {
       toast({ title: "Missing class", description: "Please select a class before creating a session", variant: "destructive" });
       return;
     }
-    if (!topic || !date || !startTime || !endTime) {
+    if (!title || !date || !startTime || !endTime) {
       toast({ title: "Missing fields", description: "Please fill topic, date, start/end time", variant: "destructive" });
       return;
     }
@@ -94,13 +102,17 @@ const CreateSession = () => {
     setSubmitting(true);
     const payload: CreateSessionPayload = {
       classId,
-      topic,
+      title,
       startTime: startIso,
-      endTime: endIso
+      endTime: endIso,
+      location: sessionLocation || undefined,
+      sessionType: sessionType || undefined,
+      capacity: capacity ? parseInt(capacity) : undefined,
+      description: description || undefined,
     };
     const created = await createSession(payload);
     if (created) {
-      toast({ title: "Session created", description: `${topic} on ${date}` });
+      toast({ title: "Session created", description: `${title} on ${date}` });
       if (course) {
         navigate('/course-details', { state: { course } });
       } else {
@@ -151,7 +163,7 @@ const CreateSession = () => {
                 </div>
                 <div>
                   <Label htmlFor="topic">Topic</Label>
-                  <Input id="topic" value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. Chapter 3 Review" />
+                  <Input id="topic" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Chapter 3 Review" />
                 </div>
                 <div>
                   <Label htmlFor="date">Date</Label>
@@ -167,9 +179,37 @@ const CreateSession = () => {
                     <Input type="time" id="endTime" value={endTime} onChange={e => setEndTime(e.target.value)} />
                   </div>
                 </div>
+                <div>
+                  <Label htmlFor="location">Location (optional)</Label>
+                  <Input id="location" value={sessionLocation} onChange={e => setSessionLocation(e.target.value)} placeholder="e.g. Room 101 or Zoom link" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="sessionType">Session Type (optional)</Label>
+                    <Select value={sessionType} onValueChange={setSessionType}>
+                      <SelectTrigger id="sessionType">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="LECTURE">Lecture</SelectItem>
+                        <SelectItem value="LAB">Lab</SelectItem>
+                        <SelectItem value="TUTORIAL">Tutorial</SelectItem>
+                        <SelectItem value="DISCUSSION">Discussion</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="capacity">Capacity (optional, default: 30)</Label>
+                    <Input type="number" id="capacity" value={capacity} onChange={e => setCapacity(e.target.value)} placeholder="30" min="1" />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="description">Description (optional)</Label>
+                  <Input id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="Additional notes or requirements" />
+                </div>
                 <div className="flex gap-2">
                   <Button type="submit" disabled={submitting}>{submitting ? 'Creating...' : 'Create'}</Button>
-                  <Button type="button" variant="outline" onClick={() => { setTopic(''); setDate(''); setStartTime(''); setEndTime(''); }}>Reset</Button>
+                  <Button type="button" variant="outline" onClick={() => { setTitle(''); setDate(''); setStartTime(''); setEndTime(''); }}>Reset</Button>
                 </div>
               </form>
             </CardContent>
