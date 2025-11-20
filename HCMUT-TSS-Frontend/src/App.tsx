@@ -18,6 +18,7 @@ import AdminDashboard from "@/pages/AdminDashboard.tsx";
 import RegisterSubject from "@/pages/RegisterSubject.tsx";
 import NotFound from "@/pages/NotFound.tsx";
 import CreateClass from "@/pages/CreateClass.tsx";
+import CreateSession from "@/pages/CreateSession.tsx";
 
 const queryClient = new QueryClient();
 
@@ -54,11 +55,13 @@ const App = () => (
                         {/* --- Tutor and Student Routes --- */}
                         <Route element={<ProtectedRoute allowedRoles={['tutor', 'student']} />}>
                             <Route path="/register-subject" element={<RegisterSubject />} />
+                            <Route path="/create-session" element={<CreateSession />} />
                         </Route>
 
                         {/* --- Tutor-only routes --- */}
                         <Route element={<ProtectedRoute allowedRoles={['tutor']} />}>
                             <Route path="/create-class" element={<CreateClass />} />
+                            
                         </Route>
 
                         {/* --- Not Found (Catch-all) --- */}

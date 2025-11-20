@@ -14,6 +14,18 @@
             "isBackground": true
         },
         {
+            "label": "Start Library Server",
+            "type": "shell",
+            "command": "cd HCMUT-LIBRARY-MIMIC; .\\mvnw.cmd spring-boot:run",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "focus": false
+            },
+            "isBackground": true
+        },
+        {
             "label": "Start Datacore Server",
             "type": "shell",
             "command": "cd HCMUT-DATACORE-MIMIC; .\\mvnw.cmd spring-boot:run",
@@ -53,8 +65,10 @@
             "label": "Start All Services",
             "dependsOn": [
                 "Start SSO Server",
+                
                 "Start Datacore Server",
                 "Start TSS Backend",
+                "Start Library Server",
                 "Start TSS Frontend"
             ],
             "problemMatcher": []
