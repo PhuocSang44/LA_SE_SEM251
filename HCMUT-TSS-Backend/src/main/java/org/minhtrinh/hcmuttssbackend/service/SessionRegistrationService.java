@@ -44,7 +44,7 @@ public class SessionRegistrationService {
         User user = userRepository.findByEmail(principal.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found: " + principal.getEmail()));
         
-        Student student = studentRepository.findByUserId(user.getUserId())
+        Student student = studentRepository.findByUser_UserId(user.getUserId())
                 .orElseThrow(() -> new RuntimeException("Student profile not found for user: " + user.getEmail()));
         
         Session sessionentity = null;
@@ -56,12 +56,12 @@ public class SessionRegistrationService {
         }
         // Check if the student is already registered for the session
         boolean alreadyRegistered = sessionRegistrationRepository
-                .existsBySession_SessionIdAndStudent_StudentId(sessionentity.getSessionId(), student.getStudentId());
+                .existsBySession_SessionIdAndStudent_UserId(sessionentity.getSessionId(), student.getUserId());
         if (alreadyRegistered) {
             throw new RuntimeException("Student is already registered for this session");
         }
         //check if the session conflict with other session
-        List<SessionEnrollment> enrollments = sessionRegistrationRepository.findByStudent_StudentId(student.getStudentId());
+        List<SessionEnrollment> enrollments = sessionRegistrationRepository.findByStudent_UserId(student.getUserId());
 
         if (enrollments != null) {
             for (SessionEnrollment e : enrollments) {
@@ -109,7 +109,7 @@ public class SessionRegistrationService {
         User user = userRepository.findByEmail(principal.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found: " + principal.getEmail()));
 
-        Student student = studentRepository.findByUserId(user.getUserId())
+        Student student = studentRepository.findByUser_UserId(user.getUserId())
                 .orElseThrow(() -> new RuntimeException("Student profile not found for user: " + user.getEmail()));
 
         if (request == null || request.sessionId() == null) {
@@ -123,7 +123,7 @@ public class SessionRegistrationService {
         final Long sessionId = sessionentity.getSessionId();
 
         SessionEnrollment enrollment = sessionRegistrationRepository
-                .findByStudent_StudentId(student.getStudentId()).stream()
+                .findByStudent_UserId(student.getUserId()).stream()
                 .filter(e -> e != null && e.getSession() != null && sessionId.equals(e.getSession().getSessionId()))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Enrollment not found for student in this session"));

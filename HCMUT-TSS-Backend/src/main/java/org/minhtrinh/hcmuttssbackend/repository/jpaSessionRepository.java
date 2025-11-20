@@ -8,5 +8,5 @@ import org.springframework.stereotype.Repository;
 // Rename bean to avoid collision with Spring Session's RedisHttpSessionConfiguration#sessionRepository
 @Repository("jpaSessionRepository")
 public interface jpaSessionRepository extends JpaRepository<Session, Long> {
-    List<Session> findByClazz_Tutor_OfficialId(Long tutorId);
+    List<Session> findByClazz_Tutor_StaffId(String staffId);
 }

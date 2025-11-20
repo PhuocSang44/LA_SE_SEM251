@@ -74,7 +74,13 @@ public class SessionService {
         var user = getUserFromPrincipal(principal);
         Integer userId = user.getUserId();
         String classId = request.classId();
-        Optional<Class> existingClass = classRepository.findByCourse_CodeAndTutor_OfficialId(classId, userId.longValue());
+        
+        // Get staff record to find staffId
+        var staff = staffRepository.findByUser_UserId(userId)
+                .orElseThrow(() -> new RuntimeException("Staff profile not found for user"));
+        String staffId = staff.getStaffId();
+        
+        Optional<Class> existingClass = classRepository.findByCourse_CodeAndTutor_StaffId(classId, staffId);
         if (existingClass.isEmpty()) {
             throw new RuntimeException("Class not found or user is not the tutor of the class");
         }
@@ -110,7 +116,9 @@ public class SessionService {
         if (sessionOpt.isEmpty()) {
             throw new RuntimeException("Session not found with ID: " + sessionId);
         }
-        if (!sessionOpt.get().getClazz().getTutor().getOfficialId().equals(getUserIdFromPrincipal(principal).longValue())) {
+        Integer currentUserId = getUserIdFromPrincipal(principal);
+        Integer tutorUserId = sessionOpt.get().getClazz().getTutor().getUserId();
+        if (!tutorUserId.equals(currentUserId)) {
             throw new RuntimeException("User is not authorized to cancel this session");
         }
 
@@ -132,13 +140,15 @@ public class SessionService {
         if (sessionOpt.isEmpty()) {
             throw new RuntimeException("Session not found with ID: " + sessionId);
         }
-        if (!sessionOpt.get().getClazz().getTutor().getOfficialId().equals(getUserIdFromPrincipal(principal).longValue())) {
+        Integer currentUserId = getUserIdFromPrincipal(principal);
+        Integer tutorUserId = sessionOpt.get().getClazz().getTutor().getUserId();
+        if (!tutorUserId.equals(currentUserId)) {
             throw new RuntimeException("User is not authorized to reschedule this session");
         }
         //check if the new time conflicts with other sessions of the tutor
         //get all sessions of the tutor
-        Long tutorId = sessionOpt.get().getClazz().getTutor().getOfficialId();
-        var sessions = sessionRepository.findByClazz_Tutor_OfficialId(tutorId);
+        String tutorStaffId = sessionOpt.get().getClazz().getTutor().getStaffId();
+        var sessions = sessionRepository.findByClazz_Tutor_StaffId(tutorStaffId);
         for (Session s : sessions) {
             if (s.getSessionId().equals(sessionId)) continue;
 
@@ -178,7 +188,9 @@ public class SessionService {
         if (sessionOpt.isEmpty()) {
             throw new RuntimeException("Session not found with ID: " + sessionId);
         }
-        if (!sessionOpt.get().getClazz().getTutor().getOfficialId().equals(getUserIdFromPrincipal(principal).longValue())) {
+        Integer currentUserId = getUserIdFromPrincipal(principal);
+        Integer tutorUserId = sessionOpt.get().getClazz().getTutor().getUserId();
+        if (!tutorUserId.equals(currentUserId)) {
             throw new RuntimeException("User is not authorized to delete this session");
         }
 
@@ -195,7 +207,9 @@ public class SessionService {
         if (sessionOpt.isEmpty()) {
             throw new RuntimeException("Session not found with ID: " + sessionId);
         }
-        if (!sessionOpt.get().getClazz().getTutor().getOfficialId().equals(getUserIdFromPrincipal(principal).longValue())) {
+        Integer currentUserId = getUserIdFromPrincipal(principal);
+        Integer tutorUserId = sessionOpt.get().getClazz().getTutor().getUserId();
+        if (!tutorUserId.equals(currentUserId)) {
             throw new RuntimeException("User is not authorized to cancel this session");
         }
 
@@ -210,19 +224,19 @@ public class SessionService {
         Integer userId = user.getUserId();
 
         // If user is a tutor (has a UniversityStaff record) -> return sessions they teach
-        var maybeStaff = staffRepository.findByUserId(userId);
+        var maybeStaff = staffRepository.findByUser_UserId(userId);
         if (maybeStaff.isPresent()) {
-            Long tutorOfficialId = maybeStaff.get().getOfficialId();
-            return sessionRepository.findByClazz_Tutor_OfficialId(tutorOfficialId).stream()
+            String tutorStaffId = maybeStaff.get().getStaffId();
+            return sessionRepository.findByClazz_Tutor_StaffId(tutorStaffId).stream()
                     .map(this::mapToSessionResponse)
                     .collect(Collectors.toList());
         }
 
         // If user is a student -> return sessions they are enrolled in via session registrations
-        var maybeStudent = studentRepository.findByUserId(userId);
+        var maybeStudent = studentRepository.findByUser_UserId(userId);
         if (maybeStudent.isPresent()) {
-            Long studentId = maybeStudent.get().getStudentId();
-            return sessionRegistrationRepository.findByStudent_StudentId(studentId).stream()
+            Integer studentUserId = maybeStudent.get().getUserId();
+            return sessionRegistrationRepository.findByStudent_UserId(studentUserId).stream()
                     .map(SessionEnrollment::getSession)
                     .filter(Objects::nonNull)
                     .map(this::mapToSessionResponse)
