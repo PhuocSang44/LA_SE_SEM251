@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS materials (
     id                BIGINT AUTO_INCREMENT PRIMARY KEY,
-    course_id         VARCHAR(50) NOT NULL,
+    course_id         BIGINT NOT NULL,
     owner_id          VARCHAR(100) NOT NULL,
     title             VARCHAR(255) NOT NULL,
     description       VARCHAR(2000),
@@ -14,5 +14,5 @@ CREATE TABLE IF NOT EXISTS materials (
     created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_material_course
-        FOREIGN KEY (course_id) REFERENCES course(code) ON DELETE CASCADE
+        FOREIGN KEY (course_id) REFERENCES course(course_id) ON DELETE CASCADE
 );
