@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS session (
     start_time        DATETIME NOT NULL,
     end_time          DATETIME NOT NULL,
     location          VARCHAR(255),
+    session_type      VARCHAR(50),
     status            VARCHAR(40) NOT NULL DEFAULT 'SCHEDULED',
     max_students      INT NOT NULL DEFAULT 30,
     current_students  INT NOT NULL DEFAULT 0,

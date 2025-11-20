@@ -18,11 +18,15 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import { listSessionsByClass, hasConflict, createSession, updateSession, formatSessionRange } from "@/lib/sessionApi";
+import type { Session } from "@/types/session";
 
 const MyCourses = () => {
   const navigate = useNavigate();
   
   const { user } = useAuth();
+  const isTutor = user?.role === 'tutor';
+  const isStudent = user?.role?.toLowerCase?.() === 'student';
 
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
 
@@ -36,72 +40,131 @@ const MyCourses = () => {
   const [joinSessionStatus, setJoinSessionStatus] = useState<"idle" | "waiting" | "confirmed">("idle");
   const [foundCourse, setFoundCourse] = useState<any>(null);
 
-  const [courses, setCourses] = useState<any[]>([]);
+  const [studentCourses, setStudentCourses] = useState<any[]>([]);
+  const [tutorCourses, setTutorCourses] = useState<any[]>([]);
   const [availableCoursesWithSessions, setAvailableCoursesWithSessions] = useState<any[]>([]);
+  const [mySessions, setMySessions] = useState<Session[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(false);
 
-  const loadCourses = () => {
-    // Load only enrolled courses for the current student
-    fetch(`${apiBase}/course-registrations/me`, { credentials: 'include' })
-      .then(res => res.ok ? res.json() : Promise.reject(res))
-      .then((data: any[]) => {
-        // data is CourseRegistrationResponse[]
-        // Map registration -> course card model
-        // Prefer canonical names for display when possible
-        const HARDCODED_COURSES = [
-          { code: 'MT1003', name: 'Calculus' },
-          { code: 'MT1005', name: 'Calculus 2' },
-          { code: 'MT1004', name: 'Linear Algebra' },
-          { code: 'MT2001', name: 'Discrete Mathematics' },
-          { code: 'CS1010', name: 'Intro to Programming' }
-        ];
+  const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
+  const [sessionDialogMode, setSessionDialogMode] = useState<'create' | 'edit'>('create');
+  const [activeCourse, setActiveCourse] = useState<any | null>(null);
+  const [editingSession, setEditingSession] = useState<Session | null>(null);
+  const [sessionTopic, setSessionTopic] = useState("");
+  const [sessionDate, setSessionDate] = useState("");
+  const [sessionStart, setSessionStart] = useState("");
+  const [sessionEnd, setSessionEnd] = useState("");
+  const [sessionSubmitting, setSessionSubmitting] = useState(false);
 
-        const getDisplayName = (code: string | null | undefined, fallback: string) => {
-          if (!code) return fallback;
-          const codeNorm = String(code).trim().toUpperCase();
-          const found = HARDCODED_COURSES.find(c => String(c.code).trim().toUpperCase() === codeNorm);
-          return found ? found.name : fallback;
-        };
+  const mergeDateTime = (dateStr: string, timeStr: string) => {
+    try {
+      const [h, m] = timeStr.split(":").map(Number);
+      const date = new Date(dateStr);
+      date.setHours(h || 0, m || 0, 0, 0);
+      return date.toISOString();
+    } catch {
+      return new Date().toISOString();
+    }
+  };
 
-        const mapped = data.map(r => ({
-          registrationId: r.registrationId,
-          id: r.classId,
-          // Prefer the class display name returned by the backend (r.courseName)
-          // If backend didn't provide a display/class name, fall back to canonical mapping
-          name: (r.courseName && String(r.courseName).trim() !== '') ? r.courseName : getDisplayName(r.courseCode, r.courseName),
-          tutor: r.tutorName || "",
-          tutorId: r.tutorId ?? null,
-          semester: r.semester || "",
-          sessions: 1,
+  const loadStudentCourses = async () => {
+    setLoadingCourses(true);
+    try {
+      const res = await fetch(`${apiBase}/course-registrations/me`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Không lấy được danh sách khóa học');
+      const data = await res.json();
+      const baseCourses = data.map((r: any) => ({
+        registrationId: r.registrationId,
+        id: r.classId,
+        name: r.courseName,
+        tutor: r.tutorName || "",
+        tutorId: r.tutorId ?? null,
+        semester: r.semester || "",
+        color: "bg-blue-500",
+        progress: 0
+      }));
+      const withSessions = await Promise.all(baseCourses.map(async (course: any) => {
+        const sessions = await listSessionsByClass(course.id);
+        return { ...course, sessions };
+      }));
+      setStudentCourses(withSessions);
+
+      fetch(`${apiBase}/api/classes`, { credentials: 'include' })
+        .then(res => res.ok ? res.json() : Promise.reject(res))
+        .then((all: any[]) => {
+          const enrolledIds = new Set(baseCourses.map(m => m.id));
+          const byCourse: Record<string, any> = {};
+          all.forEach(c => {
+            if (enrolledIds.has(c.classId)) return;
+            const key = c.courseCode || c.courseName;
+            byCourse[key] = byCourse[key] || { name: c.courseName, code: c.courseCode, category: "", sessions: [] };
+            byCourse[key].sessions.push({ id: c.classId, tutor: c.tutorName, date: c.semester, time: "", topic: c.courseName, tutorId: c.tutorId });
+          });
+          setAvailableCoursesWithSessions(Object.values(byCourse));
+        }).catch(() => setAvailableCoursesWithSessions([]));
+    } catch (error) {
+      console.error('Failed to load enrolled courses', error);
+      setStudentCourses([]);
+      setAvailableCoursesWithSessions([]);
+    } finally {
+      setLoadingCourses(false);
+    }
+  };
+
+  const loadTutorCourses = async () => {
+    setLoadingCourses(true);
+    try {
+      const res = await fetch(`${apiBase}/api/classes`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Không lấy được danh sách lớp');
+      const list = await res.json();
+      const tutorId = user?.officialId ? Number(user.officialId) : null;
+      const mine = tutorId == null ? [] : list.filter((cls: any) => cls.tutorId === tutorId);
+      const normalized = await Promise.all(mine.map(async (cls: any) => {
+        const sessions = await listSessionsByClass(cls.classId);
+        return {
+          id: cls.classId,
+          name: cls.courseName,
+          tutor: cls.tutorName,
+          tutorId: cls.tutorId,
+          semester: cls.semester,
           color: "bg-blue-500",
-          progress: 0
-        }));
-        setCourses(mapped);
-
-        // available sessions still map from all classes for discovery purposes
-        // we keep the existing availableCoursesWithSessions logic by calling /api/classes
-        fetch(`${apiBase}/api/classes`, { credentials: 'include' })
-          .then(res => res.ok ? res.json() : Promise.reject(res))
-          .then((all: any[]) => {
-            // Remove classes that the user already enrolled in from available sessions
-            const enrolledIds = new Set(mapped.map(m => m.id));
-            const byCourse: Record<string, any> = {};
-            all.forEach(c => {
-              if (enrolledIds.has(c.classId)) return; // skip already-enrolled classes
-              const key = c.courseCode || c.courseName;
-              byCourse[key] = byCourse[key] || { name: c.courseName, code: c.courseCode, category: "", sessions: [] };
-              byCourse[key].sessions.push({ id: c.classId, tutor: c.tutorName, date: c.semester, time: "", topic: c.courseName, tutorId: c.tutorId });
-            });
-            setAvailableCoursesWithSessions(Object.values(byCourse));
-          }).catch(() => setAvailableCoursesWithSessions([]));
-      }).catch(err => {
-        console.error("Failed to load enrolled courses", err);
-        setCourses([]);
-      });
+          progress: 0,
+          sessions
+        };
+      }));
+      setTutorCourses(normalized);
+    } catch (error) {
+      console.error('Failed to load tutor classes', error);
+      setTutorCourses([]);
+    } finally {
+      setLoadingCourses(false);
+    }
   };
 
   useEffect(() => {
-    loadCourses();
-  }, [user]);
+    if (isStudent) {
+      loadStudentCourses();
+    } else {
+      setStudentCourses([]);
+      setAvailableCoursesWithSessions([]);
+      setMySessions([]);
+    }
+  }, [isStudent]);
+
+  useEffect(() => {
+    if (isTutor) {
+      loadTutorCourses();
+    } else {
+      setTutorCourses([]);
+    }
+  }, [isTutor, user?.officialId]);
+
+  useEffect(() => {
+    if (isStudent) {
+      const aggregated = studentCourses.flatMap((course) => course.sessions || []);
+      setMySessions(aggregated);
+    }
+  }, [studentCourses, isStudent]);
 
   const handleJoinSessionClick = () => {
     setShowJoinSessionDialog(true);
@@ -165,6 +228,16 @@ const MyCourses = () => {
 
     // Call backend to enroll in class (selectedSession holds classId)
     const payload = { classId: parseInt(selectedSession, 10) };
+    // Conflict check: candidate session times vs mySessions
+    const sessionCandidate = foundCourse?.sessions?.find((s: any) => s.id === sessionId);
+    if (sessionCandidate && sessionCandidate.startTime && sessionCandidate.endTime) {
+      const candidate: Session = { id: sessionId, classId: sessionId, tutorId: sessionOwnerId, topic: sessionCandidate.topic || '', startTime: sessionCandidate.startTime, endTime: sessionCandidate.endTime, status: 'scheduled' };
+      if (hasConflict(mySessions, candidate)) {
+        toast({ title:'Schedule conflict', description:'This session overlaps with an existing one', variant:'destructive'});
+        setJoinSessionStatus('idle');
+        return;
+      }
+    }
     fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:10001"}/course-registrations/enroll`, {
       method: 'POST',
       credentials: 'include',
@@ -174,7 +247,7 @@ const MyCourses = () => {
       if (res.ok) {
         // Simple success UX: notify and refresh My Courses/available sessions
         toast({ title: "Enrolled", description: "You have been enrolled successfully" });
-        loadCourses();
+        loadStudentCourses();
         // close dialog and reset dialog state
         closeJoinSessionDialog();
       } else {
@@ -204,6 +277,104 @@ const MyCourses = () => {
     setFoundCourse(null);
   };
 
+  const displayedCourses = isTutor ? tutorCourses : studentCourses;
+
+  const resetSessionForm = () => {
+    setSessionTopic("");
+    setSessionDate("");
+    setSessionStart("");
+    setSessionEnd("");
+    setEditingSession(null);
+    setActiveCourse(null);
+  };
+
+  const refreshCourseSessions = async (courseId: number) => {
+    const latest = await listSessionsByClass(courseId);
+    setTutorCourses((prev) => prev.map((c) => c.id === courseId ? { ...c, sessions: latest } : c));
+    setStudentCourses((prev) => prev.map((c) => c.id === courseId ? { ...c, sessions: latest } : c));
+  };
+
+  const openSessionDialog = (mode: 'create' | 'edit', course: any, session?: Session) => {
+    setSessionDialogMode(mode);
+    setActiveCourse(course);
+    setEditingSession(session || null);
+    setSessionTopic(session?.topic || "");
+    setSessionDate(session ? new Date(session.startTime).toISOString().substring(0, 10) : "");
+    setSessionStart(session ? new Date(session.startTime).toTimeString().substring(0, 5) : "");
+    setSessionEnd(session ? new Date(session.endTime).toTimeString().substring(0, 5) : "");
+    setSessionDialogOpen(true);
+  };
+
+  const handleSessionDialogSubmit = async () => {
+    if (!activeCourse) {
+      toast({ title: "Haven't selected a class yet", description: 'Please select a class to proceed', variant: 'destructive' });
+      return;
+    }
+    if (!sessionTopic.trim() || !sessionDate || !sessionStart || !sessionEnd) {
+      toast({ title: 'Missing information', description: 'Please fill in topic, date, and time', variant: 'destructive' });
+      return;
+    }
+    const startIso = mergeDateTime(sessionDate, sessionStart);
+    const endIso = mergeDateTime(sessionDate, sessionEnd);
+    if (new Date(startIso) >= new Date(endIso)) {
+      toast({ title: 'Invalid time range', description: 'End time must be after start time', variant: 'destructive' });
+      return;
+    }
+    setSessionSubmitting(true);
+    try {
+      if (sessionDialogMode === 'create') {
+        const created = await createSession({ classId: activeCourse.id, topic: sessionTopic.trim(), startTime: startIso, endTime: endIso });
+        if (!created) throw new Error('Failed to create session');
+        toast({ title: 'Session created', description: `${created.topic} • ${new Date(created.startTime).toLocaleString()}` });
+      } else if (editingSession) {
+        const ok = await updateSession(editingSession.id, { topic: sessionTopic.trim(), startTime: startIso, endTime: endIso });
+        if (!ok) throw new Error('Failed to update session');
+        toast({ title: 'Session updated', description: sessionTopic });
+      }
+      await refreshCourseSessions(activeCourse.id);
+      setSessionDialogOpen(false);
+      resetSessionForm();
+    } catch (error: any) {
+      toast({ title: 'Session operation error', description: String(error?.message || error), variant: 'destructive' });
+    } finally {
+      setSessionSubmitting(false);
+    }
+  };
+
+  const handleCancelSession = async (courseId: number, sessionId: number) => {
+    try {
+      const ok = await updateSession(sessionId, { status: 'cancelled' });
+      if (!ok) throw new Error('Failed to cancel session');
+      toast({ title: 'Session cancelled', description: 'The session has been marked as cancelled' });
+      await refreshCourseSessions(courseId);
+    } catch (error: any) {
+      toast({ title: 'Failed to cancel session', description: String(error?.message || error), variant: 'destructive' });
+    }
+  };
+
+  const handleJoinSessionDirect = async (session: Session) => {
+    if (session.status === 'cancelled') {
+      toast({ title: 'Session cancelled', description: 'Cannot join a cancelled session', variant: 'destructive' });
+      return;
+    }
+    if (hasConflict(mySessions, session)) {
+      toast({ title: 'Schedule conflict', description: 'This session conflicts with your existing schedule', variant: 'destructive' });
+      return;
+    }
+    try {
+      const res = await fetch(`${apiBase}/api/sessions/${session.id}/enroll`, { method: 'POST', credentials: 'include' });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || 'Failed to join session');
+      }
+      toast({ title: 'Joined session', description: session.topic });
+      await refreshCourseSessions(session.classId);
+      setMySessions((prev) => [...prev, session]);
+    } catch (error: any) {
+      toast({ title: 'Failed to join session', description: String(error?.message || error), variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -214,70 +385,134 @@ const MyCourses = () => {
               <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">My Courses</h1>
               <p className="text-muted-foreground">Track your enrolled tutoring courses</p>
             </div>
-            <Button 
-              onClick={handleJoinSessionClick}
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Join a Session
-            </Button>
+            {isStudent && (
+              <Button 
+                onClick={handleJoinSessionClick}
+                className="flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Join a Session
+              </Button>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {courses.map((course) => (
-              <Card key={course.id} className="rounded-xl shadow-md hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-xl mb-2">{course.name}</CardTitle>
-                      <Badge className={`${course.color} text-white border-0`}>
-                        {course.sessions} sessions
-                      </Badge>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <User className="h-4 w-4" />
-                      <span>{course.tutor}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      <span>{course.semester || <span className="italic">Not specified</span>}</span>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-muted-foreground">Progress</span>
-                      <span className="font-semibold text-foreground">{course.progress}%</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div 
-                        className={`${course.color} h-2 rounded-full transition-all`}
-                        style={{ width: `${course.progress}%` }}
-                      />
-                    </div>
-                  </div>
+          {loadingCourses && <p className="text-sm text-muted-foreground mb-4">Loading courses...</p>}
 
-                  <Button 
-                    variant="outline" 
-                    className="w-full rounded-lg"
-                    onClick={() => navigate("/course-details", { state: { course } })}
-                  >
-                    View Details
-                  </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {displayedCourses.length === 0 && !loadingCourses ? (
+              <Card className="rounded-xl shadow-sm">
+                <CardContent className="py-10 text-center text-muted-foreground">
+                  No courses to display.
                 </CardContent>
               </Card>
-            ))}
+            ) : (
+              displayedCourses.map((course) => {
+                const sessionList: Session[] = Array.isArray(course.sessions) ? course.sessions : [];
+                const visibleSessions = sessionList.slice(0, 3);
+                return (
+                  <Card key={course.id} className="rounded-xl shadow-md hover:shadow-lg transition-shadow">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-xl mb-2">{course.name}</CardTitle>
+                          <Badge className={`${course.color} text-white border-0`}>
+                            {sessionList.length} sessions
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <User className="h-4 w-4" />
+                          <span>{course.tutor}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Clock className="h-4 w-4" />
+                          <span>{course.semester || <span className="italic">Not specified</span>}</span>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="flex justify-between text-sm mb-2">
+                          <span className="text-muted-foreground">Progress</span>
+                          <span className="font-semibold text-foreground">{course.progress}%</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-2">
+                          <div 
+                            className={`${course.color} h-2 rounded-full transition-all`}
+                            style={{ width: `${course.progress}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {isTutor && (
+                        <div className="space-y-3 border-t pt-4">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-semibold">Sessions</span>
+                            <Button size="sm" onClick={() => openSessionDialog('create', course)}>
+                              <Plus className="h-4 w-4 mr-1" /> New Session
+                            </Button>
+                          </div>
+                          {visibleSessions.length === 0 && (
+                            <p className="text-sm text-muted-foreground">No sessions available.</p>
+                          )}
+                          {visibleSessions.map((session) => (
+                            <div key={session.id} className="border rounded-lg p-3 text-sm flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-medium">{session.topic}</p>
+                                <p className="text-xs text-muted-foreground">{formatSessionRange(session)}</p>
+                                <p className="text-xs text-muted-foreground">Status: {session.status}</p>
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                <Button size="sm" variant="outline" onClick={() => openSessionDialog('edit', course, session)}>Reschedule</Button>
+                                <Button size="sm" variant="destructive" onClick={() => handleCancelSession(course.id, session.id)}>Cancel</Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {isStudent && (
+                        <div className="space-y-3 border-t pt-4">
+                          <span className="text-sm font-semibold">Upcoming Sessions</span>
+                          {visibleSessions.length === 0 && (
+                            <p className="text-sm text-muted-foreground">Tutor has not created any sessions.</p>
+                          )}
+                          {visibleSessions.map((session) => (
+                            <div key={session.id} className="border rounded-lg p-3 text-sm flex items-center justify-between gap-3">
+                              <div>
+                                <p className="font-medium">{session.topic}</p>
+                                <p className="text-xs text-muted-foreground">{formatSessionRange(session)}</p>
+                                <p className="text-xs text-muted-foreground">Status: {session.status}</p>
+                              </div>
+                              <Button size="sm" disabled={session.status === 'cancelled'} onClick={() => handleJoinSessionDirect(session)}>
+                                Join
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <Button 
+                        variant="outline" 
+                        className="w-full rounded-lg"
+                        onClick={() => navigate("/course-details", { state: { course } })}
+                      >
+                        View Details
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
           </div>
 
           {/* Join Session Dialog */}
           <Dialog open={showJoinSessionDialog} onOpenChange={(open) => !open && closeJoinSessionDialog()}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Join a Session / Tham gia buổi học</DialogTitle>
+                <DialogTitle>Join a Session</DialogTitle>
                 <DialogDescription>
                   Enter the course ID to see available tutoring sessions
                 </DialogDescription>
@@ -286,7 +521,7 @@ const MyCourses = () => {
               {joinSessionStatus === "idle" && !foundCourse && (
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="courseId">Course ID / Mã khóa học</Label>
+                    <Label htmlFor="courseId">Course ID</Label>
                     <div className="flex gap-2 mt-2">
                       <Input
                         id="courseId"
@@ -296,7 +531,7 @@ const MyCourses = () => {
                         onKeyDown={(e) => e.key === 'Enter' && handleSearchCourseById()}
                       />
                       <Button onClick={handleSearchCourseById}>
-                        Search / Tìm
+                        Search
                       </Button>
                     </div>
                   </div>
@@ -311,7 +546,7 @@ const MyCourses = () => {
                   </div>
                   
                   <div>
-                    <h4 className="text-sm font-medium mb-3">Available Sessions / Các buổi học có sẵn:</h4>
+                    <h4 className="text-sm font-medium mb-3">Available Sessions:</h4>
                     <RadioGroup value={selectedSession} onValueChange={setSelectedSession}>
                       {foundCourse.sessions.map((session: any) => {
                         const isOwnClass = numericUserId != null && session.tutorId === numericUserId;
@@ -336,10 +571,10 @@ const MyCourses = () => {
                   
                   <div className="flex gap-2">
                     <Button onClick={() => { setFoundCourse(null); setCourseId(""); }} variant="outline" className="flex-1">
-                      Back / Quay lại
+                      Back
                     </Button>
                     <Button onClick={handleSessionSelect} className="flex-1">
-                      Join Session / Tham gia
+                      Join Session
                     </Button>
                   </div>
                 </div>
@@ -370,6 +605,46 @@ const MyCourses = () => {
                   </Button>
                 </div>
               )}
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={sessionDialogOpen} onOpenChange={(open) => {
+            setSessionDialogOpen(open);
+            if (!open) resetSessionForm();
+          }}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>{sessionDialogMode === 'create' ? 'Create new session' : 'Reschedule session'}</DialogTitle>
+                <DialogDescription>
+                  {activeCourse ? `Class: ${activeCourse.name}` : 'Select a class to proceed'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Topic</Label>
+                  <Input value={sessionTopic} onChange={(e) => setSessionTopic(e.target.value)} placeholder="e.g., Review Chapter 3" />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-1">
+                    <Label>Date</Label>
+                    <Input type="date" value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>Start Time</Label>
+                    <Input type="time" value={sessionStart} onChange={(e) => setSessionStart(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>End Time</Label>
+                    <Input type="time" value={sessionEnd} onChange={(e) => setSessionEnd(e.target.value)} />
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => { setSessionDialogOpen(false); resetSessionForm(); }} disabled={sessionSubmitting}>Cancel</Button>
+                  <Button onClick={handleSessionDialogSubmit} disabled={sessionSubmitting}>
+                    {sessionSubmitting ? 'Saving...' : (sessionDialogMode === 'create' ? 'Create Session' : 'Save Changes')}
+                  </Button>
+                </div>
+              </div>
             </DialogContent>
           </Dialog>
         </div>

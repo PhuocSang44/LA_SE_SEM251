@@ -17,7 +17,7 @@ const Dashboard = () => {
               <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">My Dashboard</h1>
               <p className="text-muted-foreground">Manage your tutoring sessions and schedule</p>
             </div>
-            <Link to="/register-subject">
+            <Link to="/create-session">
               <Button className="rounded-lg shadow-md">
                 <Plus className="h-5 w-5 mr-2" />
                 Register a Subject
