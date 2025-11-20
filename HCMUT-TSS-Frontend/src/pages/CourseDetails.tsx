@@ -3,7 +3,7 @@ import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, User, Clock, BookOpen, Plus, CheckCircle2, MessageSquare, Star, Pencil, X } from "lucide-react";
+import { Calendar, User, Clock, BookOpen, Plus, CheckCircle2, MessageSquare, Star, Pencil, X, FileText, Download } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -28,8 +28,10 @@ const CourseDetails = () => {
 
   // 'course' is the canonical source of truth for this component (fullCourse when available, otherwise initialCourse)
   const course = fullCourse ?? initialCourse;
+  const courseCode = course?.code ?? course?.courseCode ?? null;
 
   const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:10001';
+  const libraryApiBase = import.meta.env.VITE_LIBRARY_BASE || 'http://localhost:10006';
 
   // Determine ownership using datacore official ID (frontend User does not expose DB id)
   const userOfficialIdNum = user?.officialId ? Number(user.officialId) : null;
@@ -123,6 +125,9 @@ const CourseDetails = () => {
   const [editStart, setEditStart] = useState("");
   const [editEnd, setEditEnd] = useState("");
   const [editTopic, setEditTopic] = useState("");
+  const [libraryItems, setLibraryItems] = useState<any[]>([]);
+  const [loadingLibrary, setLoadingLibrary] = useState(false);
+  const [libraryError, setLibraryError] = useState<string | null>(null);
 
   const mergeDateTime = (dateStr: string, timeStr: string) => {
     try { const [h,m] = timeStr.split(':').map(Number); const d = new Date(dateStr); d.setHours(h||0,m||0,0,0); return d.toISOString(); } catch { return new Date().toISOString(); }
@@ -134,6 +139,14 @@ const CourseDetails = () => {
     const stT = st.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
     const enT = en.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
     return `${datePart} ${stT} - ${enT}`;
+  };
+
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes || bytes <= 0) return 'Unknown size';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   };
 
   useEffect(() => {
@@ -152,6 +165,35 @@ const CourseDetails = () => {
       setLoadingSessions(false);
     })();
   }, [course?.id, apiBase]);
+
+  useEffect(() => {
+    if (!courseCode) {
+      setLibraryItems([]);
+      return;
+    }
+    setLoadingLibrary(true);
+    setLibraryError(null);
+    const controller = new AbortController();
+    const url = `${apiBase}/api/library/search?courseCode=${encodeURIComponent(courseCode)}`;
+    fetch(url, { credentials: 'include', signal: controller.signal })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Không lấy được tài liệu');
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setLibraryItems(Array.isArray(data) ? data : []);
+      })
+      .catch((error) => {
+        if (error.name === 'AbortError') return;
+        console.error('Failed to fetch library materials', error);
+        setLibraryItems([]);
+        setLibraryError('Không thể tải tài liệu từ thư viện');
+      })
+      .finally(() => setLoadingLibrary(false));
+    return () => controller.abort();
+  }, [apiBase, courseCode]);
 
   if (!course) {
     return (
@@ -564,7 +606,7 @@ const CourseDetails = () => {
                       </div>
 
                       {/* Sessions Overview Card */}
-                      <div className="lg:col-span-1">
+                      <div className="lg:col-span-1 space-y-6">
                         <Card className="rounded-xl shadow-md">
                           <CardHeader>
                             <CardTitle className="text-xl">Available Sessions</CardTitle>
@@ -588,6 +630,67 @@ const CourseDetails = () => {
                               ))}
                               <Button variant="outline" className="w-full mt-2" onClick={handleJoinSessionClick}>View All Sessions</Button>
                             </div>
+                          </CardContent>
+                        </Card>
+
+                        {/* Library Materials Card */}
+                        <Card className="rounded-xl shadow-md">
+                          <CardHeader>
+                            <CardTitle className="text-xl flex items-center gap-2">
+                              <FileText className="h-5 w-5 text-muted-foreground" />
+                              Course Library
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            {loadingLibrary && (
+                              <div className="text-sm text-muted-foreground">Loading library resources...</div>
+                            )}
+                            {!loadingLibrary && libraryError && (
+                              <div className="text-sm text-destructive">{libraryError}</div>
+                            )}
+                            {!loadingLibrary && !libraryError && libraryItems.length === 0 && (
+                              <div className="text-sm text-muted-foreground">No library materials linked to this course yet.</div>
+                            )}
+                            {!loadingLibrary && !libraryError && libraryItems.length > 0 && (
+                              <div className="space-y-3">
+                                {libraryItems.slice(0, 5).map((item) => (
+                                  <div key={item.id} className="p-3 rounded-lg border bg-muted/40 flex justify-between items-start gap-3">
+                                    <div>
+                                      <p className="font-medium text-sm">{item.title || item.originalName || `Library item #${item.id}`}</p>
+                                      {item.description && (
+                                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>
+                                      )}
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        {item.originalName || 'Unnamed file'} • {formatFileSize(item.sizeBytes)}
+                                      </p>
+                                    </div>
+                                    <Button size="icon" variant="ghost" asChild>
+                                      <a
+                                        href={`${libraryApiBase}/api/library/items/${item.id}/download`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        title="Download file"
+                                      >
+                                        <Download className="h-4 w-4" />
+                                      </a>
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {!loadingLibrary && !libraryError && libraryItems.length > 5 && (
+                              <Button
+                                variant="outline"
+                                className="w-full mt-3"
+                                onClick={() => {
+                                  if (!courseCode || typeof window === 'undefined') return;
+                                  const viewUrl = `${libraryApiBase}/api/library/items?courseCode=${encodeURIComponent(courseCode)}`;
+                                  window.open(viewUrl, '_blank');
+                                }}
+                              >
+                                View all library files
+                              </Button>
+                            )}
                           </CardContent>
                         </Card>
                       </div>
