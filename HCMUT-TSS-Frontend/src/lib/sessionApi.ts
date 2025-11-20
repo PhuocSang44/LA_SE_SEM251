@@ -9,7 +9,7 @@ async function safeJson(res: Response) {
 
 export async function listSessionsByClass(classId: number): Promise<Session[]> {
   try {
-    const res = await fetch(`${API}/api/classes/${classId}/sessions`, { credentials: 'include' });
+    const res = await fetch(`${API}/api/sessions/${classId}`, { credentials: 'include' });
     if (!res.ok) return [];
     return await res.json();
   } catch { return []; }
@@ -38,6 +38,8 @@ export async function createSession(payload: CreateSessionPayload): Promise<Sess
     return null;
   }
 }
+
+
 
 export async function updateSession(id: number, payload: UpdateSessionPayload): Promise<boolean> {
   try {

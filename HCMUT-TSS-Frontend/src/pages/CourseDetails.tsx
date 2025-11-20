@@ -17,11 +17,13 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import { listSessionsByClass } from "@/lib/sessionApi";
 
 const CourseDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const initialCourse = location.state?.course;
+  console.log("DEBUG: initialCourse from location.state:", initialCourse);
   const { user } = useAuth();
 
   const [fullCourse, setFullCourse] = useState<any | null>(null);
@@ -45,6 +47,7 @@ const CourseDetails = () => {
   console.log("--- DEBUG COURSE DETAILS RENDER ---");
   console.log("User (user.officialId):", user?.officialId, "-> userOfficialIdNum:", userOfficialIdNum);
   console.log("Course (course.tutorId):", course?.tutorId, "-> courseTutorIdNum:", courseTutorIdNum);
+  console.log("class:", course?.classId);
   console.log("IS OWNER:", isOwner);
   console.log("Current course object:", course);
   console.log("-------------------------------------");
@@ -149,12 +152,23 @@ const CourseDetails = () => {
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   };
 
+  const toLocalISOString = (isoString: string) => {
+  const date = new Date(isoString);
+  // Calculate offset (e.g., -420 mins for Vietnam) and convert to ms
+  const offsetMs = date.getTimezoneOffset() * 60000;
+  // Create a new date that is shifted so toISOString() outputs local numbers
+  const localDate = new Date(date.getTime() - offsetMs);
+  // Return "YYYY-MM-DDTHH:mm:ss" (No Z, correct local numbers)
+  return localDate.toISOString().slice(0, 19);
+  };
+
   useEffect(() => {
     (async () => {
       if (!course?.id) return;
       setLoadingSessions(true);
       try {
-        const res = await fetch(`${apiBase}/api/classes/${course.id}/sessions`, { credentials:'include' });
+        const res = await fetch(`${apiBase}/api/sessions/${course.id}`, { credentials:'include' });
+        console.log("DEBUG: Fetching sessions from:", `${apiBase}/api/sessions/${course.id}`);
         if (res.ok) {
           const list = await res.json();
           setSessions(list);
@@ -615,14 +629,14 @@ const CourseDetails = () => {
                             <div className="space-y-3">
                               {loadingSessions && <div className="text-sm text-muted-foreground">Loading sessions...</div>}
                               {!loadingSessions && sessions.slice(0,3).map(s => (
-                                <div key={s.id} className="p-3 rounded-lg border bg-accent/30 flex justify-between items-start">
+                                <div key={s.sessionId} className="p-3 rounded-lg border bg-accent/30 flex justify-between items-start">
                                   <div>
-                                    <p className="font-medium text-sm">{s.topic}</p>
+                                    <p className="font-medium text-sm">{s.sessionTitle}</p>
                                     <p className="text-xs text-muted-foreground mt-1">{formatRange(s)}</p>
                                     <p className="text-xs text-muted-foreground">Status: {s.status}</p>
                                   </div>
                                   {isOwner && (
-                                    <Button size="sm" variant="ghost" onClick={() => { setEditingSessionId(s.id); setEditTopic(s.topic); setEditDate(new Date(s.startTime).toISOString().substring(0,10)); setEditStart(new Date(s.startTime).toTimeString().substring(0,5)); setEditEnd(new Date(s.endTime).toTimeString().substring(0,5)); }}>
+                                    <Button size="sm" variant="ghost" onClick={() => { setEditingSessionId(s.sessionId); setEditTopic(s.sessionTitle); setEditDate(new Date(s.startTime).toISOString().substring(0,10)); setEditStart(new Date(s.startTime).toTimeString().substring(0,5)); setEditEnd(new Date(s.endTime).toTimeString().substring(0,5)); }}>
                                       <Pencil className="h-4 w-4" />
                                     </Button>
                                   )}
@@ -713,10 +727,10 @@ const CourseDetails = () => {
                     <RadioGroup value={selectedSession} onValueChange={setSelectedSession}>
                       <div className="space-y-2 max-h-[400px] overflow-y-auto">
                         {sessions.map((session) => (
-                          <div key={session.id} className="flex items-start space-x-3 space-y-0 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
-                            <RadioGroupItem value={session.id.toString()} id={`session-${session.id}`} />
-                            <Label htmlFor={`session-${session.id}`} className="flex-1 cursor-pointer">
-                              <div className="font-medium">{session.topic}</div>
+                          <div key={session.sessionId} className="flex items-start space-x-3 space-y-0 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
+                            <RadioGroupItem value={session.sessionId.toString()} id={`session-${session.sessionId}`} />
+                            <Label htmlFor={`session-${session.sessionId}`} className="flex-1 cursor-pointer">
+                              <div className="font-medium">{session.sessionTitle}</div>
                               <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
                                 <Calendar className="h-3 w-3" />
                                 {formatRange(session)}
@@ -777,15 +791,96 @@ const CourseDetails = () => {
                   <input type="time" className="border rounded p-2" value={editEnd} onChange={e=>setEditEnd(e.target.value)} />
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={async ()=>{
-                    if (editingSessionId==null) return;
-                    if (!editDate||!editStart||!editEnd) { toast({ title:'Missing', description:'Date & time required', variant:'destructive'}); return; }
-                    const startIso = mergeDateTime(editDate, editStart);
-                    const endIso = mergeDateTime(editDate, editEnd);
-                    if (new Date(startIso)>=new Date(endIso)) { toast({ title:'Invalid range', description:'End must be after start', variant:'destructive'}); return; }
-                    const res = await fetch(`${apiBase}/api/sessions/${editingSessionId}`, { method:'PATCH', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ topic: editTopic, startTime:startIso, endTime:endIso }) });
-                    if (res.ok) { toast({ title:'Updated', description:'Session updated' }); const updated = await res.json(); setSessions(prev=> prev.map(p=> p.id===updated.id? updated : p)); setEditingSessionId(null); } else { toast({ title:'Failed', description: await res.text(), variant:'destructive'}); }
-                  }}>Save</Button>
+                  <Button onClick={async () => {
+                  console.log("DEBUG: Save edit clicked");
+                  
+                  if (editingSessionId == null) return;
+                  
+                  if (!editDate || !editStart || !editEnd) {
+                      toast({ title: 'Missing', description: 'Date & time required', variant: 'destructive' });
+                      return;
+                  }
+
+                  const startIso = mergeDateTime(editDate, editStart);
+                  const endIso = mergeDateTime(editDate, editEnd);
+                  const cleanStart = toLocalISOString(startIso).slice(0,19);
+                  const cleanEnd = toLocalISOString(endIso).slice(0,19);
+                  console.log("DEBUG: Merged start:", cleanStart, "end:", cleanEnd);
+
+                  if (new Date(startIso) >= new Date(endIso)) {
+                      toast({ title: 'Invalid range', description: 'End must be after start', variant: 'destructive' });
+                      return;
+                  }
+
+                  // --- 1. MATCH DTO KEYS EXACTLY ---
+                  const payload = {
+                      sessionId: editingSessionId,       // Matches Long sessionId
+                      newSessionTitle: editTopic,        // Matches String newSessionTitle
+                      newStartTime: cleanStart,            // Matches String newStartTime
+                      newEndTime: cleanEnd                 // Matches String newEndTime
+                  };
+                  console.log("DEBUG: Payload for update:", payload);
+
+                  // --- 2. REMOVE ID FROM URL ---
+                  let res: Response | null = null;
+                  try {
+                  res = await fetch(`${apiBase}/api/sessions`, { 
+                      method: 'PATCH', 
+                      credentials: 'include', 
+                      headers: { 'Content-Type': 'application/json' }, 
+                      body: JSON.stringify(payload) 
+                  });
+                  } catch (err) {
+                    console.error('Failed to update session', err);
+                    toast({ title: 'Error', description: String(err), variant: 'destructive' });
+                    return;
+                  }
+
+                  if (res.ok) {
+                      toast({ title: 'Updated', description: 'Session updated' });
+                      
+                      // --- 3. DO NOT CALL res.json() ---
+                      // The backend returns Void, so res.json() would crash. 
+                      // We manually update the local list using the data we just sent.
+                          setSessions(prev => prev.map(p => 
+                              p.id === editingSessionId 
+                                  ? { ...p, topic: editTopic, startTime: startIso, endTime: endIso } 
+                                  : p
+                          ));
+                      
+                      setEditingSessionId(null);
+
+                      try {
+                        if (course?.id && typeof listSessionsByClass === 'function') {
+                          setLoadingSessions(true);
+                          const fresh = await listSessionsByClass(course.id);
+                          if (Array.isArray(fresh)) setSessions(fresh);
+                        }
+                      } catch (err) {
+                        console.error('Failed to refresh sessions after update', err);
+                      } finally {
+                        setLoadingSessions(false);
+                      }
+                      
+                  } else {
+                     let errorMessage = 'Update failed';
+                    try {
+                        const errorData = await res.json();
+                        // 2. Extract the specific message from Backend
+                        errorMessage = errorData.message || errorData.error || 'Unknown error';
+                    } catch (e) {
+                        // Fallback if backend sent plain text instead of JSON
+                        errorMessage = await res.text(); 
+                    }
+
+                    // 3. Show the specific message in the Toast
+                    toast({ 
+                        title: 'Failed', 
+                        description: errorMessage, 
+                        variant: 'destructive' 
+                    });
+                  }
+              }}>Save</Button>
                   <Button variant="outline" onClick={()=>setEditingSessionId(null)}>Cancel</Button>
                   <Button variant="destructive" onClick={async ()=>{ if (editingSessionId==null) return; const res= await fetch(`${apiBase}/api/sessions/${editingSessionId}`, { method:'PATCH', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status:'cancelled' }) }); if (res.ok){ toast({ title:'Cancelled', description:'Session cancelled'}); const updated = await res.json(); setSessions(prev=> prev.map(p=> p.id===updated.id? updated : p)); setEditingSessionId(null);} else { toast({ title:'Failed', description: await res.text(), variant:'destructive'});} }}>Cancel Session</Button>
                 </div>
