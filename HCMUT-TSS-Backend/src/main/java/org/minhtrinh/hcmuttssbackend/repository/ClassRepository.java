@@ -12,6 +12,7 @@ public interface ClassRepository extends JpaRepository<Class, Long> {
     List<Class> findBySemester(String semester);
     List<Class> findByCourse_Code(String courseCode);
     Optional<Class> findByCourse_CodeAndTutor_StaffId(String courseCode, String tutorId);
+    Optional<Class> findByClassIdAndTutor_StaffId(Long classId, String tutorId);
     // convenience lookups by tutor official id (frontend uses tutor.officialId)
     //List<Class> findByTutor_OfficialId(String officialId);
     //Optional<Class> findByCourse_CodeAndTutor_OfficialId(String courseCode, String officialId);

@@ -73,14 +73,22 @@ public class SessionService {
         }
         var user = getUserFromPrincipal(principal);
         Integer userId = user.getUserId();
-        String classId = request.classId();
+        String classIdStr = request.classId();
+        
+        // Parse classId to Long
+        Long classId;
+        try {
+            classId = Long.parseLong(classIdStr);
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("Invalid class ID format: " + classIdStr);
+        }
         
         // Get staff record to find staffId
         var staff = staffRepository.findByUser_UserId(userId)
                 .orElseThrow(() -> new RuntimeException("Staff profile not found for user"));
         String staffId = staff.getStaffId();
         
-        Optional<Class> existingClass = classRepository.findByCourse_CodeAndTutor_StaffId(classId, staffId);
+        Optional<Class> existingClass = classRepository.findByClassIdAndTutor_StaffId(classId, staffId);
         if (existingClass.isEmpty()) {
             throw new RuntimeException("Class not found or user is not the tutor of the class");
         }
@@ -91,11 +99,19 @@ public class SessionService {
         String sessionType = request.sessionType();
         Integer capacity = request.capacity();
         String description = request.description();
+        String title = request.title();
+
+        // Parse ISO 8601 datetime with timezone (e.g., "2025-11-19T02:00:00.000Z")
+        java.time.LocalDateTime parsedStartTime = java.time.OffsetDateTime.parse(startTime)
+                .toLocalDateTime();
+        java.time.LocalDateTime parsedEndTime = java.time.OffsetDateTime.parse(endTime)
+                .toLocalDateTime();
 
         Session newSession = Session.builder()
                 .clazz(existingClass.get())
-                .startTime(java.time.LocalDateTime.parse(startTime))
-                .endTime(java.time.LocalDateTime.parse(endTime))
+                .title(title)
+                .startTime(parsedStartTime)
+                .endTime(parsedEndTime)
                 .location(location)
                 .sessionType(sessionType)
                 .maxStudents(capacity)
