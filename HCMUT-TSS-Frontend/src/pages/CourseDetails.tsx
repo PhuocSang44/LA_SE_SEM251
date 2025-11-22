@@ -568,9 +568,7 @@ const CourseDetails = () => {
 
                             {isOwner && (
                               <div className="pt-4">
-                                <Button onClick={() => navigate('/create-session', { state: { course } })} className="w-full flex items-center justify-center gap-2 mb-3">
-                                  <Plus className="h-4 w-4" /> Add Session
-                                </Button>
+                               
                                 <div className="text-sm text-muted-foreground">Danger Zone</div>
                                 <Button variant="destructive" className="mt-2 rounded-md px-3 py-1" onClick={() => setShowDeleteDialog(true)}>
                                   Delete Class
@@ -628,7 +626,7 @@ const CourseDetails = () => {
                           <CardContent>
                             <div className="space-y-3">
                               {loadingSessions && <div className="text-sm text-muted-foreground">Loading sessions...</div>}
-                              {!loadingSessions && sessions.slice(0,3).map(s => (
+                              {!loadingSessions && sessions.slice(0,8).map(s => (
                                 <div key={s.sessionId} className="p-3 rounded-lg border bg-accent/30 flex justify-between items-start">
                                   <div>
                                     <p className="font-medium text-sm">{s.sessionTitle}</p>

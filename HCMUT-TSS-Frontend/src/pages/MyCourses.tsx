@@ -18,7 +18,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { listSessionsByClass, hasConflict, createSession, updateSession, formatSessionRange } from "@/lib/sessionApi";
+import { listSessionsByClass, hasConflict, createSession, updateSession, formatSessionRange, enrollInSession, listSessionsByUser, cancelEnroll } from "@/lib/sessionApi";
 import type { Session } from "@/types/session";
 
 const MyCourses = () => {
@@ -45,7 +45,7 @@ const MyCourses = () => {
   const [availableCoursesWithSessions, setAvailableCoursesWithSessions] = useState<any[]>([]);
   const [mySessions, setMySessions] = useState<Session[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
-
+  const [joinedSessionIds, setJoinedSessionIds] = useState<Set<number>>(new Set());
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
   const [sessionDialogMode, setSessionDialogMode] = useState<'create' | 'edit'>('create');
   const [activeCourse, setActiveCourse] = useState<any | null>(null);
@@ -85,8 +85,10 @@ const MyCourses = () => {
       }));
       const withSessions = await Promise.all(baseCourses.map(async (course: any) => {
         const sessions = await listSessionsByClass(course.id);
+        console.log('Loaded student courses with sessions:', sessions);
         return { ...course, sessions };
       }));
+      
       setStudentCourses(withSessions);
 
       fetch(`${apiBase}/api/classes`, { credentials: 'include' })
@@ -140,6 +142,25 @@ const MyCourses = () => {
       setLoadingCourses(false);
     }
   };
+
+   useEffect(() => {
+   const loadJoined = async () => {
+     if (!isStudent) {
+       setJoinedSessionIds(new Set());
+       return;
+     }
+     try {
+       const data = await listSessionsByUser(numericUserId || 0);
+       console.log('Loaded joined sessions:', data);
+       const ids = new Set<number>(data.map((s: any) => Number(s.sessionId ?? s.id)));
+       setJoinedSessionIds(ids);
+     } catch (e) {
+       console.error('Failed to load joined sessions', e);
+       setJoinedSessionIds(new Set());
+     }
+   };
+   loadJoined();
+ }, [isStudent, numericUserId]);
 
   useEffect(() => {
     if (isStudent) {
@@ -231,7 +252,8 @@ const MyCourses = () => {
     // Conflict check: candidate session times vs mySessions
     const sessionCandidate = foundCourse?.sessions?.find((s: any) => s.id === sessionId);
     if (sessionCandidate && sessionCandidate.startTime && sessionCandidate.endTime) {
-      const candidate: Session = { id: sessionId, classId: sessionId, tutorId: sessionOwnerId, topic: sessionCandidate.topic || '', startTime: sessionCandidate.startTime, endTime: sessionCandidate.endTime, status: 'scheduled' };
+      const candidate: Session = { id: sessionId, classId: sessionId, tutorId: sessionOwnerId, title: sessionCandidate.topic || '', startTime: sessionCandidate.startTime, endTime: sessionCandidate.endTime, status: 'scheduled' };
+      
       if (hasConflict(mySessions, candidate)) {
         toast({ title:'Schedule conflict', description:'This session overlaps with an existing one', variant:'destructive'});
         setJoinSessionStatus('idle');
@@ -298,7 +320,7 @@ const MyCourses = () => {
     setSessionDialogMode(mode);
     setActiveCourse(course);
     setEditingSession(session || null);
-    setSessionTopic(session?.topic || "");
+    setSessionTopic(session?.title || "");
     setSessionDate(session ? new Date(session.startTime).toISOString().substring(0, 10) : "");
     setSessionStart(session ? new Date(session.startTime).toTimeString().substring(0, 5) : "");
     setSessionEnd(session ? new Date(session.endTime).toTimeString().substring(0, 5) : "");
@@ -341,6 +363,23 @@ const MyCourses = () => {
     }
   };
 
+  const cancelEnrollment = async (sessionId: number) => {
+    try {
+      const ok = await cancelEnroll(sessionId, numericUserId || 0);
+      console.log('Cancel enrollment response:', ok);
+      if (!ok) throw new Error('Failed to cancel enrollment');
+      toast({ title: 'Enrollment cancelled', description: 'You have been unenrolled from the session' });
+      await refreshCourseSessions(sessionId);
+      setJoinedSessionIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(sessionId);
+        return newSet;
+      });
+    } catch (error: any) {
+      toast({ title: 'Failed to cancel enrollment', description: String(error?.message || error), variant: 'destructive' });
+    }
+  };
+
   const handleCancelSession = async (courseId: number, sessionId: number) => {
     try {
       const ok = await updateSession(sessionId, { status: 'cancelled' });
@@ -353,23 +392,31 @@ const MyCourses = () => {
   };
 
   const handleJoinSessionDirect = async (session: Session) => {
+    console.log('Attempting to join session:', session);
     if (session.status === 'cancelled') {
       toast({ title: 'Session cancelled', description: 'Cannot join a cancelled session', variant: 'destructive' });
+      console.log('Session is cancelled, cannot join.');
       return;
     }
-    if (hasConflict(mySessions, session)) {
-      toast({ title: 'Schedule conflict', description: 'This session conflicts with your existing schedule', variant: 'destructive' });
-      return;
-    }
+    // if (hasConflict(mySessions, session)) {
+    //   toast({ title: 'Schedule conflict', description: 'This session conflicts with your existing schedule', variant: 'destructive' });
+    //   console.log('Schedule conflict detected, cannot join.');
+    //   return;
+    // }
     try {
-      const res = await fetch(`${apiBase}/api/sessions/${session.id}/enroll`, { method: 'POST', credentials: 'include' });
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt || 'Failed to join session');
-      }
-      toast({ title: 'Joined session', description: session.topic });
+      const payload = { sessionId: session.sessionId, UserID: numericUserId || 0 };
+      console.log('Joining session with payload:', payload);
+      const ok = await enrollInSession(payload);
+      if (!ok) throw new Error('Failed to join session');
+      toast({ title: 'Joined session', description: session.sessionTitle });
       await refreshCourseSessions(session.classId);
       setMySessions((prev) => [...prev, session]);
+      const sid  = Number(session.sessionId ?? session.id);
+      setJoinedSessionIds(prev => {
+        const newSet = new Set(prev);
+        newSet.add(sid);
+        return newSet;
+      });
     } catch (error: any) {
       toast({ title: 'Failed to join session', description: String(error?.message || error), variant: 'destructive' });
     }
@@ -408,7 +455,8 @@ const MyCourses = () => {
             ) : (
               displayedCourses.map((course) => {
                 const sessionList: Session[] = Array.isArray(course.sessions) ? course.sessions : [];
-                const visibleSessions = sessionList.slice(0, 3);
+                console.log('Rendering course with sessions:', course.name, sessionList);
+                const visibleSessions = sessionList.slice(0, 10);
                 return (
                   <Card key={course.id} className="rounded-xl shadow-md hover:shadow-lg transition-shadow">
                     <CardHeader>
@@ -460,7 +508,7 @@ const MyCourses = () => {
                           {visibleSessions.map((session) => (
                             <div key={session.id} className="border rounded-lg p-3 text-sm flex items-start justify-between gap-3">
                               <div>
-                                <p className="font-medium">{session.topic}</p>
+                                <p className="font-medium">{session.sessionTitle}</p>
                                 <p className="text-xs text-muted-foreground">{formatSessionRange(session)}</p>
                                 <p className="text-xs text-muted-foreground">Status: {session.status}</p>
                               </div>
@@ -480,15 +528,34 @@ const MyCourses = () => {
                             <p className="text-sm text-muted-foreground">Tutor has not created any sessions.</p>
                           )}
                           {visibleSessions.map((session) => (
-                            <div key={session.id} className="border rounded-lg p-3 text-sm flex items-center justify-between gap-3">
+                            <div key={session.id} className="border rounded-lg p-3 text-sm flex items-center gap-3 justify-between">
                               <div>
-                                <p className="font-medium">{session.topic}</p>
+                                <p className="font-medium">{session.sessionTitle}</p>
                                 <p className="text-xs text-muted-foreground">{formatSessionRange(session)}</p>
                                 <p className="text-xs text-muted-foreground">Status: {session.status}</p>
                               </div>
-                              <Button size="sm" disabled={session.status === 'cancelled'} onClick={() => handleJoinSessionDirect(session)}>
-                                Join
-                              </Button>
+                              
+                              {(() => {
+                                const sid = Number(session.sessionId ?? session.id);
+                                const joined = joinedSessionIds.has(sid);
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      disabled={session.status === 'cancelled' || joined}
+                                      onClick={() => { if (!joined) handleJoinSessionDirect(session); }}
+                                    >
+                                      {joined ? 'Joined' : 'Join'}
+                                    </Button>
+
+                                    {joined && (
+                                      <Button size="sm" variant="destructive" onClick={() => cancelEnrollment(sid)}>
+                                        Cancel
+                                      </Button>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           ))}
                         </div>

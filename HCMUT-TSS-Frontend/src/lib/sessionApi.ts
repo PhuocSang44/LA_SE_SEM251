@@ -1,4 +1,4 @@
-import { Session, CreateSessionPayload, UpdateSessionPayload } from "@/types/session";
+import { Session, CreateSessionPayload, UpdateSessionPayload, EnrollMentSessionRequest } from "@/types/session";
 
 const API = import.meta.env.VITE_API_BASE || "http://localhost:10001";
 
@@ -13,6 +13,32 @@ export async function listSessionsByClass(classId: number): Promise<Session[]> {
     if (!res.ok) return [];
     return await res.json();
   } catch { return []; }
+}
+
+export async function listSessionsByUser(userId: number): Promise<Session[]> {
+  try {
+    // backend exposes /api/sessions/userId for the authenticated user
+    const res = await fetch(`${API}/api/sessions/userId`, { credentials: 'include' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    // Normalize server SessionResponse -> frontend Session
+    return Array.isArray(data) ? data.map((s: any) => ({
+      // keep both id and sessionId to avoid breaking places that use either
+      id: Number(s.sessionId ?? s.id ?? 0),
+      sessionId: Number(s.sessionId ?? s.id ?? 0),
+      classId: Number(s.classId ?? s.classId ?? 0),
+      title: s.sessionTitle ?? s.title ?? s.sessionTitle ?? '',
+      sessionTitle: s.sessionTitle ?? s.title ?? '',
+      startTime: s.startTime ?? s.start_time ?? '',
+      endTime: s.endTime ?? s.end_time ?? '',
+      tutorId: s.tutorId ?? s.tutorId ?? null,
+      tutorName: s.tutorName ?? s.tutorName ?? '',
+      status: (s.status || '').toLowerCase() as ('scheduled' | 'cancelled' | 'completed')
+    })) : [];
+  } catch (e) {
+    console.error('listSessionsByUser error', e);
+    return [];
+  }
 }
 
 export async function listAllSessions(): Promise<Session[]> {
@@ -40,6 +66,28 @@ export async function createSession(payload: CreateSessionPayload): Promise<Sess
 }
 
 
+export async function cancelEnroll(sessionId: number, userId?: number): Promise<boolean> {
+  try {
+    // If you have an auth/context provider, read current user id here when userId is not passed:
+    // const currentUserId = authContext?.user?.id;
+    if (userId == null) {
+      console.error('cancelEnroll requires a userId (or provide a current user fallback).');
+      return false;
+    }
+
+    console.log('cancelEnroll called with', sessionId, userId);
+    const res = await fetch(`${API}/api/sessions/unenroll`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, userId })
+    });
+    return res.ok;
+  } catch (e) {
+    console.error(e);
+    return false;
+  }
+}
 
 export async function updateSession(id: number, payload: UpdateSessionPayload): Promise<boolean> {
   try {
@@ -78,4 +126,16 @@ export function formatSessionRange(session: Session): string {
   const startTime = start.toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' });
   const endTime = end.toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' });
   return `${datePart} ${startTime} - ${endTime}`;
+}
+
+export async function enrollInSession(payload: EnrollMentSessionRequest): Promise<boolean> {
+  try {
+    const res = await fetch(`${API}/api/sessions/enroll`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return res.ok;
+  } catch (e) { console.error(e); return false; }
 }
