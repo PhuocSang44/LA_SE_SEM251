@@ -17,8 +17,10 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { listSessionsByClass } from "@/lib/sessionApi";
+import { listSessionsByClass, listAllSessions, listSessionsByUser } from "@/lib/sessionApi";
 import { Toaster } from "@/components/ui/sonner";
+import { set } from "date-fns";
+import { all } from "axios";
 
 const CourseDetails = () => {
   const navigate = useNavigate();
@@ -32,7 +34,6 @@ const CourseDetails = () => {
   // 'course' is the canonical source of truth for this component (fullCourse when available, otherwise initialCourse)
   const course = fullCourse ?? initialCourse;
   const courseCode = course?.code ?? course?.courseCode ?? null;
-
   const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:10001';
   const libraryApiBase = import.meta.env.VITE_LIBRARY_BASE || 'http://localhost:10006';
 
@@ -109,6 +110,7 @@ const CourseDetails = () => {
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [exitConfirmText, setExitConfirmText] = useState("");
   const [isExiting, setIsExiting] = useState(false);
+  const [joinedSessionId, setJoinedSessionId] = useState<any[]>([]);
 
   // Feedback states
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
@@ -163,12 +165,15 @@ const CourseDetails = () => {
   return localDate.toISOString().slice(0, 19);
   };
 
+
   useEffect(() => {
     (async () => {
       if (!course?.id) return;
       setLoadingSessions(true);
       try {
         const res = await fetch(`${apiBase}/api/sessions/${course.id}`, { credentials:'include' });
+        const res1 = await listSessionsByUser();
+        console.log("DEBUG: All sessions for user:", res1);
         console.log("DEBUG: Fetching sessions from:", `${apiBase}/api/sessions/${course.id}`);
         if (res.ok) {
           const list = await res.json();
@@ -177,6 +182,12 @@ const CourseDetails = () => {
         } else {
           setSessions([]); // fallback
         }
+        const allSessions = res1 || [];
+
+        // Normalize helper: return canonical id + start time
+        
+        setJoinedSessionId(allSessions);
+        console.log("DEBUG: Joined session ids:", allSessions);
       } catch { setSessions([]); }
       setLoadingSessions(false);
     })();
@@ -730,21 +741,60 @@ const CourseDetails = () => {
                     <h4 className="text-sm font-medium mb-3">Available Sessions / Các buổi học có sẵn:</h4>
                     <RadioGroup value={selectedSession} onValueChange={setSelectedSession}>
                       <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                        {sessions.map((session) => (
-                          <div key={session.sessionId} className="flex items-start space-x-3 space-y-0 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
-                            <RadioGroupItem value={session.sessionId.toString()} id={`session-${session.sessionId}`} />
-                            <Label htmlFor={`session-${session.sessionId}`} className="flex-1 cursor-pointer">
-                              <div className="font-medium">{session.sessionTitle}</div>
-                              <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-                                <Calendar className="h-3 w-3" />
-                                {formatRange(session)}
-                              </div>
-                              <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
-                                Status: {session.status}
-                              </div>
-                            </Label>
-                          </div>
-                        ))}
+                        {sessions.map((session) => {
+                          // joinedSessionId may be an array of session objects (or ids). Normalize to an array of string ids.
+                          const joinedIds: string[] = Array.isArray(joinedSessionId)
+                            ? joinedSessionId.map(j => {
+                                if (j == null) return "";
+                                return typeof j === "object" ? String(j.sessionId ?? j.id ?? "") : String(j);
+                              })
+                            : (joinedSessionId && typeof joinedSessionId === "object"
+                                ? [String(joinedSessionId.sessionId ?? joinedSessionId.id ?? "")]
+                                : [String(joinedSessionId ?? "")]);
+
+                          const isJoined = joinedIds.includes(String(session.sessionId));
+                          console.log("DEBUG: Session", session.sessionId, "isJoined:", isJoined, "joinedIds:", joinedIds);
+
+                          return (
+                            <div
+                              key={session.sessionId}
+                              className={`flex items-start space-x-3 space-y-0 rounded-lg border p-4 transition-colors ${
+                                isJoined ? "opacity-60 cursor-not-allowed" : "hover:bg-accent/50"
+                              }`}
+                              aria-disabled={isJoined}
+                            >
+                              {/* disable radio for joined sessions so they cannot be selected */}
+                              <RadioGroupItem
+                                value={session.sessionId.toString()}
+                                id={`session-${session.sessionId}`}
+                                disabled={isJoined}
+                              />
+                              <Label
+                                htmlFor={`session-${session.sessionId}`}
+                                className={`flex-1 cursor-pointer ${isJoined ? "cursor-not-allowed" : ""}`}
+                              >
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <div className="font-medium">{session.sessionTitle}</div>
+                                    <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+                                      <Calendar className="h-3 w-3" />
+                                      {formatRange(session)}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
+                                      Status: {session.status}
+                                    </div>
+                                  </div>
+
+                                  {isJoined && (
+                                    <div className="ml-4 flex items-center">
+                                      <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded">JOINED</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </Label>
+                            </div>
+                          );
+                        })}
                       </div>
                     </RadioGroup>
                   </div>

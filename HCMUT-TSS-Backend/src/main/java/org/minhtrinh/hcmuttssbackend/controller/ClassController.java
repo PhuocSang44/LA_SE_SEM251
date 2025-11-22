@@ -74,5 +74,11 @@ public class ClassController {
         return ResponseEntity.ok(classService.getClassesByTutor(principal));
     }
 
-    
+    @GetMapping("/{classId}")
+    public ResponseEntity<ClassResponse> getClassById(@PathVariable Long classId,
+                                                      @AuthenticationPrincipal TssUserPrincipal principal) {
+        return classService.getClassById(classId, principal)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
 }
