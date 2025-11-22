@@ -299,8 +299,11 @@ const CreateClass = () => {
                         <CardHeader>
                           <div className="flex items-start justify-between w-full">
                             <div>
+                              
                               <CardTitle className="text-lg">{c.name}</CardTitle>
+                              <div className="text-sm text-muted-foreground">Class ID: {c.id}</div>
                               <div className="text-sm text-muted-foreground">{c.code} • {c.semester}</div>
+
                             </div>
                           </div>
                         </CardHeader>

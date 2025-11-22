@@ -18,6 +18,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { listSessionsByClass } from "@/lib/sessionApi";
+import { Toaster } from "@/components/ui/sonner";
 
 const CourseDetails = () => {
   const navigate = useNavigate();
@@ -880,7 +881,36 @@ const CourseDetails = () => {
                   }
               }}>Save</Button>
                   <Button variant="outline" onClick={()=>setEditingSessionId(null)}>Cancel</Button>
-                  <Button variant="destructive" onClick={async ()=>{ if (editingSessionId==null) return; const res= await fetch(`${apiBase}/api/sessions/${editingSessionId}`, { method:'PATCH', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status:'cancelled' }) }); if (res.ok){ toast({ title:'Cancelled', description:'Session cancelled'}); const updated = await res.json(); setSessions(prev=> prev.map(p=> p.id===updated.id? updated : p)); setEditingSessionId(null);} else { toast({ title:'Failed', description: await res.text(), variant:'destructive'});} }}>Cancel Session</Button>
+                 <Button variant="destructive" onClick={async () => {
+                  if (editingSessionId == null) return;
+                  console.log("DEBUG: Cancel session clicked for id:", editingSessionId);
+                  try {
+                    const res = await fetch(`${apiBase}/api/sessions/cancelSession`, {
+                      method: 'PATCH',
+                      credentials: 'include',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(editingSessionId)
+                    });
+                    if (!res.ok) {
+                      const txt = await res.text();
+                      throw new Error(txt || 'Cancel failed');
+                    }
+                    toast({ title: 'Cancelled', description: 'Session cancelled' });
+                    setEditingSessionId(null);
+                    if (course?.id) {
+                      setLoadingSessions(true);
+                      try {
+                        const fresh = await listSessionsByClass(course.id);
+                        if (Array.isArray(fresh)) setSessions(fresh);
+                      } finally {
+                        setLoadingSessions(false);
+                      }
+                    }
+                  } catch (e: any) {
+                    console.error('Cancel failed:', e);
+                    toast({ title: 'Failed', description: String(e.message || e), variant: 'destructive' });
+                  }
+                }}>Cancel Session</Button>
                 </div>
               </div>
             </DialogContent>
@@ -1022,6 +1052,7 @@ const CourseDetails = () => {
         </div>
       </main>
       <Footer />
+      <Toaster  />
     </div>
   );
 };

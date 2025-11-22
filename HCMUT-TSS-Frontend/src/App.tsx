@@ -19,6 +19,8 @@ import RegisterSubject from "@/pages/RegisterSubject.tsx";
 import NotFound from "@/pages/NotFound.tsx";
 import CreateClass from "@/pages/CreateClass.tsx";
 import CreateSession from "@/pages/CreateSession.tsx";
+import { Toast } from "@radix-ui/react-toast";
+import { Toaster } from "./components/ui/toaster";
 
 const queryClient = new QueryClient();
 
@@ -29,7 +31,7 @@ const App = () => (
                 {/* ... (Toaster, Sonner) ... */}
                 <BrowserRouter>
                     <Routes>
-
+                        
                         {/* --- Public-Only Routes (Login, etc.) --- */}
                         <Route element={<GuestRoute />}>
                             <Route path="/login" element={<Login />} />
@@ -68,6 +70,7 @@ const App = () => (
                         <Route path="*" element={<NotFound />} />
                     </Routes>
                 </BrowserRouter>
+                <Toaster />
             </TooltipProvider>
         </AuthProvider>
     </QueryClientProvider>

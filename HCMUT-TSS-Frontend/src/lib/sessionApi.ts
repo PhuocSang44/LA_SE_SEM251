@@ -58,7 +58,9 @@ export async function createSession(payload: CreateSessionPayload): Promise<Sess
       body: JSON.stringify(payload)
     });
     if (!res.ok) throw new Error(await res.text() || 'Create session failed');
-    return await res.json();
+    const data =  await safeJson(res);
+    if (!data) return {} as Session;
+    return (data.ok ?? data) as Session;
   } catch (e) {
     console.error(e);
     return null;

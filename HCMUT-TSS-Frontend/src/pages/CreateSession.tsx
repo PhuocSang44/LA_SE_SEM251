@@ -11,6 +11,8 @@ import { toast } from "@/hooks/use-toast";
 import { createSession } from "@/lib/sessionApi";
 import type { CreateSessionPayload } from "@/types/session";
 import { useAuth } from "@/contexts/AuthContext";
+import { Toast } from "@radix-ui/react-toast";
+import { Toaster } from "@/components/ui/toaster";
 
 // Simple date+time merger
 function mergeDateTime(dateStr: string, timeStr: string): string {
@@ -110,6 +112,7 @@ const CreateSession = () => {
       capacity: capacity ? parseInt(capacity) : undefined,
       description: description || undefined,
     };
+    console.log('Creating session with payload', payload);
     const created = await createSession(payload);
     if (created) {
       toast({ title: "Session created", description: `${title} on ${date}` });
@@ -217,6 +220,7 @@ const CreateSession = () => {
         </div>
       </main>
       <Footer />
+      <Toaster />
     </div>
   );
 };

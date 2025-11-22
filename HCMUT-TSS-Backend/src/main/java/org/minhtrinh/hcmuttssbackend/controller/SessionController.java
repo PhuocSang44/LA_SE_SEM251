@@ -35,6 +35,14 @@ public class SessionController {
         return ResponseEntity.ok().build();
     }
 
+    @PatchMapping("/cancelSession")
+    @PreAuthorize("hasAnyAuthority('STAFF')")
+    public ResponseEntity<Void> CancelSession(@RequestBody Long sessionId , @AuthenticationPrincipal TssUserPrincipal principal) {
+        // Implementation here
+        sessionService.cancelSession(sessionId, principal);
+        return ResponseEntity.ok().build();
+    }
+
     @PatchMapping
     @PreAuthorize("hasAnyAuthority('STAFF')")
     public ResponseEntity<Void> updateSession(@RequestBody RescheduleRequest request , @AuthenticationPrincipal TssUserPrincipal principal) {

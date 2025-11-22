@@ -564,7 +564,7 @@ const MyCourses = () => {
                       <Button 
                         variant="outline" 
                         className="w-full rounded-lg"
-                        onClick={() => navigate("/course-details", { state: { course } })}
+                        onClick={() => navigate("/courseDetails", { state: { course } })}
                       >
                         View Details
                       </Button>
