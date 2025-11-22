@@ -120,6 +120,7 @@ const CourseDetails = () => {
     { question: "How would you rate the course difficulty?", ratingValue: 0 }
   ]);
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [showFeedbackExistsDialog, setShowFeedbackExistsDialog] = useState(false);
 
   // Real sessions state (fetched)
   const [sessions, setSessions] = useState<any[]>([]);
@@ -132,6 +133,19 @@ const CourseDetails = () => {
   const [libraryItems, setLibraryItems] = useState<any[]>([]);
   const [loadingLibrary, setLoadingLibrary] = useState(false);
   const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [sessionMaterials, setSessionMaterials] = useState<any[]>([]);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
+  const [materialsError, setMaterialsError] = useState<string | null>(null);
+  const [showExternalUrlDialog, setShowExternalUrlDialog] = useState(false);
+  const [externalUrlTitle, setExternalUrlTitle] = useState("");
+  const [externalUrlDescription, setExternalUrlDescription] = useState("");
+  const [externalUrl, setExternalUrl] = useState("");
+  const [isAddingMaterial, setIsAddingMaterial] = useState(false);
+  const [showFileUploadDialog, setShowFileUploadDialog] = useState(false);
+  const [uploadFileTitle, setUploadFileTitle] = useState("");
+  const [uploadFileDescription, setUploadFileDescription] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
 
   const mergeDateTime = (dateStr: string, timeStr: string) => {
     try { const [h,m] = timeStr.split(':').map(Number); const d = new Date(dateStr); d.setHours(h||0,m||0,0,0); return d.toISOString(); } catch { return new Date().toISOString(); }
@@ -210,6 +224,36 @@ const CourseDetails = () => {
       .finally(() => setLoadingLibrary(false));
     return () => controller.abort();
   }, [apiBase, courseCode]);
+
+  // Fetch session materials (course-specific materials)
+  useEffect(() => {
+    if (!course?.id) {
+      setSessionMaterials([]);
+      return;
+    }
+    setLoadingMaterials(true);
+    setMaterialsError(null);
+    const controller = new AbortController();
+    const url = `${apiBase}/api/courses/${course.id}/materials`;
+    fetch(url, { credentials: 'include', signal: controller.signal })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Failed to fetch course materials');
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setSessionMaterials(Array.isArray(data) ? data : []);
+      })
+      .catch((error) => {
+        if (error.name === 'AbortError') return;
+        console.error('Failed to fetch course materials', error);
+        setSessionMaterials([]);
+        setMaterialsError('Unable to load course materials');
+      })
+      .finally(() => setLoadingMaterials(false));
+    return () => controller.abort();
+  }, [apiBase, course?.id]);
 
   if (!course) {
     return (
@@ -401,16 +445,28 @@ const CourseDetails = () => {
         } catch (e) {
           errorMessage = text || errorMessage;
         }
+
+        // Special handling for "already submitted" error
+        if (errorMessage.toLowerCase().includes('already submitted')) {
+          setShowFeedbackDialog(false);
+          setShowFeedbackExistsDialog(true);
+          return;
+        }
+
         throw new Error(errorMessage);
       }
     } catch (err: any) {
       console.error("DEBUG: Fetch error:", err);
       const errorMsg = err.message || String(err);
-      toast({
-        title: "Failed to submit feedback",
-        description: errorMsg,
-        variant: "destructive"
-      });
+
+      // Don't show toast if we already handled the "already submitted" case
+      if (!errorMsg.toLowerCase().includes('already submitted')) {
+        toast({
+          title: "Failed to submit feedback",
+          description: errorMsg,
+          variant: "destructive"
+        });
+      }
     } finally {
       console.log("DEBUG: Setting isSubmittingFeedback to false");
       setIsSubmittingFeedback(false);
@@ -421,6 +477,132 @@ const CourseDetails = () => {
     const newRatings = [...feedbackRatings];
     newRatings[index].ratingValue = value;
     setFeedbackRatings(newRatings);
+  };
+
+  const handleAddExternalMaterial = async () => {
+    if (!externalUrl || !externalUrlTitle) {
+      toast({
+        title: "Missing information",
+        description: "Please provide both title and URL",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!externalUrl.startsWith('http://') && !externalUrl.startsWith('https://')) {
+      toast({
+        title: "Invalid URL",
+        description: "URL must start with http:// or https://",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsAddingMaterial(true);
+    try {
+      const res = await fetch(`${apiBase}/api/courses/${course?.id}/materials/add-external`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: externalUrlTitle,
+          description: externalUrlDescription,
+          externalUrl: externalUrl
+        })
+      });
+
+      if (res.ok) {
+        toast({
+          title: "Material added successfully",
+          description: "External URL has been added to course materials"
+        });
+        setShowExternalUrlDialog(false);
+        setExternalUrlTitle("");
+        setExternalUrlDescription("");
+        setExternalUrl("");
+        // Refresh materials
+        const refreshRes = await fetch(`${apiBase}/api/courses/${course?.id}/materials`, { credentials: 'include' });
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          setSessionMaterials(Array.isArray(data) ? data : []);
+        }
+      } else {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Failed to add material');
+      }
+    } catch (err: any) {
+      toast({
+        title: "Failed to add material",
+        description: err.message || String(err),
+        variant: "destructive"
+      });
+    } finally {
+      setIsAddingMaterial(false);
+    }
+  };
+
+  const handleUploadFile = async () => {
+    if (!selectedFile) {
+      toast({
+        title: "No file selected",
+        description: "Please select a file to upload",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!uploadFileTitle) {
+      toast({
+        title: "Missing title",
+        description: "Please provide a title for the file",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsUploadingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('title', uploadFileTitle);
+      if (uploadFileDescription) {
+        formData.append('description', uploadFileDescription);
+      }
+
+      const res = await fetch(`${apiBase}/api/courses/${course?.id}/materials/upload`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+
+      if (res.ok) {
+        toast({
+          title: "File uploaded successfully",
+          description: "File has been added to course materials"
+        });
+        setShowFileUploadDialog(false);
+        setUploadFileTitle("");
+        setUploadFileDescription("");
+        setSelectedFile(null);
+        // Refresh materials
+        const refreshRes = await fetch(`${apiBase}/api/courses/${course?.id}/materials`, { credentials: 'include' });
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          setSessionMaterials(Array.isArray(data) ? data : []);
+        }
+      } else {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Failed to upload file');
+      }
+    } catch (err: any) {
+      toast({
+        title: "Failed to upload file",
+        description: err.message || String(err),
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploadingFile(false);
+    }
   };
 
   const handleExit = async () => {
@@ -515,9 +697,6 @@ const CourseDetails = () => {
                       <div className="bg-white shadow-sm rounded-md p-2 flex items-center gap-2">
                         <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700 rounded-md px-3 py-1" onClick={() => navigate('/create-quiz', { state: { course } })}>
                           Create Quiz
-                        </Button>
-                        <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700 rounded-md px-3 py-1" onClick={() => toast({ title: 'Upload Materials', description: 'Upload materials coming soon' })}>
-                          Upload
                         </Button>
                         <Button size="sm" variant="outline" className="bg-white text-blue-600 border-blue-500 hover:bg-blue-50 rounded-md px-3 py-1" onClick={() => { setRenameValue(course?.name || ''); setShowRenameDialog(true); }}>
                           Rename
@@ -708,6 +887,126 @@ const CourseDetails = () => {
                               >
                                 View all library files
                               </Button>
+                            )}
+                          </CardContent>
+                        </Card>
+
+                        {/* Session Materials Card */}
+                        <Card className="rounded-xl shadow-md">
+                          <CardHeader>
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-xl flex items-center gap-2">
+                                <BookOpen className="h-5 w-5 text-muted-foreground" />
+                                Course Materials
+                              </CardTitle>
+                              {isOwner && (
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setShowFileUploadDialog(true)}
+                                  >
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    Upload File
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setShowExternalUrlDialog(true)}
+                                  >
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    Add Link
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            {loadingMaterials && (
+                              <div className="text-sm text-muted-foreground">Loading course materials...</div>
+                            )}
+                            {!loadingMaterials && materialsError && (
+                              <div className="text-sm text-destructive">{materialsError}</div>
+                            )}
+                            {!loadingMaterials && !materialsError && sessionMaterials.length === 0 && (
+                              <div className="text-sm text-muted-foreground">
+                                No course materials yet.
+                                {isOwner && " Add materials to help students learn!"}
+                              </div>
+                            )}
+                            {!loadingMaterials && !materialsError && sessionMaterials.length > 0 && (
+                              <div className="space-y-3">
+                                {sessionMaterials.map((material) => (
+                                  <div key={material.id} className="p-3 rounded-lg border bg-muted/40 flex justify-between items-start gap-3">
+                                    <div className="flex-1">
+                                      <div className="flex items-start gap-2">
+                                        {material.sourceType === 'EXTERNAL_URL' && (
+                                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">🔗 Link</span>
+                                        )}
+                                        {material.sourceType === 'LIBRARY_REF' && (
+                                          <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">📚 Library</span>
+                                        )}
+                                        {material.sourceType === 'LOCAL_FILE' && (
+                                          <span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded">📄 File</span>
+                                        )}
+                                      </div>
+                                      <p className="font-medium text-sm mt-1">{material.title}</p>
+                                      {material.description && (
+                                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{material.description}</p>
+                                      )}
+                                      {material.originalName && material.sourceType === 'LOCAL_FILE' && (
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          {material.originalName}
+                                        </p>
+                                      )}
+                                      {material.sizeBytes && (
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          Size: {formatFileSize(material.sizeBytes)}
+                                        </p>
+                                      )}
+                                    </div>
+                                    {material.sourceType === 'EXTERNAL_URL' && material.externalUrl && (
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={() => {
+                                          if (confirm(`Open external link?\n\n${material.externalUrl}\n\nThis will open in a new tab.`)) {
+                                            window.open(material.externalUrl, '_blank', 'noopener,noreferrer');
+                                          }
+                                        }}
+                                        title="Open external link"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                        </svg>
+                                      </Button>
+                                    )}
+                                    {material.sourceType === 'LOCAL_FILE' && material.downloadUrl && (
+                                      <Button size="icon" variant="ghost" asChild>
+                                        <a
+                                          href={`${apiBase}${material.downloadUrl}`}
+                                          download
+                                          title="Download file"
+                                        >
+                                          <Download className="h-4 w-4" />
+                                        </a>
+                                      </Button>
+                                    )}
+                                    {material.sourceType === 'LIBRARY_REF' && material.downloadUrl && (
+                                      <Button size="icon" variant="ghost" asChild>
+                                        <a
+                                          href={material.downloadUrl}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          title="Download file"
+                                        >
+                                          <Download className="h-4 w-4" />
+                                        </a>
+                                      </Button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
                             )}
                           </CardContent>
                         </Card>
@@ -998,6 +1297,199 @@ const CourseDetails = () => {
                     disabled={isSubmittingFeedback || feedbackRatings.some(r => r.ratingValue === 0)}
                   >
                     {isSubmittingFeedback ? 'Submitting...' : 'Submit Feedback'}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Feedback Already Exists Dialog */}
+          <Dialog open={showFeedbackExistsDialog} onOpenChange={setShowFeedbackExistsDialog}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader className="space-y-4">
+                <div className="flex items-center justify-center">
+                  <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <DialogTitle className="text-center text-xl">
+                  Feedback Already Submitted
+                </DialogTitle>
+                <DialogDescription className="text-center space-y-4 pt-2">
+                  <p className="text-base text-gray-700">
+                    You have already submitted feedback for this class.
+                  </p>
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 space-y-2 text-left">
+                    <div className="flex items-start gap-2">
+                      <span className="text-xl">📝</span>
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-blue-900">Current Policy</p>
+                        <p className="text-sm text-blue-800 leading-relaxed">
+                          Each student can submit feedback only once per class to ensure fairness and maintain the authenticity of reviews.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <p className="text-sm text-amber-900">
+                      💡 <span className="font-medium">Need to update your feedback?</span><br/>
+                      <span className="text-amber-800">Please contact your instructor or the administration for assistance.</span>
+                    </p>
+                  </div>
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-center pt-2">
+                <Button
+                  variant="default"
+                  onClick={() => setShowFeedbackExistsDialog(false)}
+                  className="min-w-[120px]"
+                >
+                  Got it
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Add External URL Material Dialog */}
+          <Dialog open={showExternalUrlDialog} onOpenChange={setShowExternalUrlDialog}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Add External Link Material</DialogTitle>
+                <DialogDescription>
+                  Add a link to external resources (e.g., Google Docs, YouTube, e-books)
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Title <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Course Syllabus, Lecture Recording"
+                    value={externalUrlTitle}
+                    onChange={(e) => setExternalUrlTitle(e.target.value)}
+                    className="w-full border rounded-md p-2"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Description (Optional)</label>
+                  <textarea
+                    placeholder="Brief description of the material..."
+                    value={externalUrlDescription}
+                    onChange={(e) => setExternalUrlDescription(e.target.value)}
+                    className="w-full border rounded-md p-2 min-h-[80px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">URL <span className="text-red-500">*</span></label>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/resource"
+                    value={externalUrl}
+                    onChange={(e) => setExternalUrl(e.target.value)}
+                    className="w-full border rounded-md p-2"
+                  />
+                  <p className="text-xs text-muted-foreground">Must start with http:// or https://</p>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-xs text-blue-900">
+                    ℹ️ Students will be asked for confirmation before opening external links
+                  </p>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowExternalUrlDialog(false);
+                      setExternalUrlTitle("");
+                      setExternalUrlDescription("");
+                      setExternalUrl("");
+                    }}
+                    disabled={isAddingMaterial}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleAddExternalMaterial}
+                    disabled={isAddingMaterial || !externalUrlTitle || !externalUrl}
+                  >
+                    {isAddingMaterial ? 'Adding...' : 'Add Material'}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* File Upload Material Dialog */}
+          <Dialog open={showFileUploadDialog} onOpenChange={setShowFileUploadDialog}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Upload File Material</DialogTitle>
+                <DialogDescription>
+                  Upload PDF, Word documents, or other files for students
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Title <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Lecture Slides Week 1"
+                    value={uploadFileTitle}
+                    onChange={(e) => setUploadFileTitle(e.target.value)}
+                    className="w-full border rounded-md p-2"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Description (Optional)</label>
+                  <textarea
+                    placeholder="Brief description of the file..."
+                    value={uploadFileDescription}
+                    onChange={(e) => setUploadFileDescription(e.target.value)}
+                    className="w-full border rounded-md p-2 min-h-[80px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">File <span className="text-red-500">*</span></label>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar"
+                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                    className="w-full border rounded-md p-2 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  {selectedFile && (
+                    <p className="text-sm text-muted-foreground">
+                      Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Supported: PDF, Word, PowerPoint, Excel, Text, ZIP
+                  </p>
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-xs text-green-900">
+                    ℹ️ Files will be securely stored and available for download by students
+                  </p>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowFileUploadDialog(false);
+                      setUploadFileTitle("");
+                      setUploadFileDescription("");
+                      setSelectedFile(null);
+                    }}
+                    disabled={isUploadingFile}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleUploadFile}
+                    disabled={isUploadingFile || !uploadFileTitle || !selectedFile}
+                  >
+                    {isUploadingFile ? 'Uploading...' : 'Upload File'}
                   </Button>
                 </div>
               </div>

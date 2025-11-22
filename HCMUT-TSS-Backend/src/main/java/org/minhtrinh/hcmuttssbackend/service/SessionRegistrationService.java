@@ -5,10 +5,12 @@ import java.util.List;
 
 import org.minhtrinh.hcmuttssbackend.TssUserPrincipal;
 import org.minhtrinh.hcmuttssbackend.dto.EnrollMentSessionRequest;
+import org.minhtrinh.hcmuttssbackend.entity.ActivityLog;
 import org.minhtrinh.hcmuttssbackend.entity.Session;
 import org.minhtrinh.hcmuttssbackend.entity.SessionEnrollment;
 import org.minhtrinh.hcmuttssbackend.entity.Student;
 import org.minhtrinh.hcmuttssbackend.entity.User;
+import org.minhtrinh.hcmuttssbackend.repository.ActivityLogRepository;
 import org.minhtrinh.hcmuttssbackend.repository.SessionRegistrationRepository;
 import org.minhtrinh.hcmuttssbackend.repository.StudentRepository;
 import org.minhtrinh.hcmuttssbackend.repository.UserRepository;
@@ -26,15 +28,18 @@ public class SessionRegistrationService {
     private final SessionRegistrationRepository sessionRegistrationRepository;
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
+    private final ActivityLogRepository activityLogRepository;
 
     public SessionRegistrationService(jpaSessionRepository sessionRepository,
                                SessionRegistrationRepository sessionRegistrationRepository,
                                UserRepository userRepository,
-                               StudentRepository studentRepository) {
+                               StudentRepository studentRepository,
+                               ActivityLogRepository activityLogRepository) {
         this.sessionRepository = sessionRepository;
         this.sessionRegistrationRepository = sessionRegistrationRepository;
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
+        this.activityLogRepository = activityLogRepository;
     }
 
     @Transactional
@@ -110,6 +115,21 @@ public class SessionRegistrationService {
             // log or handle the exception; don't swallow silently in production
             
         }
+
+        // Log activity to database
+        String sessionTitle = sessionentity.getTitle() != null ? sessionentity.getTitle() : "Untitled Session";
+        Long classId = sessionentity.getClazz() != null ? sessionentity.getClazz().getClassId() : null;
+        String startTime = sessionentity.getStartTime() != null ? sessionentity.getStartTime().toString() : "N/A";
+
+        ActivityLog activityLog = ActivityLog.builder()
+                .userId(user.getUserId())
+                .action("JOIN_SESSION")
+                .entityType("SESSION")
+                .entityId(sessionentity.getSessionId())
+                .description(String.format("Student enrolled in session '%s' (ID: %d) for class ID %d. Session starts at %s",
+                        sessionTitle, sessionentity.getSessionId(), classId, startTime))
+                .build();
+        activityLogRepository.save(activityLog);
     }
 
     @Transactional
@@ -137,6 +157,11 @@ public class SessionRegistrationService {
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Enrollment not found for student in this session"));
 
+        // Capture session details before deletion for logging
+        String sessionTitle = sessionentity.getTitle() != null ? sessionentity.getTitle() : "Untitled Session";
+        Long classId = sessionentity.getClazz() != null ? sessionentity.getClazz().getClassId() : null;
+        LocalDateTime enrollmentDate = enrollment.getEnrollmentDate();
+
         sessionRegistrationRepository.delete(enrollment);
         try {
             long updatedCount = sessionRegistrationRepository.countBySession_SessionId(sessionentity.getSessionId());
@@ -146,5 +171,17 @@ public class SessionRegistrationService {
             // log or handle the exception; don't swallow silently in production
             
         }
+
+        // Log activity to database
+        ActivityLog activityLog = ActivityLog.builder()
+                .userId(user.getUserId())
+                .action("LEAVE_SESSION")
+                .entityType("SESSION")
+                .entityId(sessionentity.getSessionId())
+                .description(String.format("Student unenrolled from session '%s' (ID: %d) for class ID %d. Was enrolled since %s",
+                        sessionTitle, sessionentity.getSessionId(), classId,
+                        enrollmentDate != null ? enrollmentDate.toString() : "unknown"))
+                .build();
+        activityLogRepository.save(activityLog);
     }
 }
