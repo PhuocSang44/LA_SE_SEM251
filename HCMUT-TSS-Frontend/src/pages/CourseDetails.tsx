@@ -172,7 +172,8 @@ const CourseDetails = () => {
         console.log("DEBUG: Fetching sessions from:", `${apiBase}/api/sessions/${course.id}`);
         if (res.ok) {
           const list = await res.json();
-          setSessions(list);
+          const Scheduled = Array.isArray(list) ? list.filter(s => s.status && s.status.toLowerCase() === 'scheduled') : [];
+          setSessions(Scheduled);
         } else {
           setSessions([]); // fallback
         }
@@ -237,12 +238,15 @@ const CourseDetails = () => {
       return;
     }
     // call backend enroll for session (reuse class enroll if no endpoint yet)
-    const s = sessions.find(s => s.id.toString() === selectedSession);
+    console.log("DEBUG: Selected session to join:", selectedSession);
+    console.log("DEBUG: Sessions available:", sessions);
+    const s = sessions.find(s => s.sessionId.toString() === selectedSession);
     if (!s) return;
     setJoinSessionStatus('waiting');
     try {
       // hypothetical endpoint
-      const res = await fetch(`${apiBase}/api/sessions/${s.id}/enroll`, { method:'POST', credentials:'include' });
+      console.log("DEBUG: Enrolling in session id:", s.sessionId);
+      const res = await fetch(`${apiBase}/api/sessions/enroll`, { method:'POST', credentials:'include', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ sessionId: s.sessionId, userId: Number(user?.officialId) }) });
       if (!res.ok) throw new Error(await res.text() || 'Enroll failed');
       setJoinSessionStatus('confirmed');
       toast({ title:'Enrolled', description:`${s.topic} ${formatRange(s)}` });
@@ -493,8 +497,9 @@ const CourseDetails = () => {
               {/* Class + badge */}
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold text-gray-900">{course?.name}</h1>
+                
                 <Badge className={`${course?.color || 'bg-blue-500'} text-white border-0 mt-2`}>
-                  {course?.sessions ?? 0} sessions total
+                {(Array.isArray(course?.sessions) ? course.sessions.length : Number(course?.sessions ?? 0))} sessions total
                 </Badge>
               </div>
               {}

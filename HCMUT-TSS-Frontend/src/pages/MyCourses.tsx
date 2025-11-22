@@ -456,7 +456,7 @@ const MyCourses = () => {
               displayedCourses.map((course) => {
                 const sessionList: Session[] = Array.isArray(course.sessions) ? course.sessions : [];
                 console.log('Rendering course with sessions:', course.name, sessionList);
-                const visibleSessions = sessionList.slice(0, 10);
+                const visibleSessions = (Array.isArray(sessionList) ? sessionList : []).filter((s: Session) => ((s?.status ?? '').toLowerCase() === 'scheduled')).slice(0, 5);
                 return (
                   <Card key={course.id} className="rounded-xl shadow-md hover:shadow-lg transition-shadow">
                     <CardHeader>
@@ -564,7 +564,10 @@ const MyCourses = () => {
                       <Button 
                         variant="outline" 
                         className="w-full rounded-lg"
-                        onClick={() => navigate("/courseDetails", { state: { course } })}
+                        onClick={() => {
+                        console.log("Navigating to course details for course:", course);
+                          navigate("/course-details", { state: { course } });
+                        }}
                       >
                         View Details
                       </Button>

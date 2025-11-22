@@ -284,6 +284,36 @@ public class SessionService {
         return List.of();
     }
 
+    // public List<SessionResponse> getallScheduleSessionsByUserID(TssUserPrincipal principal) {
+    //     // ensure authenticated and user record exists
+    //     User user = getUserFromPrincipal(principal);
+    //     Integer userId = user.getUserId();
+
+    //     // If user is a tutor (has a UniversityStaff record) -> return sessions they teach
+    //     var maybeStaff = staffRepository.findByUser_UserId(userId);
+    //     if (maybeStaff.isPresent()) {
+    //         String tutorStaffId = maybeStaff.get().getStaffId();
+    //         return sessionRepository.findByClazz_Tutor_StaffId(tutorStaffId).stream()
+    //                 .filter(s -> s.getStatus() != null && "SCHEDULED".equalsIgnoreCase(s.getStatus()))
+    //                 .map(this::mapToSessionResponse)
+    //                 .collect(Collectors.toList());
+    //     }
+
+    //     // If user is a student -> return sessions they are enrolled in via session registrations
+    //     var maybeStudent = studentRepository.findByUser_UserId(userId);
+    //     if (maybeStudent.isPresent()) {
+    //         Integer studentUserId = maybeStudent.get().getUserId();
+    //         return sessionRegistrationRepository.findByStudent_UserId(studentUserId).stream()
+    //                 .map(SessionEnrollment::getSession)
+    //                 .filter(s -> s.getStatus() != null && "SCHEDULED".equalsIgnoreCase(s.getStatus()))
+    //                 .map(this::mapToSessionResponse)
+    //                 .collect(Collectors.toList());
+    //     }
+
+    //     // Neither tutor nor student -> return empty list
+    //     return List.of();
+    // }
+
     public List<SessionResponse> getallSessionsByClassID(Long classId) {
         // ensure authenticated and user record exists
 

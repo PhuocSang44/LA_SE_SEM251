@@ -66,6 +66,12 @@ public class SessionController {
         return ResponseEntity.ok(sessions);
     }
 
+    // @GetMapping("/Schedule/userId")
+    // public ResponseEntity<List<SessionResponse>> getScheduleSessionsByUserId(@AuthenticationPrincipal TssUserPrincipal principal) {
+    //     List<SessionResponse> sessions = sessionService.getallScheduleSessionsByUserID(principal);
+    //     return ResponseEntity.ok(sessions);
+    // }
+
     @GetMapping("/{classId}")
     public ResponseEntity<List<SessionResponse>> getSessionsByClassId(@PathVariable Long classId) {
         List<SessionResponse> sessions = sessionService.getallSessionsByClassID(classId);
