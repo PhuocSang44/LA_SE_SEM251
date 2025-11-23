@@ -9,9 +9,9 @@ public record CourseRegistrationResponse(
         String courseCode,
         String courseName,
         String semester,
-        Long tutorId,
+        String tutorId,
         String tutorName,
-        Long studentId,
+        String studentId,
         String classStatus,
         Instant registeredAt
 ) {}

@@ -14,11 +14,21 @@ public class WebClientConfig {
     @Value("${app.internal-api-key}")
     private String apiKey;
 
+    @Value("${library.base-url}")
+    private String libraryBaseUrl;
+
     @Bean
     public WebClient datacoreWebClient() {
         return WebClient.builder()
                 .baseUrl(datacoreUrl)
                 .defaultHeader("X-INTERNAL-API-KEY", apiKey)
+                .build();
+    }
+
+    @Bean(name = "libraryWebClient")
+    public WebClient libraryWebClient() {
+        return WebClient.builder()
+                .baseUrl(libraryBaseUrl)
                 .build();
     }
 }

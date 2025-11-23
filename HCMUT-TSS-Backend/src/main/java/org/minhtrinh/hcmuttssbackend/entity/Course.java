@@ -27,6 +27,9 @@ public class Course {
     @Column(name = "description")
     private String description;
 
-    @Column(name = "department_name")
+    @Column(name = "department_name") // tam thoi 
     private String departmentName;
+    @ManyToOne
+    @JoinColumn(name = "department_id", nullable = false)
+    private Department department;
 }

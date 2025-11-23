@@ -51,10 +51,16 @@ const CreateClass = () => {
 
   // Map backend ClassResponse to frontend course model (consistent with MyCourses.tsx)
   const mapResponseToCourse = (c: any) => {
-    // Prefer canonical name from HARDCODED_COURSES when available (shows original course name)
     const codeNorm = String(c.courseCode || '').trim().toUpperCase();
     const canonical = HARDCODED_COURSES.find(x => String(x.code).trim().toUpperCase() === codeNorm);
-    const displayName = canonical ? canonical.name : c.courseName;
+    let displayName = c.customClassName;     
+    if (!displayName || displayName.trim() === '') {
+        if (canonical) {
+            displayName = canonical.name;
+        } else {
+            displayName = c.courseName;
+        }
+    }
     return {
       id: c.classId,
       name: displayName,
@@ -62,6 +68,8 @@ const CreateClass = () => {
       tutor: c.tutorName,
       tutorId: c.tutorId,
       semester: c.semester,
+      capacity: c.capacity,
+      enrolledCount: c.enrolledCount,
       sessions: 1,
       color: 'bg-blue-500',
       progress: 0
@@ -135,20 +143,17 @@ const CreateClass = () => {
   };
 
   const onCourseBlur = () => {
-    // Delay validation slightly so a click on a suggestion (onMouseDown)
-    // has time to run selectSuggestion and update state before blur logic.
     setTimeout(() => {
-      // If user already selected a course from suggestions, keep it
       if (courseSelected || courseName) return;
 
-      // Enforce selection from HARDCODED_COURSES or previously fetched suggestions.
+      // Enforce selection 
       if (!courseCode) {
         setCourseDisplay("");
         setCourseName("");
         return;
       }
 
-      // If a combined display was used, try to parse code
+      // try to parse code
       const parsedCode = courseCode.includes(' - ') ? courseCode.split(' - ')[0].trim() : courseCode.trim();
       const found = HARDCODED_COURSES.find(c => c.code === parsedCode) || suggestions.find((s: any) => s.code === parsedCode);
       if (found) {
@@ -159,7 +164,7 @@ const CreateClass = () => {
         return;
       }
 
-      // Not a valid selection → clear and notify
+      // Not valid → clear and notify
       setCourseCode("");
       setCourseName("");
       setCourseDisplay("");
@@ -196,7 +201,7 @@ const CreateClass = () => {
       }
       const data = await res.json();
       toast({ title: 'Class created', description: `${data.courseName} (${data.courseCode}) created` });
-      // refresh my classes
+      // refresh
       setMyClasses(prev => [mapResponseToCourse(data), ...prev]);
       // clear (semester -> default)
       setCourseCode("");
@@ -295,12 +300,15 @@ const CreateClass = () => {
                 {myClasses.map((c: any) => {
                   const isExpanded = expandedClassId === c.id;
                   return (
-                    <Card key={c.id} className="rounded-xl shadow-sm relative">
+                    <Card key={c.capacity} className="rounded-xl shadow-sm relative">
                         <CardHeader>
                           <div className="flex items-start justify-between w-full">
                             <div>
+                              
                               <CardTitle className="text-lg">{c.name}</CardTitle>
+                              <div className="text-sm text-muted-foreground">Capacity: {c.enrolledCount} / {c.capacity}</div>
                               <div className="text-sm text-muted-foreground">{c.code} • {c.semester}</div>
+
                             </div>
                           </div>
                         </CardHeader>

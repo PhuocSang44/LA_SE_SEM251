@@ -46,7 +46,7 @@ public class SecurityConfig {
                         // Bypass CSRF for auth logout and certain API endpoints used by the frontend during development.
                         // NOTE: In production, prefer sending CSRF tokens from the FRONTEND !!! 
                         // Ignore CSRF for all class endpoints (including PATCH/DELETE on /api/classes/{id})
-                        .ignoringRequestMatchers("/auth/logout", "/api/classes/**", "/course-registrations/**")
+                        .ignoringRequestMatchers("/auth/logout", "/api/classes/**", "/course-registrations/**", "/api/feedback/**", "/api/sessions/**", "/api/session-enrollments/**")
                 )
                 .authorizeHttpRequests(authorize -> authorize
                         // Allow the /auth/me endpoint (which we will protect)

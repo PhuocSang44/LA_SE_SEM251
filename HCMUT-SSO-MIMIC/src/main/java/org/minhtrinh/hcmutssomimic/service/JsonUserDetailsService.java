@@ -52,6 +52,10 @@ public class JsonUserDetailsService implements UserDetailsService {
         public String getPassword() {
             return this.storedPasswordHash;
         }
+
+        public String getEmail() {
+            return this.email;
+        }
     }
 
     // Temporary Data Holder

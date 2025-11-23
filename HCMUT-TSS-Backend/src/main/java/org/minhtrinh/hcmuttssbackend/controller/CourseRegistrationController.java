@@ -57,7 +57,7 @@ public class CourseRegistrationController {
     }
 
     @GetMapping("/{studentId}")
-    public ResponseEntity<List<CourseRegistrationResponse>> listByStudent(@PathVariable Long studentId) {
+    public ResponseEntity<List<CourseRegistrationResponse>> listByStudent(@PathVariable String studentId) {
         List<CourseRegistrationResponse> list = rRepo.findByStudent_StudentId(studentId).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -68,7 +68,7 @@ public class CourseRegistrationController {
     public ResponseEntity<List<CourseRegistrationResponse>> listMine(@AuthenticationPrincipal TssUserPrincipal principal) {
         var user = userRepository.findByEmail(principal.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("User not found by email"));
-        Long studentId = studentRepository.findByUserId(user.getUserId())
+        String studentId = studentRepository.findByUser_UserId(user.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("Student profile not found for current user"))
                 .getStudentId();
         List<CourseRegistrationResponse> list = rRepo.findByStudent_StudentId(studentId).stream()
@@ -97,16 +97,16 @@ public class CourseRegistrationController {
             ? clazz.getCustomName()
             : course.getName();
         return new CourseRegistrationResponse(
-            cr.getRegistrationId(),
-            clazz.getClassId(),
-            course.getCode(),
-            responseCourseName,
-            clazz.getSemester(),
-            tutor.getOfficialId(),
-            tutorName,
-            cr.getStudent().getStudentId(),
-            clazz.getStatus(),
-            cr.getRegisteredAt()
+                cr.getRegistrationId(),
+                clazz.getClassId(),
+                course.getCode(),
+                responseCourseName,
+                clazz.getSemester(),
+                tutor.getStaffId(),
+                tutorName,
+                cr.getStudent().getStudentId(),
+                clazz.getStatus(),
+                cr.getRegisteredAt()
         );
     }
 
@@ -121,15 +121,15 @@ public class CourseRegistrationController {
             ? clazz.getCustomName()
             : course.getName();
         return new EnrollmentResponse(
-            cr.getRegistrationId(),
-            clazz.getClassId(),
-            course.getCode(),
-            responseCourseName2,
-            clazz.getSemester(),
-            tutor.getOfficialId(),
-            tutorName,
-            clazz.getStatus(),
-            cr.getRegisteredAt()
+                cr.getRegistrationId(),
+                clazz.getClassId(),
+                course.getCode(),
+                responseCourseName2,
+                clazz.getSemester(),
+                tutor.getStaffId(),
+                tutorName,
+                clazz.getStatus(),
+                cr.getRegisteredAt()
         );
     }
 
