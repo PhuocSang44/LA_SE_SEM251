@@ -96,6 +96,23 @@ public class MaterialService {
         return mapToResponse(saved);
     }
 
+    public MaterialResponse addLibraryReference(Long courseId, String ownerId, Long libraryItemId, String title, String description) {
+        Course course = courseRepository.findById(courseId)
+            .orElseThrow(() -> new EntityNotFoundException("Course not found"));
+
+        Material material = Material.builder()
+            .course(course)
+            .ownerId(ownerId)
+            .title(title)
+            .description(description)
+            .sourceType(MaterialSourceType.LIBRARY_REF)
+            .libraryItemId(libraryItemId)
+            .build();
+
+        Material saved = materialRepository.save(material);
+        return mapToResponse(saved);
+    }
+
     public FileDownloadResource downloadFile(Long materialId) {
         Material material = materialRepository.findById(materialId)
             .orElseThrow(() -> new EntityNotFoundException("Material not found"));
@@ -122,6 +139,34 @@ public class MaterialService {
         }
     }
 
+    public void deleteMaterial(Long materialId, String requesterId) {
+        Material material = materialRepository.findById(materialId)
+            .orElseThrow(() -> new EntityNotFoundException("Material not found"));
+
+        // Verify the requester is the owner
+        if (!material.getOwnerId().equals(requesterId)) {
+            throw new IllegalArgumentException("Only the owner can delete this material");
+        }
+
+        // If it's a local file, delete the physical file
+        if (material.getSourceType() == MaterialSourceType.LOCAL_FILE && StringUtils.hasText(material.getFilePath())) {
+            try {
+                Path storagePath = resolveStorageDir().resolve(material.getFilePath());
+                if (Files.exists(storagePath)) {
+                    Files.delete(storagePath);
+                    log.info("Deleted physical file: {}", material.getFilePath());
+                }
+            } catch (IOException ex) {
+                log.error("Failed to delete physical file: {}", material.getFilePath(), ex);
+                // Continue with database deletion even if file deletion fails
+            }
+        }
+
+        // Delete from database
+        materialRepository.delete(material);
+        log.info("Deleted material {} by user {}", materialId, requesterId);
+    }
+
     private Path resolveStorageDir() {
         return Paths.get(materialsDir).toAbsolutePath().normalize();
     }
@@ -138,6 +183,10 @@ public class MaterialService {
         String downloadUrl = null;
         if (material.getSourceType() == MaterialSourceType.LOCAL_FILE) {
             downloadUrl = "/api/materials/" + material.getId() + "/download";
+        } else if (material.getSourceType() == MaterialSourceType.LIBRARY_REF && material.getLibraryItemId() != null) {
+            // Point to the library mimic download endpoint
+            downloadUrl = System.getenv().getOrDefault("LIBRARY_BASE_URL", "http://localhost:10006")
+                + "/api/library/items/" + material.getLibraryItemId() + "/download";
         }
 
         return MaterialResponse.builder()

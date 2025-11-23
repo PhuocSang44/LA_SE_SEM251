@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -65,6 +66,22 @@ public class MaterialController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/courses/{courseId}/materials/add-library-ref")
+    public ResponseEntity<MaterialResponse> addLibraryReference(
+            @PathVariable Long courseId,
+            @RequestBody AddLibraryRefRequest request,
+            @AuthenticationPrincipal TssUserPrincipal principal) {
+
+        MaterialResponse response = materialService.addLibraryReference(
+            courseId,
+            principal.getOfficialID(),
+            request.libraryItemId,
+            request.title,
+            request.description
+        );
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/materials/{materialId}/download")
     public ResponseEntity<org.springframework.core.io.Resource> downloadFile(@PathVariable Long materialId) {
         MaterialService.FileDownloadResource resource = materialService.downloadFile(materialId);
@@ -80,6 +97,15 @@ public class MaterialController {
             .body(resource.getResource());
     }
 
+    @DeleteMapping("/materials/{materialId}")
+    public ResponseEntity<Void> deleteMaterial(
+            @PathVariable Long materialId,
+            @AuthenticationPrincipal TssUserPrincipal principal) {
+        materialService.deleteMaterial(materialId, principal.getOfficialID());
+        return ResponseEntity.noContent().build();
+    }
+
     public static record AddExternalUrlRequest(String title, String description, String externalUrl) {}
+    public static record AddLibraryRefRequest(Long libraryItemId, String title, String description) {}
 }
 
