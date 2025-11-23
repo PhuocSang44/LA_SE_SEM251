@@ -1,6 +1,8 @@
 package org.minhtrinh.hcmuttssbackend.dto;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -18,41 +20,55 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SubmitFeedbackRequest {
+public class EvaluatePerformanceRequest {
 
     @NotBlank
     @Size(max = 100)
     private String clientRequestId;
 
     @NotNull
-    private Long courseId;
-
-    @NotNull
     private Long classId;
 
-    @Size(max = 3000)
-    private String comment;
+    @NotBlank
+    @Size(max = 50)
+    private String studentId;
 
-    @Size(max = 500)
-    private String imageUrl;
+    @NotNull
+    @Min(1)
+    @Max(5)
+    private Integer starRating;
+
+    @DecimalMin("0.0")
+    @DecimalMax("100.0")
+    private Double numericScore;
+
+    @Size(max = 4000)
+    private String overallComment;
 
     @NotEmpty
     @Valid
-    private List<RatingQuestion> ratings;
+    private List<MetricRequest> metrics;
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    public static class RatingQuestion {
+    public static class MetricRequest {
         @NotBlank
-        @Size(max = 500)
+        @Size(max = 255)
         private String question;
 
         @NotNull
-        @Min(1)
-        @Max(5)
-        private Integer ratingValue; // 1-5 stars
+        @DecimalMin("0.0")
+        @DecimalMax("100.0")
+        private Double score;
+
+        @NotNull
+        @DecimalMin("0.0")
+        @DecimalMax("100.0")
+        private Double maxScore;
+
+        @Size(max = 1000)
+        private String comment;
     }
 }
-

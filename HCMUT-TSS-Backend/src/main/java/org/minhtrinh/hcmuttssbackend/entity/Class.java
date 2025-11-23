@@ -30,7 +30,8 @@ public class Class {
     private UniversityStaff tutor;
 
     @Column(name = "created_at", nullable = false)
-    private java.time.LocalDateTime createdAt;
+    @Builder.Default
+    private java.time.LocalDateTime createdAt = java.time.LocalDateTime.now();
 
     @Column(name = "status")
     private String status; // e.g. ACTIVE, INACTIVE, CANCELLED, COMPLETED
@@ -43,5 +44,12 @@ public class Class {
     @Column(name = "enrolled_count")
     @Builder.Default
     private Integer enrolledCount = 0; // current number of enrolled students
+
+    @PrePersist
+    void onCreate() {
+        if (this.createdAt == null) {
+            this.createdAt = java.time.LocalDateTime.now();
+        }
+    }
 
 }
