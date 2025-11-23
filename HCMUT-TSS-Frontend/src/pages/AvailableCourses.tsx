@@ -49,13 +49,28 @@ const AvailableCourses = () => {
           .then(res => res.ok ? res.json() : Promise.reject(res))
           .then((data: any[]) => {
             const byCourse: Record<string, any> = {};
+            // small canonical map
+            const HARDCODED_COURSES: { code: string; name: string }[] = [
+              { code: 'MT1003', name: 'Calculus' },
+              { code: 'MT1005', name: 'Calculus 2' },
+              { code: 'MT1004', name: 'Linear Algebra' },
+              { code: 'MT2001', name: 'Discrete Mathematics' },
+              { code: 'CS1010', name: 'Intro to Programming' }
+            ];
+            const getDisplayName = (code: string | null | undefined, fallback: string) => {
+              if (!code) return fallback;
+              const codeNorm = String(code).trim().toUpperCase();
+              const f = HARDCODED_COURSES.find(x => String(x.code).trim().toUpperCase() === codeNorm);
+              return f ? f.name : fallback;
+            };
             data.forEach(c => {
               if (enrolledIds.has(c.classId)) return; // skip classes already enrolled
               const key = c.courseCode || c.courseName;
               if (!byCourse[key]) {
                 byCourse[key] = {
                   id: key,
-                  name: c.courseName,
+                  // Prefer canonical course name when available, fall back to tutor's courseName
+                  name: getDisplayName(c.courseCode, c.courseName),
                   code: c.courseCode,
                   category: "",
                   prerequisites: "",
@@ -64,19 +79,68 @@ const AvailableCourses = () => {
                   tutors: []
                 };
               }
+              // push class-level entry (each class has a tutor and its own display name)
               byCourse[key].tutors.push({ 
                 id: c.classId, 
-                name: c.tutorName, 
+                tutorName: c.tutorName, 
                 tutorId: c.tutorId, 
+                className: c.courseName, // class display name set by tutor
                 capacity: c.capacity, 
                 enrolledCount: c.enrolledCount,
                 specialization: c.tutorSpecialization,
                 department: c.tutorDepartment      
-            });
+              });
             });
             setAvailableCourses(Object.values(byCourse));
           });
       }).catch(err => console.error('Failed to load available courses', err));
+  };
+
+  // Reusable enrollment function
+  const performEnrollment = (
+    classId: string, 
+    setStatus: (status: "idle" | "waiting" | "confirmed") => void,
+    onSuccess: () => void
+  ) => {
+    if (!classId) {
+      toast({
+        title: "No class selected",
+        description: "A class must be selected to enroll.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setStatus("waiting");
+
+    const payload = { classId: parseInt(classId, 10) };
+    const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
+
+    fetch(`${apiBase}/course-registrations/enroll`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(async res => {
+      if (res.ok) {
+        setStatus("confirmed");
+        toast({ title: "Enrolled", description: "You have been enrolled successfully" });
+        loadAvailableCourses();
+        setTimeout(onSuccess, 600); // Call the specific success handler (which closes the correct dialog)
+      } else {
+        const text = await res.text();
+        let errorMsg = text || 'Enrollment failed';
+        try {
+          const err = JSON.parse(text);
+          errorMsg = err.message || errorMsg;
+        } catch (e) { /* ignore json parse error */ }
+        throw new Error(errorMsg);
+      }
+    }).catch(err => {
+      console.error(err);
+      setStatus("idle"); // Reset status on failure
+      toast({ title: "Failed to enroll", description: String(err.message), variant: "destructive" });
+    });
   };
 
   useEffect(() => {
@@ -90,50 +154,43 @@ const AvailableCourses = () => {
   };
 
   const handleTutorSelect = () => {
-    if (!selectedTutor) {
-      toast({
-        title: "Please select a tutor",
-        description: "You must select a tutor to proceed with enrollment",
-        variant: "destructive"
-      });
-      return;
+    // Use the reusable enrollment function
+    performEnrollment(selectedTutor, setEnrollmentStatus, closeDialog);
+  };
+
+  const autoAssignClass = (course: any) => {
+    if (!course || !course.tutors || course.tutors.length === 0) return null;
+
+    // Partition limited/ unlimited
+    const limited = course.tutors.filter((t: any) => t.capacity != null && t.capacity !== undefined);
+    const unlimited = course.tutors.filter((t: any) => t.capacity == null || t.capacity === undefined);
+
+    const occupancy = (t: any) => {
+      if (t.capacity == null || t.capacity === undefined || t.capacity <= 0) return 0;
+      return (t.enrolledCount || 0) / (t.capacity || 1);
+    };
+
+    if (limited.length > 0) {
+      // most under-filled
+      const under10 = limited.filter((t: any) => occupancy(t) < 0.10);
+      if (under10.length > 0) {
+        // smallest occupancy
+        under10.sort((a: any, b: any) => occupancy(a) - occupancy(b));
+        return under10[0].id.toString();
+      }
+
+      //  the most free seats
+      limited.sort((a: any, b: any) => ((b.capacity || 0) - (b.enrolledCount || 0)) - ((a.capacity || 0) - (a.enrolledCount || 0)));
+      return limited[0].id.toString();
     }
 
-    setEnrollmentStatus("waiting");
+    // If no limited classes, pick the unlimited class with the fewest enrolled students
+    if (unlimited.length > 0) {
+      unlimited.sort((a: any, b: any) => (a.enrolledCount || 0) - (b.enrolledCount || 0));
+      return unlimited[0].id.toString();
+    }
 
-    const payload = { classId: parseInt(selectedTutor, 10) };
-    const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
-
-    fetch(`${apiBase}/course-registrations/enroll`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }).then(async res => {
-      if (res.ok) {
-        setEnrollmentStatus("confirmed");
-        toast({ title: "Enrolled", description: "You have been enrolled successfully" });
-        // Refresh lists so the newly enrolled class is excluded
-        loadAvailableCourses();
-        // close dialog after short delay so user sees confirmation
-        setTimeout(() => closeDialog(), 600);
-      } else {
-        const text = await res.text();
-        let errorMessage = 'Enrollment failed';
-        try {
-          const err = JSON.parse(text);
-          errorMessage = err.error || err.message || text || errorMessage;
-        } catch (e) {
-          errorMessage = text || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-    }).catch(err => {
-      console.error(err);
-      setEnrollmentStatus("idle");
-      const errorMsg = err.message || String(err);
-      toast({ title: "Failed to enroll", description: errorMsg, variant: "destructive" });
-    });
+    return null;
   };
 
   const closeDialog = () => {
@@ -183,17 +240,20 @@ const AvailableCourses = () => {
         }
 
         const courseObj = { 
-            name: filteredList[0].courseName, 
-            code: filteredList[0].courseCode, 
-            category: "", 
-            description: "", 
-            tutors: filteredList.map((cl: any) => ({ 
-                id: cl.classId, 
-                name: cl.tutorName, 
-                tutorId: cl.tutorId,
-                specialization: cl.tutorSpecialization, 
-                department: cl.tutorDepartment       
-            })) 
+          name: filteredList[0].courseName, 
+          code: filteredList[0].courseCode, 
+          category: "", 
+          description: "", 
+          tutors: filteredList.map((cl: any) => ({ 
+            id: cl.classId, 
+            tutorName: cl.tutorName, 
+            tutorId: cl.tutorId,
+            className: cl.courseName,
+            specialization: cl.tutorSpecialization, 
+            department: cl.tutorDepartment,
+            capacity: cl.capacity,
+            enrolledCount: cl.enrolledCount      
+          })) 
         };
         setFoundCourse(courseObj);
         toast({ title: "Course found!", description: `${courseObj.name} (${courseObj.code})` });
@@ -201,46 +261,8 @@ const AvailableCourses = () => {
   };
 
   const handleJoinTutorSelect = () => {
-    if (!joinSelectedTutor) {
-      toast({
-        title: "Please select a tutor",
-        description: "You must select a tutor to proceed with enrollment",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setJoinEnrollmentStatus("waiting");
-    // call backend enroll API using classId stored in joinSelectedTutor
-    const payload = { classId: parseInt(joinSelectedTutor, 10) };
-    fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:10001"}/course-registrations/enroll`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }).then(async res => {
-      if (res.ok) {
-        // Notify success, refresh available courses (exclude newly-enrolled class), and close dialog
-        toast({ title: "Enrolled", description: "You have been enrolled successfully" });
-        loadAvailableCourses();
-        closeJoinDialog();
-      } else {
-        const text = await res.text();
-        let errorMessage = 'Enrollment failed';
-        try {
-          const err = JSON.parse(text);
-          errorMessage = err.error || err.message || text || errorMessage;
-        } catch (e) {
-          errorMessage = text || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-    }).catch(err => {
-      console.error(err);
-      setJoinEnrollmentStatus("idle");
-      const errorMsg = err.message || String(err);
-      toast({ title: "Failed to enroll", description: errorMsg, variant: "destructive" });
-    });
+    // Use the reusable enrollment function
+    performEnrollment(joinSelectedTutor, setJoinEnrollmentStatus, closeJoinDialog);
   };
 
   const closeJoinDialog = () => {
@@ -304,37 +326,28 @@ const AvailableCourses = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <div className="flex items-start gap-2 text-sm">
-                      <BookOpen className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium text-foreground">Prerequisites / Yêu cầu:</p>
-                        <p className="text-muted-foreground">{course.prerequisites}</p>
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground pt-2">
-                      {course.description}
-                    </p>
-                  </div>
-
-                  <div className="pt-2 border-t">
+                    {/* Aggregate seats across all classes (tutors) for this course */}
                     <div className="flex items-center justify-between text-sm mb-2">
                       <span className="text-muted-foreground">Seats</span>
                       <span className="font-semibold text-foreground">
                         {(() => {
-                          // compute total seats left across tutors; if any tutor has null capacity show "Unlimited"
                           const tutors = course.tutors || [];
+                          if (tutors.length === 0) return 'N/A';
+                          // Show Unlimited
                           if (tutors.some((t: any) => t.capacity === null || t.capacity === undefined)) return 'Unlimited';
                           const totalLeft = tutors.reduce((acc: number, t: any) => acc + Math.max(0, (t.capacity || 0) - (t.enrolledCount || 0)), 0);
                           return `${totalLeft} seats left`;
                         })()}
                       </span>
                     </div>
-                    <Button 
-                      className="w-full rounded-lg"
-                      onClick={() => handleEnrollClick(course)}
-                    >
-                      Enroll / Đăng ký
-                    </Button>
+                    <div className="pt-2 border-t">
+                      <Button 
+                        className="w-full rounded-lg"
+                        onClick={() => handleEnrollClick(course)}
+                      >
+                        Enroll / Đăng ký
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -354,16 +367,30 @@ const AvailableCourses = () => {
               {enrollmentStatus === "idle" && (
                 <div className="space-y-4">
                   <div>
-                    <h4 className="text-sm font-medium mb-3">Available Tutors / Danh sách Tutor:</h4>
+                    <div className="flex justify-end mb-2">
+                      <Button size="sm" onClick={() => {
+                        const assignedClassId = autoAssignClass(selectedCourse);
+                        if (assignedClassId) {
+                          toast({ title: "Auto-assigning...", description: "Attempting to enroll you in the best available class." });
+                          setSelectedTutor(assignedClassId); // Set state so confirmation screen can show correct info if needed
+                          performEnrollment(assignedClassId, setEnrollmentStatus, closeDialog);
+                        } else {
+                          toast({ title: "Auto-assign failed", description: "No suitable class found", variant: 'destructive' });
+                        }
+                      }}>
+                        Auto assign / Tự chọn lớp
+                      </Button>
+                    </div>
+                    <h4 className="text-sm font-medium mb-3">Available Classes / Danh sách lớp:</h4>
                     <RadioGroup value={selectedTutor} onValueChange={setSelectedTutor}>
-                      {selectedCourse?.tutors.map((tutor: any) => (
-                        <div key={tutor.id} className="flex items-start space-x-3 space-y-0 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
-                          <RadioGroupItem value={tutor.id.toString()} id={`tutor-${tutor.id}`} />
-                          <Label htmlFor={`tutor-${tutor.id}`} className="flex-1 cursor-pointer">
-                            <div className="font-medium">{tutor.name}</div>
-                            <div className="text-sm text-muted-foreground">{tutor.department}</div>
-                            <div className="text-xs text-muted-foreground mt-1">Specialization: {tutor.specialization}</div>
-                            <div className="text-xs text-muted-foreground mt-2">Seats left: {tutor.capacity == null ? 'Unlimited' : Math.max(0, (tutor.capacity || 0) - (tutor.enrolledCount || 0))}/{tutor.capacity}</div>
+                      {selectedCourse?.tutors.map((cls: any) => (
+                        <div key={cls.id} className="flex items-start space-x-3 space-y-0 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
+                          <RadioGroupItem value={cls.id.toString()} id={`class-${cls.id}`} />
+                          <Label htmlFor={`class-${cls.id}`} className="flex-1 cursor-pointer">
+                            <div className="font-medium">{cls.className}</div>
+                            <div className="text-sm text-muted-foreground">Tutor: {cls.tutorName}</div>
+                            <div className="text-xs text-muted-foreground mt-1">Specialization: {cls.specialization || '-'}</div>
+                            <div className="text-xs text-muted-foreground mt-2">Seats left: {cls.capacity == null ? 'Unlimited' : Math.max(0, (cls.capacity || 0) - (cls.enrolledCount || 0))}/{cls.capacity}</div>
                           </Label>
                         </div>
                       ))}

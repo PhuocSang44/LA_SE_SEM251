@@ -4,6 +4,8 @@ public record ClassResponse(
         Long classId,
         String courseCode,
         String courseName,
+        String customClassName,
+        String description,
         String semester,
         String tutorName,
         String tutorId,

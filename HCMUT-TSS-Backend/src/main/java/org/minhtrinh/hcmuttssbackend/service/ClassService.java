@@ -264,17 +264,21 @@ public class ClassService {
         String responseCourseName = null;
         if (course != null) {
             responseCourseCode = course.getCode();
-            responseCourseName = (classEntity.getCustomName() != null && !classEntity.getCustomName().isBlank())
-                    ? classEntity.getCustomName()
-                    : course.getName();
-        } else {
-            responseCourseName = classEntity.getCustomName();
-        }
+            responseCourseName = course.getName();
+        } 
 
+        String responseCustomClassName = null;
+        String responseDescription = null;
+        if (course != null) {
+            responseCustomClassName = classEntity.getCustomName();
+            responseDescription = course.getDescription();
+        }
         return new ClassResponse(
                 classEntity.getClassId(),
                 responseCourseCode,
                 responseCourseName,
+                responseCustomClassName,
+                responseDescription,
                 classEntity.getSemester(),
                 tutorName,
                 tutorOfficialId,
