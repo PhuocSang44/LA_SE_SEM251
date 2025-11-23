@@ -161,7 +161,7 @@ const AvailableCourses = () => {
   const autoAssignClass = (course: any) => {
     if (!course || !course.tutors || course.tutors.length === 0) return null;
 
-    // Partition limited vs unlimited
+    // Partition limited/ unlimited
     const limited = course.tutors.filter((t: any) => t.capacity != null && t.capacity !== undefined);
     const unlimited = course.tutors.filter((t: any) => t.capacity == null || t.capacity === undefined);
 
@@ -170,17 +170,16 @@ const AvailableCourses = () => {
       return (t.enrolledCount || 0) / (t.capacity || 1);
     };
 
-    // Prefer limited classes
     if (limited.length > 0) {
-      // pick any class with occupancy < 10% first (most under-filled)
+      // most under-filled
       const under10 = limited.filter((t: any) => occupancy(t) < 0.10);
       if (under10.length > 0) {
-        // choose the one with smallest occupancy
+        // smallest occupancy
         under10.sort((a: any, b: any) => occupancy(a) - occupancy(b));
         return under10[0].id.toString();
       }
 
-      // otherwise choose the class with the most free seats
+      //  the most free seats
       limited.sort((a: any, b: any) => ((b.capacity || 0) - (b.enrolledCount || 0)) - ((a.capacity || 0) - (a.enrolledCount || 0)));
       return limited[0].id.toString();
     }
