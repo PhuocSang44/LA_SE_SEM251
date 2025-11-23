@@ -39,9 +39,19 @@ public class Feedback {
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 
-    @Column(name = "status", length = 20)
+    @Column(name = "client_request_id", length = 100, unique = true)
+    private String clientRequestId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 30, nullable = false)
     @Builder.Default
-    private String status = "PENDING"; // PENDING, APPROVED, REJECTED
+    private FeedbackStatus status = FeedbackStatus.PENDING;
+
+    @Column(name = "moderated_by")
+    private Integer moderatedByUserId;
+
+    @Column(name = "moderated_at")
+    private LocalDateTime moderatedAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default

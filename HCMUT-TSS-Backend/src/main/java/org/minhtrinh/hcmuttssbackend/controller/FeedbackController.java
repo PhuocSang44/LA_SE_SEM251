@@ -1,9 +1,11 @@
 package org.minhtrinh.hcmuttssbackend.controller;
 
+import jakarta.validation.Valid;
 import org.minhtrinh.hcmuttssbackend.TssUserPrincipal;
 import org.minhtrinh.hcmuttssbackend.dto.EnrolledCourseResponse;
 import org.minhtrinh.hcmuttssbackend.dto.FeedbackResponse;
 import org.minhtrinh.hcmuttssbackend.dto.SubmitFeedbackRequest;
+import org.minhtrinh.hcmuttssbackend.entity.FeedbackStatus;
 import org.minhtrinh.hcmuttssbackend.service.FeedbackService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -46,9 +48,9 @@ public class FeedbackController {
      * POST /api/feedback/submit
      */
     @PostMapping("/submit")
-    public ResponseEntity<?> submitFeedback(
+        public ResponseEntity<?> submitFeedback(
             @AuthenticationPrincipal TssUserPrincipal principal,
-            @RequestBody SubmitFeedbackRequest request) {
+            @Valid @RequestBody SubmitFeedbackRequest request) {
 
         if (principal == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -60,10 +62,10 @@ public class FeedbackController {
             FeedbackResponse response = feedbackService.submitFeedback(userEmail, request);
 
             // Step 10: Return success message
-            return ResponseEntity.ok(Map.of(
+                return ResponseEntity.ok(Map.of(
                     "message", "Feedback submitted successfully",
                     "feedback", response
-            ));
+                ));
         } catch (IllegalArgumentException e) {
             // Alternative flow A1: Missing required fields
             return ResponseEntity.badRequest()
@@ -124,7 +126,6 @@ public class FeedbackController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        // TODO: Add role check - only TUTOR/ADMIN should access this
         List<FeedbackResponse> feedback = feedbackService.getPendingFeedback();
         return ResponseEntity.ok(feedback);
     }
@@ -143,11 +144,14 @@ public class FeedbackController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        // TODO: Add role check - only TUTOR/ADMIN should access this
-
         try {
             String status = request.get("status");
-            FeedbackResponse response = feedbackService.updateFeedbackStatus(feedbackId, status);
+            if (status == null) {
+                throw new IllegalArgumentException("Missing status");
+            }
+            FeedbackStatus parsedStatus = FeedbackStatus.valueOf(status.toUpperCase());
+            FeedbackResponse response = feedbackService.updateFeedbackStatus(
+                    principal.getDatacoreUser().email(), feedbackId, parsedStatus);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest()
