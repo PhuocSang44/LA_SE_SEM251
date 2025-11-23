@@ -11,15 +11,40 @@ import { toast } from "@/hooks/use-toast";
 import { createSession } from "@/lib/sessionApi";
 import type { CreateSessionPayload } from "@/types/session";
 import { useAuth } from "@/contexts/AuthContext";
+import { Toast } from "@radix-ui/react-toast";
+import { Toaster } from "@/components/ui/toaster";
 
 // Simple date+time merger
 function mergeDateTime(dateStr: string, timeStr: string): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
   try {
-    const [h,m] = timeStr.split(":").map(Number);
+    const [h, m] = timeStr.split(":").map(Number);
     const d = new Date(dateStr);
     d.setHours(h || 0, m || 0, 0, 0);
-    return d.toISOString();
-  } catch { return new Date().toISOString(); }
+    const Y = d.getFullYear();
+    const M = pad(d.getMonth() + 1);
+    const D = pad(d.getDate());
+    const H = pad(d.getHours());
+    const Min = pad(d.getMinutes());
+    // compute local offset like +07:00
+    const offsetMinutes = -d.getTimezoneOffset(); // e.g. +420 for +07:00
+    const sign = offsetMinutes >= 0 ? "+" : "-";
+    const offH = pad(Math.floor(Math.abs(offsetMinutes) / 60));
+    const offM = pad(Math.abs(offsetMinutes) % 60);
+    return `${Y}-${M}-${D}T${H}:${Min}:00${sign}${offH}:${offM}`;
+  } catch {
+    const now = new Date();
+    const Y = now.getFullYear();
+    const M = pad(now.getMonth() + 1);
+    const D = pad(now.getDate());
+    const H = pad(now.getHours());
+    const Min = pad(now.getMinutes());
+    const offsetMinutes = -now.getTimezoneOffset();
+    const sign = offsetMinutes >= 0 ? "+" : "-";
+    const offH = pad(Math.floor(Math.abs(offsetMinutes) / 60));
+    const offM = pad(Math.abs(offsetMinutes) % 60);
+    return `${Y}-${M}-${D}T${H}:${Min}:00${sign}${offH}:${offM}`;
+  }
 }
 
 const CreateSession = () => {
@@ -110,6 +135,7 @@ const CreateSession = () => {
       capacity: capacity ? parseInt(capacity) : undefined,
       description: description || undefined,
     };
+    console.log('Creating session with payload', payload);
     const created = await createSession(payload);
     if (created) {
       toast({ title: "Session created", description: `${title} on ${date}` });
@@ -217,6 +243,7 @@ const CreateSession = () => {
         </div>
       </main>
       <Footer />
+      <Toaster />
     </div>
   );
 };

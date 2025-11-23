@@ -17,11 +17,16 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
+import { listSessionsByClass, listAllSessions, listSessionsByUser } from "@/lib/sessionApi";
+import { Toaster } from "@/components/ui/sonner";
+import { set } from "date-fns";
+import { all } from "axios";
 
 const CourseDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const initialCourse = location.state?.course;
+  console.log("DEBUG: initialCourse from location.state:", initialCourse);
   const { user } = useAuth();
 
   const [fullCourse, setFullCourse] = useState<any | null>(null);
@@ -29,7 +34,6 @@ const CourseDetails = () => {
   // 'course' is the canonical source of truth for this component (fullCourse when available, otherwise initialCourse)
   const course = fullCourse ?? initialCourse;
   const courseCode = course?.code ?? course?.courseCode ?? null;
-
   const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:10001';
   const libraryApiBase = import.meta.env.VITE_LIBRARY_BASE || 'http://localhost:10006';
 
@@ -45,6 +49,7 @@ const CourseDetails = () => {
   console.log("--- DEBUG COURSE DETAILS RENDER ---");
   console.log("User (user.officialId):", user?.officialId, "-> userOfficialIdNum:", userOfficialIdNum);
   console.log("Course (course.tutorId):", course?.tutorId, "-> courseTutorIdNum:", courseTutorIdNum);
+  console.log("class:", course?.classId);
   console.log("IS OWNER:", isOwner);
   console.log("Current course object:", course);
   console.log("-------------------------------------");
@@ -105,6 +110,7 @@ const CourseDetails = () => {
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [exitConfirmText, setExitConfirmText] = useState("");
   const [isExiting, setIsExiting] = useState(false);
+  const [joinedSessionId, setJoinedSessionId] = useState<any[]>([]);
 
   // Feedback states
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
@@ -149,18 +155,39 @@ const CourseDetails = () => {
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   };
 
+  const toLocalISOString = (isoString: string) => {
+  const date = new Date(isoString);
+  // Calculate offset (e.g., -420 mins for Vietnam) and convert to ms
+  const offsetMs = date.getTimezoneOffset() * 60000;
+  // Create a new date that is shifted so toISOString() outputs local numbers
+  const localDate = new Date(date.getTime() - offsetMs);
+  // Return "YYYY-MM-DDTHH:mm:ss" (No Z, correct local numbers)
+  return localDate.toISOString().slice(0, 19);
+  };
+
+
   useEffect(() => {
     (async () => {
       if (!course?.id) return;
       setLoadingSessions(true);
       try {
-        const res = await fetch(`${apiBase}/api/classes/${course.id}/sessions`, { credentials:'include' });
+        const res = await fetch(`${apiBase}/api/sessions/${course.id}`, { credentials:'include' });
+        const res1 = await listSessionsByUser();
+        console.log("DEBUG: All sessions for user:", res1);
+        console.log("DEBUG: Fetching sessions from:", `${apiBase}/api/sessions/${course.id}`);
         if (res.ok) {
           const list = await res.json();
-          setSessions(list);
+          const Scheduled = Array.isArray(list) ? list.filter(s => s.status && s.status.toLowerCase() === 'scheduled') : [];
+          setSessions(Scheduled);
         } else {
           setSessions([]); // fallback
         }
+        const allSessions = res1 || [];
+
+        // Normalize helper: return canonical id + start time
+        
+        setJoinedSessionId(allSessions);
+        console.log("DEBUG: Joined session ids:", allSessions);
       } catch { setSessions([]); }
       setLoadingSessions(false);
     })();
@@ -222,12 +249,15 @@ const CourseDetails = () => {
       return;
     }
     // call backend enroll for session (reuse class enroll if no endpoint yet)
-    const s = sessions.find(s => s.id.toString() === selectedSession);
+    console.log("DEBUG: Selected session to join:", selectedSession);
+    console.log("DEBUG: Sessions available:", sessions);
+    const s = sessions.find(s => s.sessionId.toString() === selectedSession);
     if (!s) return;
     setJoinSessionStatus('waiting');
     try {
       // hypothetical endpoint
-      const res = await fetch(`${apiBase}/api/sessions/${s.id}/enroll`, { method:'POST', credentials:'include' });
+      console.log("DEBUG: Enrolling in session id:", s.sessionId);
+      const res = await fetch(`${apiBase}/api/sessions/enroll`, { method:'POST', credentials:'include', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ sessionId: s.sessionId, userId: Number(user?.officialId) }) });
       if (!res.ok) throw new Error(await res.text() || 'Enroll failed');
       setJoinSessionStatus('confirmed');
       toast({ title:'Enrolled', description:`${s.topic} ${formatRange(s)}` });
@@ -478,8 +508,9 @@ const CourseDetails = () => {
               {/* Class + badge */}
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold text-gray-900">{course?.name}</h1>
+                
                 <Badge className={`${course?.color || 'bg-blue-500'} text-white border-0 mt-2`}>
-                  {course?.sessions ?? 0} sessions total
+                {(Array.isArray(course?.sessions) ? course.sessions.length : Number(course?.sessions ?? 0))} sessions total
                 </Badge>
               </div>
               {}
@@ -554,9 +585,7 @@ const CourseDetails = () => {
 
                             {isOwner && (
                               <div className="pt-4">
-                                <Button onClick={() => navigate('/create-session', { state: { course } })} className="w-full flex items-center justify-center gap-2 mb-3">
-                                  <Plus className="h-4 w-4" /> Add Session
-                                </Button>
+                               
                                 <div className="text-sm text-muted-foreground">Danger Zone</div>
                                 <Button variant="destructive" className="mt-2 rounded-md px-3 py-1" onClick={() => setShowDeleteDialog(true)}>
                                   Delete Class
@@ -614,15 +643,15 @@ const CourseDetails = () => {
                           <CardContent>
                             <div className="space-y-3">
                               {loadingSessions && <div className="text-sm text-muted-foreground">Loading sessions...</div>}
-                              {!loadingSessions && sessions.slice(0,3).map(s => (
-                                <div key={s.id} className="p-3 rounded-lg border bg-accent/30 flex justify-between items-start">
+                              {!loadingSessions && sessions.slice(0,8).map(s => (
+                                <div key={s.sessionId} className="p-3 rounded-lg border bg-accent/30 flex justify-between items-start">
                                   <div>
-                                    <p className="font-medium text-sm">{s.topic}</p>
+                                    <p className="font-medium text-sm">{s.sessionTitle}</p>
                                     <p className="text-xs text-muted-foreground mt-1">{formatRange(s)}</p>
                                     <p className="text-xs text-muted-foreground">Status: {s.status}</p>
                                   </div>
                                   {isOwner && (
-                                    <Button size="sm" variant="ghost" onClick={() => { setEditingSessionId(s.id); setEditTopic(s.topic); setEditDate(new Date(s.startTime).toISOString().substring(0,10)); setEditStart(new Date(s.startTime).toTimeString().substring(0,5)); setEditEnd(new Date(s.endTime).toTimeString().substring(0,5)); }}>
+                                    <Button size="sm" variant="ghost" onClick={() => { setEditingSessionId(s.sessionId); setEditTopic(s.sessionTitle); setEditDate(new Date(s.startTime).toISOString().substring(0,10)); setEditStart(new Date(s.startTime).toTimeString().substring(0,5)); setEditEnd(new Date(s.endTime).toTimeString().substring(0,5)); }}>
                                       <Pencil className="h-4 w-4" />
                                     </Button>
                                   )}
@@ -712,21 +741,60 @@ const CourseDetails = () => {
                     <h4 className="text-sm font-medium mb-3">Available Sessions / Các buổi học có sẵn:</h4>
                     <RadioGroup value={selectedSession} onValueChange={setSelectedSession}>
                       <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                        {sessions.map((session) => (
-                          <div key={session.id} className="flex items-start space-x-3 space-y-0 rounded-lg border p-4 hover:bg-accent/50 transition-colors">
-                            <RadioGroupItem value={session.id.toString()} id={`session-${session.id}`} />
-                            <Label htmlFor={`session-${session.id}`} className="flex-1 cursor-pointer">
-                              <div className="font-medium">{session.topic}</div>
-                              <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-                                <Calendar className="h-3 w-3" />
-                                {formatRange(session)}
-                              </div>
-                              <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
-                                Status: {session.status}
-                              </div>
-                            </Label>
-                          </div>
-                        ))}
+                        {sessions.map((session) => {
+                          // joinedSessionId may be an array of session objects (or ids). Normalize to an array of string ids.
+                          const joinedIds: string[] = Array.isArray(joinedSessionId)
+                            ? joinedSessionId.map(j => {
+                                if (j == null) return "";
+                                return typeof j === "object" ? String(j.sessionId ?? j.id ?? "") : String(j);
+                              })
+                            : (joinedSessionId && typeof joinedSessionId === "object"
+                                ? [String(joinedSessionId.sessionId ?? joinedSessionId.id ?? "")]
+                                : [String(joinedSessionId ?? "")]);
+
+                          const isJoined = joinedIds.includes(String(session.sessionId));
+                          console.log("DEBUG: Session", session.sessionId, "isJoined:", isJoined, "joinedIds:", joinedIds);
+
+                          return (
+                            <div
+                              key={session.sessionId}
+                              className={`flex items-start space-x-3 space-y-0 rounded-lg border p-4 transition-colors ${
+                                isJoined ? "opacity-60 cursor-not-allowed" : "hover:bg-accent/50"
+                              }`}
+                              aria-disabled={isJoined}
+                            >
+                              {/* disable radio for joined sessions so they cannot be selected */}
+                              <RadioGroupItem
+                                value={session.sessionId.toString()}
+                                id={`session-${session.sessionId}`}
+                                disabled={isJoined}
+                              />
+                              <Label
+                                htmlFor={`session-${session.sessionId}`}
+                                className={`flex-1 cursor-pointer ${isJoined ? "cursor-not-allowed" : ""}`}
+                              >
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <div className="font-medium">{session.sessionTitle}</div>
+                                    <div className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
+                                      <Calendar className="h-3 w-3" />
+                                      {formatRange(session)}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
+                                      Status: {session.status}
+                                    </div>
+                                  </div>
+
+                                  {isJoined && (
+                                    <div className="ml-4 flex items-center">
+                                      <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded">JOINED</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </Label>
+                            </div>
+                          );
+                        })}
                       </div>
                     </RadioGroup>
                   </div>
@@ -777,17 +845,127 @@ const CourseDetails = () => {
                   <input type="time" className="border rounded p-2" value={editEnd} onChange={e=>setEditEnd(e.target.value)} />
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={async ()=>{
-                    if (editingSessionId==null) return;
-                    if (!editDate||!editStart||!editEnd) { toast({ title:'Missing', description:'Date & time required', variant:'destructive'}); return; }
-                    const startIso = mergeDateTime(editDate, editStart);
-                    const endIso = mergeDateTime(editDate, editEnd);
-                    if (new Date(startIso)>=new Date(endIso)) { toast({ title:'Invalid range', description:'End must be after start', variant:'destructive'}); return; }
-                    const res = await fetch(`${apiBase}/api/sessions/${editingSessionId}`, { method:'PATCH', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ topic: editTopic, startTime:startIso, endTime:endIso }) });
-                    if (res.ok) { toast({ title:'Updated', description:'Session updated' }); const updated = await res.json(); setSessions(prev=> prev.map(p=> p.id===updated.id? updated : p)); setEditingSessionId(null); } else { toast({ title:'Failed', description: await res.text(), variant:'destructive'}); }
-                  }}>Save</Button>
+                  <Button onClick={async () => {
+                  console.log("DEBUG: Save edit clicked");
+                  
+                  if (editingSessionId == null) return;
+                  
+                  if (!editDate || !editStart || !editEnd) {
+                      toast({ title: 'Missing', description: 'Date & time required', variant: 'destructive' });
+                      return;
+                  }
+
+                  const startIso = mergeDateTime(editDate, editStart);
+                  const endIso = mergeDateTime(editDate, editEnd);
+                  const cleanStart = toLocalISOString(startIso).slice(0,19);
+                  const cleanEnd = toLocalISOString(endIso).slice(0,19);
+                  console.log("DEBUG: Merged start:", cleanStart, "end:", cleanEnd);
+
+                  if (new Date(startIso) >= new Date(endIso)) {
+                      toast({ title: 'Invalid range', description: 'End must be after start', variant: 'destructive' });
+                      return;
+                  }
+
+                  // --- 1. MATCH DTO KEYS EXACTLY ---
+                  const payload = {
+                      sessionId: editingSessionId,       // Matches Long sessionId
+                      newSessionTitle: editTopic,        // Matches String newSessionTitle
+                      newStartTime: cleanStart,            // Matches String newStartTime
+                      newEndTime: cleanEnd                 // Matches String newEndTime
+                  };
+                  console.log("DEBUG: Payload for update:", payload);
+
+                  // --- 2. REMOVE ID FROM URL ---
+                  let res: Response | null = null;
+                  try {
+                  res = await fetch(`${apiBase}/api/sessions`, { 
+                      method: 'PATCH', 
+                      credentials: 'include', 
+                      headers: { 'Content-Type': 'application/json' }, 
+                      body: JSON.stringify(payload) 
+                  });
+                  } catch (err) {
+                    console.error('Failed to update session', err);
+                    toast({ title: 'Error', description: String(err), variant: 'destructive' });
+                    return;
+                  }
+
+                  if (res.ok) {
+                      toast({ title: 'Updated', description: 'Session updated' });
+                      
+                      // --- 3. DO NOT CALL res.json() ---
+                      // The backend returns Void, so res.json() would crash. 
+                      // We manually update the local list using the data we just sent.
+                          setSessions(prev => prev.map(p => 
+                              p.id === editingSessionId 
+                                  ? { ...p, topic: editTopic, startTime: startIso, endTime: endIso } 
+                                  : p
+                          ));
+                      
+                      setEditingSessionId(null);
+
+                      try {
+                        if (course?.id && typeof listSessionsByClass === 'function') {
+                          setLoadingSessions(true);
+                          const fresh = await listSessionsByClass(course.id);
+                          if (Array.isArray(fresh)) setSessions(fresh);
+                        }
+                      } catch (err) {
+                        console.error('Failed to refresh sessions after update', err);
+                      } finally {
+                        setLoadingSessions(false);
+                      }
+                      
+                  } else {
+                     let errorMessage = 'Update failed';
+                    try {
+                        const errorData = await res.json();
+                        // 2. Extract the specific message from Backend
+                        errorMessage = errorData.message || errorData.error || 'Unknown error';
+                    } catch (e) {
+                        // Fallback if backend sent plain text instead of JSON
+                        errorMessage = await res.text(); 
+                    }
+
+                    // 3. Show the specific message in the Toast
+                    toast({ 
+                        title: 'Failed', 
+                        description: errorMessage, 
+                        variant: 'destructive' 
+                    });
+                  }
+              }}>Save</Button>
                   <Button variant="outline" onClick={()=>setEditingSessionId(null)}>Cancel</Button>
-                  <Button variant="destructive" onClick={async ()=>{ if (editingSessionId==null) return; const res= await fetch(`${apiBase}/api/sessions/${editingSessionId}`, { method:'PATCH', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status:'cancelled' }) }); if (res.ok){ toast({ title:'Cancelled', description:'Session cancelled'}); const updated = await res.json(); setSessions(prev=> prev.map(p=> p.id===updated.id? updated : p)); setEditingSessionId(null);} else { toast({ title:'Failed', description: await res.text(), variant:'destructive'});} }}>Cancel Session</Button>
+                 <Button variant="destructive" onClick={async () => {
+                  if (editingSessionId == null) return;
+                  console.log("DEBUG: Cancel session clicked for id:", editingSessionId);
+                  try {
+                    const res = await fetch(`${apiBase}/api/sessions/cancelSession`, {
+                      method: 'PATCH',
+                      credentials: 'include',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(editingSessionId)
+                    });
+                    if (!res.ok) {
+                      const txt = await res.text();
+                      throw new Error(txt || 'Cancel failed');
+                    }
+                    toast({ title: 'Cancelled', description: 'Session cancelled' });
+                    setEditingSessionId(null);
+                    if (course?.id) {
+                      setLoadingSessions(true);
+                      try {
+                        const fresh = await listSessionsByClass(course.id);
+                        if (Array.isArray(fresh)) setSessions(fresh);
+                      } finally {
+                        setLoadingSessions(false);
+                      }
+                    }
+                  } catch (e: any) {
+                    console.error('Cancel failed:', e);
+                    toast({ title: 'Failed', description: String(e.message || e), variant: 'destructive' });
+                  }
+                }}>Cancel Session</Button>
                 </div>
               </div>
             </DialogContent>
@@ -929,6 +1107,7 @@ const CourseDetails = () => {
         </div>
       </main>
       <Footer />
+      <Toaster  />
     </div>
   );
 };

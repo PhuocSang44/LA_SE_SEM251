@@ -1,5 +1,6 @@
 package org.minhtrinh.hcmuttssbackend.dto;
 
+
 public record SessionResponse (
     Long sessionId,
     Long classId,
@@ -9,6 +10,7 @@ public record SessionResponse (
     String location,
     String sessionType,
     Integer capacity,
-    String description
+    String description,
+    String status
 )
 {}

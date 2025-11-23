@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { listAllSessions, formatSessionRange, createSession } from "@/lib/sessionApi";
+import {  formatSessionRange, createSession } from "@/lib/sessionApi";
+import { listSessionsByUser } from "@/lib/sessionApi";
 import type { Session } from "@/types/session";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -15,6 +16,7 @@ const CalendarView = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [ownedClasses, setOwnedClasses] = useState<any[]>([]);
+  const [classesById, setClassesById] = useState<Record<number, any>>({});
   const [showScheduler, setShowScheduler] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedClassId, setSelectedClassId] = useState<string>("");
@@ -28,10 +30,11 @@ const CalendarView = () => {
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
   const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
-
+  const numericUserId: number | null = user?.officialId ? Number(user.officialId) : null;
   const refreshSessions = async () => {
     try {
-      const data = await listAllSessions();
+      const data = await listSessionsByUser();
+      console.log("Loaded sessions:", data);
       setAllSessions(data);
     } catch (error) {
       console.error('Cannot load sessions', error);
@@ -82,6 +85,70 @@ const CalendarView = () => {
     };
     loadClasses();
   }, [apiBase, user?.role, user?.officialId]);
+
+  // Load class details for sessions so we can render subject/course name on each session block
+  useEffect(() => {
+    const ids = Array.from(
+      new Set(
+        allSessions
+          .map((s) => s?.classId?? null)
+          .filter((id) => id != null)
+          .map((id) => Number(id))
+      )
+    );
+    if (!ids.length) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const results = await Promise.allSettled(
+          ids.map(async (id) => {
+            try {
+              const res = await fetch(`${apiBase}/api/classes/${id}`, { credentials: 'include' });
+              if (!res.ok) return [id, null] as const;
+              const json = await res.json();
+              return [id, json] as const;
+            } catch (err) {
+              return [id, null] as const;
+            }
+          })
+        );
+
+        if (cancelled) return;
+
+        setClassesById((prev) => {
+          const next = { ...prev };
+          for (const r of results) {
+            if (r.status === "fulfilled") {
+              const [id, cls] = r.value as readonly [number, any];
+              if (cls) next[Number(id)] = cls;
+            }
+          }
+          return next;
+        });
+      } catch (e) {
+        console.error("Failed to load classes for calendar", e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [allSessions, apiBase]);
+
+  const getSubjectNameFromSession = (s: any) => {
+    if (!s) return "Unknown";
+    const classId = s?.classId ?? s?.class?.id ?? null;
+    const cls = classId != null ? classesById[Number(classId)] : null;
+    return (
+      cls?.courseName ||
+      cls?.courseCode ||
+      s?.subject ||
+      s?.courseName ||
+      s?.courseCode ||
+      (cls?.name ?? "Unknown")
+    );
+  };
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -173,14 +240,23 @@ const CalendarView = () => {
               <div className="space-y-1">
                 {daySessions.map((session) => {
                   const range = formatSessionRange(session);
+                  const subject = getSubjectNameFromSession(session);
                   return (
                     <div
                       key={session.id}
                       className={`bg-blue-600 text-white text-xs p-1 rounded truncate`}
-                      title={`${session.title} - ${range}`}
+                      title={ `${session.title}${subject ? ` — ${subject}` : ""} - ${range}` }
                     >
-                      <div className="font-medium">{session.title}</div>
-                      <div className="flex items-center gap-1 opacity-90">
+                      <div className="font-medium flex items-center justify-between">
+                        <span className="truncate">{session.title}</span>
+                      </div>
+
+                      {/* subject line */}
+                      <div className="text-xxs opacity-90 mt-0.5">
+                        <em className="text-[11px] opacity-90">{subject}</em>
+                      </div>
+
+                      <div className="flex items-center gap-1 opacity-90 mt-1">
                         <Clock className="h-2.5 w-2.5" />
                         <span>{range.split(' ').slice(-2)[0]}</span>
                       </div>

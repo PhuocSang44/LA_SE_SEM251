@@ -1,4 +1,6 @@
 package org.minhtrinh.hcmuttssbackend.service;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -6,23 +8,22 @@ import org.minhtrinh.hcmuttssbackend.TssUserPrincipal;
 import org.minhtrinh.hcmuttssbackend.dto.CreateSessionRequest;
 import org.minhtrinh.hcmuttssbackend.dto.RescheduleRequest;
 import org.minhtrinh.hcmuttssbackend.dto.SessionRescheduleResponse;
+import org.minhtrinh.hcmuttssbackend.dto.SessionResponse;
 import org.minhtrinh.hcmuttssbackend.entity.Class;
 import org.minhtrinh.hcmuttssbackend.entity.Session;
 import org.minhtrinh.hcmuttssbackend.entity.SessionEnrollment;
 import org.minhtrinh.hcmuttssbackend.entity.User;
 import org.minhtrinh.hcmuttssbackend.repository.ClassRepository;
-import org.minhtrinh.hcmuttssbackend.repository.jpaSessionRepository;
+import org.minhtrinh.hcmuttssbackend.repository.SessionRegistrationRepository;
+import org.minhtrinh.hcmuttssbackend.repository.StudentRepository;
 import org.minhtrinh.hcmuttssbackend.repository.UniversityStaffRepository;
 import org.minhtrinh.hcmuttssbackend.repository.UserRepository;
+import org.minhtrinh.hcmuttssbackend.repository.jpaSessionRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.minhtrinh.hcmuttssbackend.repository.StudentRepository;
-import org.minhtrinh.hcmuttssbackend.repository.SessionRegistrationRepository;
-import org.minhtrinh.hcmuttssbackend.dto.SessionResponse;
-
+import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.transaction.Transactional;
-import java.util.List;
-import java.util.Objects;
 @Service
 public class SessionService {
     private final jpaSessionRepository sessionRepository;
@@ -107,6 +108,18 @@ public class SessionService {
         java.time.LocalDateTime parsedEndTime = java.time.OffsetDateTime.parse(endTime)
                 .toLocalDateTime();
 
+        List<SessionResponse> sessions = getallSessionsByUserID(principal);
+        for (SessionResponse s : sessions) {
+            if (s.startTime() != null && s.endTime() != null
+                    && startTime != null && endTime != null) {
+                boolean overlap = java.time.LocalDateTime.parse(s.startTime()).isBefore(parsedEndTime)
+                        && java.time.LocalDateTime.parse(s.endTime()).isAfter(parsedStartTime);
+                if (overlap) {
+                    throw new RuntimeException("New session time conflicts with another session of the tutor");
+                }
+            }
+        }
+
         Session.SessionBuilder sessionBuilder = Session.builder()
                 .clazz(existingClass.get())
                 .title(title)
@@ -168,24 +181,27 @@ public class SessionService {
         }
         //check if the new time conflicts with other sessions of the tutor
         //get all sessions of the tutor
-        String tutorStaffId = sessionOpt.get().getClazz().getTutor().getStaffId();
-        var sessions = sessionRepository.findByClazz_Tutor_StaffId(tutorStaffId);
-        for (Session s : sessions) {
-            if (s.getSessionId().equals(sessionId)) continue;
-
-            if (s.getStartTime() != null && s.getEndTime() != null
+        java.time.LocalDateTime parsedStartTime = java.time.LocalDateTime.parse(newStartTime);
+        java.time.LocalDateTime parsedEndTime = java.time.LocalDateTime.parse(newEndTime);
+        List<SessionResponse> sessions = getallSessionsByUserID(principal);
+        for (SessionResponse s : sessions) {
+            if (s.sessionId().equals(sessionId)) {
+                continue; //skip the session being rescheduled
+            }
+            if (s.startTime() != null && s.endTime() != null
                     && newStartTime != null && newEndTime != null) {
-                boolean overlap = s.getStartTime().isBefore(java.time.LocalDateTime.parse(newEndTime))
-                        && s.getEndTime().isAfter(java.time.LocalDateTime.parse(newStartTime));
+                boolean overlap = java.time.LocalDateTime.parse(s.startTime()).isBefore(parsedEndTime)
+                        && java.time.LocalDateTime.parse(s.endTime()).isAfter(parsedStartTime);
                 if (overlap) {
-                    throw new RuntimeException("New session time conflicts with another session of the tutor");
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "New session time conflicts with another session of the tutor");
                 }
             }
         }
 
         Session session = sessionOpt.get();
-        session.setStartTime(java.time.LocalDateTime.parse(newStartTime));
-        session.setEndTime(java.time.LocalDateTime.parse(newEndTime));
+        session.setStartTime(parsedStartTime); 
+        session.setEndTime(parsedEndTime);
+        session.setTitle(request.newSessionTitle());
         sessionRepository.save(session);
 
         return new SessionRescheduleResponse(
@@ -268,6 +284,48 @@ public class SessionService {
         return List.of();
     }
 
+    // public List<SessionResponse> getallScheduleSessionsByUserID(TssUserPrincipal principal) {
+    //     // ensure authenticated and user record exists
+    //     User user = getUserFromPrincipal(principal);
+    //     Integer userId = user.getUserId();
+
+    //     // If user is a tutor (has a UniversityStaff record) -> return sessions they teach
+    //     var maybeStaff = staffRepository.findByUser_UserId(userId);
+    //     if (maybeStaff.isPresent()) {
+    //         String tutorStaffId = maybeStaff.get().getStaffId();
+    //         return sessionRepository.findByClazz_Tutor_StaffId(tutorStaffId).stream()
+    //                 .filter(s -> s.getStatus() != null && "SCHEDULED".equalsIgnoreCase(s.getStatus()))
+    //                 .map(this::mapToSessionResponse)
+    //                 .collect(Collectors.toList());
+    //     }
+
+    //     // If user is a student -> return sessions they are enrolled in via session registrations
+    //     var maybeStudent = studentRepository.findByUser_UserId(userId);
+    //     if (maybeStudent.isPresent()) {
+    //         Integer studentUserId = maybeStudent.get().getUserId();
+    //         return sessionRegistrationRepository.findByStudent_UserId(studentUserId).stream()
+    //                 .map(SessionEnrollment::getSession)
+    //                 .filter(s -> s.getStatus() != null && "SCHEDULED".equalsIgnoreCase(s.getStatus()))
+    //                 .map(this::mapToSessionResponse)
+    //                 .collect(Collectors.toList());
+    //     }
+
+    //     // Neither tutor nor student -> return empty list
+    //     return List.of();
+    // }
+
+    public List<SessionResponse> getallSessionsByClassID(Long classId) {
+        // ensure authenticated and user record exists
+
+        // If user is a tutor (has a UniversityStaff record) -> return sessions they teach
+            return sessionRepository.findByClazz_ClassId(classId).stream()
+                    .map(this::mapToSessionResponse)
+                    .collect(Collectors.toList());
+
+        // If user is a student -> return sessions they are enrolled in via session registrations
+    
+    }
+
     private SessionResponse mapToSessionResponse(Session session) {
         Long sessionId = session.getSessionId();
         Long classId = session.getClazz() != null ? session.getClazz().getClassId() : null;
@@ -278,7 +336,8 @@ public class SessionService {
         String sessionType = session.getSessionType();
         Integer capacity = session.getMaxStudents();
         String description = session.getDescription();
+        String status = session.getStatus();
 
-        return new SessionResponse(sessionId, classId, sessionTitle, startTime, endTime, location, sessionType, capacity, description);
+        return new SessionResponse(sessionId, classId, sessionTitle, startTime, endTime, location, sessionType, capacity, description, status);
     }
 }    

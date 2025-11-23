@@ -10,9 +10,9 @@ import org.minhtrinh.hcmuttssbackend.entity.SessionEnrollment;
 import org.minhtrinh.hcmuttssbackend.entity.Student;
 import org.minhtrinh.hcmuttssbackend.entity.User;
 import org.minhtrinh.hcmuttssbackend.repository.SessionRegistrationRepository;
-import org.minhtrinh.hcmuttssbackend.repository.jpaSessionRepository;
 import org.minhtrinh.hcmuttssbackend.repository.StudentRepository;
 import org.minhtrinh.hcmuttssbackend.repository.UserRepository;
+import org.minhtrinh.hcmuttssbackend.repository.jpaSessionRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -101,6 +101,15 @@ public class SessionRegistrationService {
                 .build();
 
         sessionRegistrationRepository.save(enrollment);
+        
+        try {
+            long updatedCount = sessionRegistrationRepository.countBySession_SessionId(sessionentity.getSessionId());
+            sessionentity.setCurrentStudents((int) updatedCount);
+            sessionRepository.save(sessionentity);
+        } catch (Exception e) {
+            // log or handle the exception; don't swallow silently in production
+            
+        }
     }
 
     @Transactional
@@ -129,5 +138,13 @@ public class SessionRegistrationService {
                 .orElseThrow(() -> new RuntimeException("Enrollment not found for student in this session"));
 
         sessionRegistrationRepository.delete(enrollment);
+        try {
+            long updatedCount = sessionRegistrationRepository.countBySession_SessionId(sessionentity.getSessionId());
+            sessionentity.setCurrentStudents((int) updatedCount);
+            sessionRepository.save(sessionentity);
+        } catch (Exception e) {
+            // log or handle the exception; don't swallow silently in production
+            
+        }
     }
 }

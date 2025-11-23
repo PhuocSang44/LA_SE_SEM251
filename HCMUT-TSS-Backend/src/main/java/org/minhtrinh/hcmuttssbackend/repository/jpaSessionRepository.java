@@ -9,4 +9,5 @@ import org.springframework.stereotype.Repository;
 @Repository("jpaSessionRepository")
 public interface jpaSessionRepository extends JpaRepository<Session, Long> {
     List<Session> findByClazz_Tutor_StaffId(String staffId);
+    List<Session> findByClazz_ClassId(Long classId);
 }

@@ -26,3 +26,8 @@ export interface UpdateSessionPayload {
   endTime?: string;
   status?: 'scheduled' | 'cancelled' | 'completed';
 }
+
+export interface EnrollMentSessionRequest {
+  sessionId: number;
+  UserID: number;
+}
