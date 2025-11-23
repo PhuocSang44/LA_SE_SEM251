@@ -15,7 +15,7 @@ export async function listSessionsByClass(classId: number): Promise<Session[]> {
   } catch { return []; }
 }
 
-export async function listSessionsByUser(userId: number): Promise<Session[]> {
+export async function listSessionsByUser(): Promise<Session[]> {
   try {
     // backend exposes /api/sessions/userId for the authenticated user
     const res = await fetch(`${API}/api/sessions/userId`, { credentials: 'include' });
@@ -41,9 +41,9 @@ export async function listSessionsByUser(userId: number): Promise<Session[]> {
   }
 }
 
-export async function listAllSessions(): Promise<Session[]> {
+export async function listAllSessions(userId: number | null): Promise<Session[]> {
   try {
-    const res = await fetch(`${API}/api/sessions`, { credentials: 'include' });
+    const res = await fetch(`${API}/api/sessions/${userId}`, {method: 'GET', credentials: 'include' });
     if (!res.ok) return [];
     return await res.json();
   } catch { return []; }

@@ -1,9 +1,14 @@
 package org.minhtrinh.hcmuttssbackend.service;
 
-import jakarta.persistence.EntityManager;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 import org.minhtrinh.hcmuttssbackend.TssUserPrincipal;
 import org.minhtrinh.hcmuttssbackend.dto.ClassResponse;
 import org.minhtrinh.hcmuttssbackend.dto.CreateClassRequest;
+import org.minhtrinh.hcmuttssbackend.dto.UpdateClassRequest;
 import org.minhtrinh.hcmuttssbackend.entity.Class;
 import org.minhtrinh.hcmuttssbackend.entity.Course;
 import org.minhtrinh.hcmuttssbackend.entity.UniversityStaff;
@@ -12,18 +17,13 @@ import org.minhtrinh.hcmuttssbackend.repository.ClassRepository;
 import org.minhtrinh.hcmuttssbackend.repository.CourseRepository;
 import org.minhtrinh.hcmuttssbackend.repository.UniversityStaffRepository;
 import org.minhtrinh.hcmuttssbackend.repository.UserRepository;
-import org.minhtrinh.hcmuttssbackend.service.UserProfilePersistenceService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.minhtrinh.hcmuttssbackend.dto.UpdateClassRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import jakarta.persistence.EntityManager;
 
 @Service
 public class ClassService {
@@ -124,6 +124,11 @@ public class ClassService {
         Class savedClass = classRepository.save(newClass);
 
         return mapToResponse(savedClass);
+    }
+
+    public Optional<ClassResponse> getClassById(Long classId, TssUserPrincipal principal) {
+        return classRepository.findById(classId)
+                .map(this::mapToResponse);
     }
 
     public List<ClassResponse> getAllClasses(TssUserPrincipal principal) {
@@ -259,17 +264,21 @@ public class ClassService {
         String responseCourseName = null;
         if (course != null) {
             responseCourseCode = course.getCode();
-            responseCourseName = (classEntity.getCustomName() != null && !classEntity.getCustomName().isBlank())
-                    ? classEntity.getCustomName()
-                    : course.getName();
-        } else {
-            responseCourseName = classEntity.getCustomName();
-        }
+            responseCourseName = course.getName();
+        } 
 
+        String responseCustomClassName = null;
+        String responseDescription = null;
+        if (course != null) {
+            responseCustomClassName = classEntity.getCustomName();
+            responseDescription = course.getDescription();
+        }
         return new ClassResponse(
                 classEntity.getClassId(),
                 responseCourseCode,
                 responseCourseName,
+                responseCustomClassName,
+                responseDescription,
                 classEntity.getSemester(),
                 tutorName,
                 tutorOfficialId,
