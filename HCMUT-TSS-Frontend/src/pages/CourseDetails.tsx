@@ -3,7 +3,7 @@ import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, User, Clock, BookOpen, Plus, CheckCircle2, MessageSquare, Star, Pencil, X, FileText, Download } from "lucide-react";
+import { Calendar, User, Clock, BookOpen, Plus, CheckCircle2, MessageSquare, Star, Pencil, X, FileText, Download, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -122,6 +122,7 @@ const CourseDetails = () => {
     { question: "How would you rate the course difficulty?", ratingValue: 0 }
   ]);
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [showFeedbackExistsDialog, setShowFeedbackExistsDialog] = useState(false);
 
   // Real sessions state (fetched)
   const [sessions, setSessions] = useState<any[]>([]);
@@ -134,6 +135,24 @@ const CourseDetails = () => {
   const [libraryItems, setLibraryItems] = useState<any[]>([]);
   const [loadingLibrary, setLoadingLibrary] = useState(false);
   const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [sessionMaterials, setSessionMaterials] = useState<any[]>([]);
+  const [loadingMaterials, setLoadingMaterials] = useState(false);
+  const [materialsError, setMaterialsError] = useState<string | null>(null);
+  const [showExternalUrlDialog, setShowExternalUrlDialog] = useState(false);
+  const [externalUrlTitle, setExternalUrlTitle] = useState("");
+  const [externalUrlDescription, setExternalUrlDescription] = useState("");
+  const [externalUrl, setExternalUrl] = useState("");
+  const [isAddingMaterial, setIsAddingMaterial] = useState(false);
+  const [showFileUploadDialog, setShowFileUploadDialog] = useState(false);
+  const [uploadFileTitle, setUploadFileTitle] = useState("");
+  const [uploadFileDescription, setUploadFileDescription] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [showLibrarySelectDialog, setShowLibrarySelectDialog] = useState(false);
+  const [selectedLibraryItems, setSelectedLibraryItems] = useState<Set<number>>(new Set());
+  const [isAddingLibraryItems, setIsAddingLibraryItems] = useState(false);
+  const [showViewAllLibraryDialog, setShowViewAllLibraryDialog] = useState(false);
+  const [showViewAllMaterialsDialog, setShowViewAllMaterialsDialog] = useState(false);
 
   const mergeDateTime = (dateStr: string, timeStr: string) => {
     try { const [h,m] = timeStr.split(':').map(Number); const d = new Date(dateStr); d.setHours(h||0,m||0,0,0); return d.toISOString(); } catch { return new Date().toISOString(); }
@@ -201,7 +220,7 @@ const CourseDetails = () => {
     setLoadingLibrary(true);
     setLibraryError(null);
     const controller = new AbortController();
-    const url = `${apiBase}/api/library/search?courseCode=${encodeURIComponent(courseCode)}`;
+    const url = `${libraryApiBase}/api/library/items?courseCode=${encodeURIComponent(courseCode)}`;
     fetch(url, { credentials: 'include', signal: controller.signal })
       .then(res => {
         if (!res.ok) {
@@ -220,7 +239,37 @@ const CourseDetails = () => {
       })
       .finally(() => setLoadingLibrary(false));
     return () => controller.abort();
-  }, [apiBase, courseCode]);
+  }, [libraryApiBase, courseCode]);
+
+  // Fetch session materials (course-specific materials)
+  useEffect(() => {
+    if (!course?.id) {
+      setSessionMaterials([]);
+      return;
+    }
+    setLoadingMaterials(true);
+    setMaterialsError(null);
+    const controller = new AbortController();
+    const url = `${apiBase}/api/courses/${course.id}/materials`;
+    fetch(url, { credentials: 'include', signal: controller.signal })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Failed to fetch course materials');
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setSessionMaterials(Array.isArray(data) ? data : []);
+      })
+      .catch((error) => {
+        if (error.name === 'AbortError') return;
+        console.error('Failed to fetch course materials', error);
+        setSessionMaterials([]);
+        setMaterialsError('Unable to load course materials');
+      })
+      .finally(() => setLoadingMaterials(false));
+    return () => controller.abort();
+  }, [apiBase, course?.id]);
 
   if (!course) {
     return (
@@ -412,16 +461,28 @@ const CourseDetails = () => {
         } catch (e) {
           errorMessage = text || errorMessage;
         }
+
+        // Special handling for "already submitted" error
+        if (errorMessage.toLowerCase().includes('already submitted')) {
+          setShowFeedbackDialog(false);
+          setShowFeedbackExistsDialog(true);
+          return;
+        }
+
         throw new Error(errorMessage);
       }
     } catch (err: any) {
       console.error("DEBUG: Fetch error:", err);
       const errorMsg = err.message || String(err);
-      toast({
-        title: "Failed to submit feedback",
-        description: errorMsg,
-        variant: "destructive"
-      });
+
+      // Don't show toast if we already handled the "already submitted" case
+      if (!errorMsg.toLowerCase().includes('already submitted')) {
+        toast({
+          title: "Failed to submit feedback",
+          description: errorMsg,
+          variant: "destructive"
+        });
+      }
     } finally {
       console.log("DEBUG: Setting isSubmittingFeedback to false");
       setIsSubmittingFeedback(false);
@@ -432,6 +493,255 @@ const CourseDetails = () => {
     const newRatings = [...feedbackRatings];
     newRatings[index].ratingValue = value;
     setFeedbackRatings(newRatings);
+  };
+
+  const handleAddExternalMaterial = async () => {
+    if (!externalUrl || !externalUrlTitle) {
+      toast({
+        title: "Missing information",
+        description: "Please provide both title and URL",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!externalUrl.startsWith('http://') && !externalUrl.startsWith('https://')) {
+      toast({
+        title: "Invalid URL",
+        description: "URL must start with http:// or https://",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsAddingMaterial(true);
+    try {
+      const res = await fetch(`${apiBase}/api/courses/${course?.id}/materials/add-external`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: externalUrlTitle,
+          description: externalUrlDescription,
+          externalUrl: externalUrl
+        })
+      });
+
+      if (res.ok) {
+        toast({
+          title: "Material added successfully",
+          description: "External URL has been added to course materials"
+        });
+        setShowExternalUrlDialog(false);
+        setExternalUrlTitle("");
+        setExternalUrlDescription("");
+        setExternalUrl("");
+        // Refresh materials
+        const refreshRes = await fetch(`${apiBase}/api/courses/${course?.id}/materials`, { credentials: 'include' });
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          setSessionMaterials(Array.isArray(data) ? data : []);
+        }
+      } else {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Failed to add material');
+      }
+    } catch (err: any) {
+      toast({
+        title: "Failed to add material",
+        description: err.message || String(err),
+        variant: "destructive"
+      });
+    } finally {
+      setIsAddingMaterial(false);
+    }
+  };
+
+  const handleUploadFile = async () => {
+    if (!selectedFile) {
+      toast({
+        title: "No file selected",
+        description: "Please select a file to upload",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!uploadFileTitle) {
+      toast({
+        title: "Missing title",
+        description: "Please provide a title for the file",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsUploadingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('title', uploadFileTitle);
+      if (uploadFileDescription) {
+        formData.append('description', uploadFileDescription);
+      }
+
+      const res = await fetch(`${apiBase}/api/courses/${course?.id}/materials/upload`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+
+      if (res.ok) {
+        toast({
+          title: "File uploaded successfully",
+          description: "File has been added to course materials"
+        });
+        setShowFileUploadDialog(false);
+        setUploadFileTitle("");
+        setUploadFileDescription("");
+        setSelectedFile(null);
+        // Refresh materials
+        const refreshRes = await fetch(`${apiBase}/api/courses/${course?.id}/materials`, { credentials: 'include' });
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          setSessionMaterials(Array.isArray(data) ? data : []);
+        }
+      } else {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Failed to upload file');
+      }
+    } catch (err: any) {
+      toast({
+        title: "Failed to upload file",
+        description: err.message || String(err),
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploadingFile(false);
+    }
+  };
+
+  const handleAddLibraryItems = async () => {
+    if (selectedLibraryItems.size === 0) {
+      toast({
+        title: "No items selected",
+        description: "Please select at least one library item",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsAddingLibraryItems(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      for (const itemId of selectedLibraryItems) {
+        try {
+          const libraryItem = libraryItems.find(item => item.id === itemId);
+          if (!libraryItem) continue;
+
+          const res = await fetch(`${apiBase}/api/courses/${course?.id}/materials/add-library-ref`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              libraryItemId: itemId,
+              title: libraryItem.title || libraryItem.originalName || `Library item #${itemId}`,
+              description: libraryItem.description || ''
+            })
+          });
+
+          if (res.ok) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (err) {
+          console.error(`Failed to add library item ${itemId}:`, err);
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: "Library items added",
+          description: `Successfully added ${successCount} item(s) to course materials`
+        });
+
+        // Refresh materials
+        const refreshRes = await fetch(`${apiBase}/api/courses/${course?.id}/materials`, { credentials: 'include' });
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          setSessionMaterials(Array.isArray(data) ? data : []);
+        }
+      }
+
+      if (failCount > 0) {
+        toast({
+          title: "Some items failed",
+          description: `Failed to add ${failCount} item(s)`,
+          variant: "destructive"
+        });
+      }
+
+      setShowLibrarySelectDialog(false);
+      setSelectedLibraryItems(new Set());
+    } catch (err: any) {
+      toast({
+        title: "Failed to add library items",
+        description: err.message || String(err),
+        variant: "destructive"
+      });
+    } finally {
+      setIsAddingLibraryItems(false);
+    }
+  };
+
+  const handleDeleteMaterial = async (materialId: number, materialTitle: string) => {
+    if (!confirm(`Delete this material?\n\n"${materialTitle}"\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      console.log('Deleting material:', materialId, materialTitle);
+      const res = await fetch(`${apiBase}/api/materials/${materialId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      console.log('Delete response status:', res.status);
+
+      if (res.ok || res.status === 204) {
+        toast({
+          title: "Material deleted",
+          description: "Material has been removed successfully"
+        });
+
+        // Refresh materials
+        const refreshRes = await fetch(`${apiBase}/api/courses/${course?.id}/materials`, { credentials: 'include' });
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          setSessionMaterials(Array.isArray(data) ? data : []);
+        }
+      } else {
+        let errorText = '';
+        try {
+          errorText = await res.text();
+        } catch (e) {
+          errorText = `HTTP ${res.status} ${res.statusText}`;
+        }
+        console.error('Delete failed:', res.status, errorText);
+        throw new Error(errorText || `Failed to delete material (HTTP ${res.status})`);
+      }
+    } catch (err: any) {
+      console.error('Delete material error:', err);
+      toast({
+        title: "Failed to delete material",
+        description: err.message || String(err),
+        variant: "destructive"
+      });
+    }
   };
 
   const handleExit = async () => {
@@ -526,9 +836,6 @@ const CourseDetails = () => {
                       <div className="bg-white shadow-sm rounded-md p-2 flex items-center gap-2">
                         <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700 rounded-md px-3 py-1" onClick={() => navigate('/create-quiz', { state: { course } })}>
                           Create Quiz
-                        </Button>
-                        <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700 rounded-md px-3 py-1" onClick={() => toast({ title: 'Upload Materials', description: 'Upload materials coming soon' })}>
-                          Upload
                         </Button>
                         <Button size="sm" variant="outline" className="bg-white text-blue-600 border-blue-500 hover:bg-blue-50 rounded-md px-3 py-1" onClick={() => { setRenameValue(course?.name || ''); setShowRenameDialog(true); }}>
                           Rename
@@ -662,62 +969,213 @@ const CourseDetails = () => {
                           </CardContent>
                         </Card>
 
-                        {/* Library Materials Card */}
+                        {/* Library Materials Card - Only visible to tutors */}
+                        {isOwner && (
+                          <Card className="rounded-xl shadow-md">
+                            <CardHeader>
+                              <CardTitle className="text-xl flex items-center gap-2">
+                                <FileText className="h-5 w-5 text-muted-foreground" />
+                                Course Library
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              {loadingLibrary && (
+                                <div className="text-sm text-muted-foreground">Loading library resources...</div>
+                              )}
+                              {!loadingLibrary && libraryError && (
+                                <div className="text-sm text-destructive">{libraryError}</div>
+                              )}
+                              {!loadingLibrary && !libraryError && libraryItems.length === 0 && (
+                                <div className="text-sm text-muted-foreground">No library materials available for this course.</div>
+                              )}
+                              {!loadingLibrary && !libraryError && libraryItems.length > 0 && (
+                                <div className="space-y-3">
+                                  {libraryItems.slice(0, 2).map((item) => (
+                                    <div key={item.id} className="p-3 rounded-lg border bg-muted/40 flex justify-between items-start gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-sm truncate">{item.title || item.originalName || `Library item #${item.id}`}</p>
+                                        {item.description && (
+                                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>
+                                        )}
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          {item.originalName || 'Unnamed file'} • {formatFileSize(item.sizeBytes)}
+                                        </p>
+                                      </div>
+                                      <Button size="icon" variant="ghost" className="flex-shrink-0" asChild>
+                                        <a
+                                          href={`${libraryApiBase}/api/library/items/${item.id}/download`}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          title="Download file"
+                                        >
+                                          <Download className="h-4 w-4" />
+                                        </a>
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {!loadingLibrary && !libraryError && libraryItems.length > 2 && (
+                                <Button
+                                  variant="outline"
+                                  className="w-full mt-2"
+                                  onClick={() => setShowViewAllLibraryDialog(true)}
+                                >
+                                  View All Library Files ({libraryItems.length})
+                                </Button>
+                              )}
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        {/* Session Materials Card */}
                         <Card className="rounded-xl shadow-md">
                           <CardHeader>
-                            <CardTitle className="text-xl flex items-center gap-2">
-                              <FileText className="h-5 w-5 text-muted-foreground" />
-                              Course Library
-                            </CardTitle>
+                            <div className="space-y-3">
+                              <CardTitle className="text-xl flex items-center gap-2">
+                                <BookOpen className="h-5 w-5 text-muted-foreground" />
+                                Course Materials
+                              </CardTitle>
+                              {isOwner && (
+                                <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setShowLibrarySelectDialog(true)}
+                                    className="text-xs"
+                                  >
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    From Library
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setShowFileUploadDialog(true)}
+                                    className="text-xs"
+                                  >
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Upload File
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setShowExternalUrlDialog(true)}
+                                    className="text-xs"
+                                  >
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Add Link
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
                           </CardHeader>
                           <CardContent>
-                            {loadingLibrary && (
-                              <div className="text-sm text-muted-foreground">Loading library resources...</div>
+                            {loadingMaterials && (
+                              <div className="text-sm text-muted-foreground">Loading course materials...</div>
                             )}
-                            {!loadingLibrary && libraryError && (
-                              <div className="text-sm text-destructive">{libraryError}</div>
+                            {!loadingMaterials && materialsError && (
+                              <div className="text-sm text-destructive">{materialsError}</div>
                             )}
-                            {!loadingLibrary && !libraryError && libraryItems.length === 0 && (
-                              <div className="text-sm text-muted-foreground">No library materials linked to this course yet.</div>
+                            {!loadingMaterials && !materialsError && sessionMaterials.length === 0 && (
+                              <div className="text-sm text-muted-foreground">
+                                No course materials yet.
+                                {isOwner && " Add materials to help students learn!"}
+                              </div>
                             )}
-                            {!loadingLibrary && !libraryError && libraryItems.length > 0 && (
+                            {!loadingMaterials && !materialsError && sessionMaterials.length > 0 && (
                               <div className="space-y-3">
-                                {libraryItems.slice(0, 5).map((item) => (
-                                  <div key={item.id} className="p-3 rounded-lg border bg-muted/40 flex justify-between items-start gap-3">
-                                    <div>
-                                      <p className="font-medium text-sm">{item.title || item.originalName || `Library item #${item.id}`}</p>
-                                      {item.description && (
-                                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>
+                                {sessionMaterials.slice(0, 2).map((material) => (
+                                  <div key={material.id} className="p-3 rounded-lg border bg-muted/40 flex justify-between items-start gap-3">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-start gap-2 flex-wrap">
+                                        {material.sourceType === 'EXTERNAL_URL' && (
+                                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">🔗 Link</span>
+                                        )}
+                                        {material.sourceType === 'LIBRARY_REF' && (
+                                          <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">📚 Library</span>
+                                        )}
+                                        {material.sourceType === 'LOCAL_FILE' && (
+                                          <span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded">📄 File</span>
+                                        )}
+                                      </div>
+                                      <p className="font-medium text-sm mt-1 truncate">{material.title}</p>
+                                      {material.description && (
+                                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{material.description}</p>
                                       )}
-                                      <p className="text-xs text-muted-foreground mt-1">
-                                        {item.originalName || 'Unnamed file'} • {formatFileSize(item.sizeBytes)}
-                                      </p>
+                                      {material.originalName && material.sourceType === 'LOCAL_FILE' && (
+                                        <p className="text-xs text-muted-foreground mt-1 truncate">
+                                          {material.originalName}
+                                        </p>
+                                      )}
+                                      {material.sizeBytes && (
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          Size: {formatFileSize(material.sizeBytes)}
+                                        </p>
+                                      )}
                                     </div>
-                                    <Button size="icon" variant="ghost" asChild>
-                                      <a
-                                        href={`${libraryApiBase}/api/library/items/${item.id}/download`}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        title="Download file"
-                                      >
-                                        <Download className="h-4 w-4" />
-                                      </a>
-                                    </Button>
+                                    <div className="flex gap-1 flex-shrink-0">
+                                      {material.sourceType === 'EXTERNAL_URL' && material.externalUrl && (
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          onClick={() => {
+                                            if (confirm(`Open external link?\n\n${material.externalUrl}\n\nThis will open in a new tab.`)) {
+                                              window.open(material.externalUrl, '_blank', 'noopener,noreferrer');
+                                            }
+                                          }}
+                                          title="Open external link"
+                                        >
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                          </svg>
+                                        </Button>
+                                      )}
+                                      {material.sourceType === 'LOCAL_FILE' && material.downloadUrl && (
+                                        <Button size="icon" variant="ghost" asChild>
+                                          <a
+                                            href={`${apiBase}${material.downloadUrl}`}
+                                            download
+                                            title="Download file"
+                                          >
+                                            <Download className="h-4 w-4" />
+                                          </a>
+                                        </Button>
+                                      )}
+                                      {material.sourceType === 'LIBRARY_REF' && material.downloadUrl && (
+                                        <Button size="icon" variant="ghost" asChild>
+                                          <a
+                                            href={material.downloadUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            title="Download file"
+                                          >
+                                            <Download className="h-4 w-4" />
+                                          </a>
+                                        </Button>
+                                      )}
+                                      {isOwner && (
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          onClick={() => handleDeleteMaterial(material.id, material.title)}
+                                          title="Delete material"
+                                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                    </div>
                                   </div>
                                 ))}
                               </div>
                             )}
-                            {!loadingLibrary && !libraryError && libraryItems.length > 5 && (
+                            {!loadingMaterials && !materialsError && sessionMaterials.length > 2 && (
                               <Button
                                 variant="outline"
-                                className="w-full mt-3"
-                                onClick={() => {
-                                  if (!courseCode || typeof window === 'undefined') return;
-                                  const viewUrl = `${libraryApiBase}/api/library/items?courseCode=${encodeURIComponent(courseCode)}`;
-                                  window.open(viewUrl, '_blank');
-                                }}
+                                className="w-full mt-2"
+                                onClick={() => setShowViewAllMaterialsDialog(true)}
                               >
-                                View all library files
+                                View All Materials ({sessionMaterials.length})
                               </Button>
                             )}
                           </CardContent>
@@ -1054,6 +1512,294 @@ const CourseDetails = () => {
             </DialogContent>
           </Dialog>
 
+          {/* Feedback Already Exists Dialog */}
+          <Dialog open={showFeedbackExistsDialog} onOpenChange={setShowFeedbackExistsDialog}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader className="space-y-4">
+                <div className="flex items-center justify-center">
+                  <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <DialogTitle className="text-center text-xl">
+                  Feedback Already Submitted
+                </DialogTitle>
+                <DialogDescription className="text-center space-y-4 pt-2">
+                  <p className="text-base text-gray-700">
+                    You have already submitted feedback for this class.
+                  </p>
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 space-y-2 text-left">
+                    <div className="flex items-start gap-2">
+                      <span className="text-xl">📝</span>
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-blue-900">Current Policy</p>
+                        <p className="text-sm text-blue-800 leading-relaxed">
+                          Each student can submit feedback only once per class to ensure fairness and maintain the authenticity of reviews.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <p className="text-sm text-amber-900">
+                      💡 <span className="font-medium">Need to update your feedback?</span><br/>
+                      <span className="text-amber-800">Please contact your instructor or the administration for assistance.</span>
+                    </p>
+                  </div>
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-center pt-2">
+                <Button
+                  variant="default"
+                  onClick={() => setShowFeedbackExistsDialog(false)}
+                  className="min-w-[120px]"
+                >
+                  Got it
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Add External URL Material Dialog */}
+          <Dialog open={showExternalUrlDialog} onOpenChange={setShowExternalUrlDialog}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Add External Link Material</DialogTitle>
+                <DialogDescription>
+                  Add a link to external resources (e.g., Google Docs, YouTube, e-books)
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Title <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Course Syllabus, Lecture Recording"
+                    value={externalUrlTitle}
+                    onChange={(e) => setExternalUrlTitle(e.target.value)}
+                    className="w-full border rounded-md p-2"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Description (Optional)</label>
+                  <textarea
+                    placeholder="Brief description of the material..."
+                    value={externalUrlDescription}
+                    onChange={(e) => setExternalUrlDescription(e.target.value)}
+                    className="w-full border rounded-md p-2 min-h-[80px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">URL <span className="text-red-500">*</span></label>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/resource"
+                    value={externalUrl}
+                    onChange={(e) => setExternalUrl(e.target.value)}
+                    className="w-full border rounded-md p-2"
+                  />
+                  <p className="text-xs text-muted-foreground">Must start with http:// or https://</p>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-xs text-blue-900">
+                    ℹ️ Students will be asked for confirmation before opening external links
+                  </p>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowExternalUrlDialog(false);
+                      setExternalUrlTitle("");
+                      setExternalUrlDescription("");
+                      setExternalUrl("");
+                    }}
+                    disabled={isAddingMaterial}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleAddExternalMaterial}
+                    disabled={isAddingMaterial || !externalUrlTitle || !externalUrl}
+                  >
+                    {isAddingMaterial ? 'Adding...' : 'Add Material'}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* File Upload Material Dialog */}
+          <Dialog open={showFileUploadDialog} onOpenChange={setShowFileUploadDialog}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Upload File Material</DialogTitle>
+                <DialogDescription>
+                  Upload PDF, Word documents, or other files for students
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Title <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Lecture Slides Week 1"
+                    value={uploadFileTitle}
+                    onChange={(e) => setUploadFileTitle(e.target.value)}
+                    className="w-full border rounded-md p-2"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Description (Optional)</label>
+                  <textarea
+                    placeholder="Brief description of the file..."
+                    value={uploadFileDescription}
+                    onChange={(e) => setUploadFileDescription(e.target.value)}
+                    className="w-full border rounded-md p-2 min-h-[80px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">File <span className="text-red-500">*</span></label>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar"
+                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                    className="w-full border rounded-md p-2 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  {selectedFile && (
+                    <p className="text-sm text-muted-foreground">
+                      Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Supported: PDF, Word, PowerPoint, Excel, Text, ZIP
+                  </p>
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-xs text-green-900">
+                    ℹ️ Files will be securely stored and available for download by students
+                  </p>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowFileUploadDialog(false);
+                      setUploadFileTitle("");
+                      setUploadFileDescription("");
+                      setSelectedFile(null);
+                    }}
+                    disabled={isUploadingFile}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleUploadFile}
+                    disabled={isUploadingFile || !uploadFileTitle || !selectedFile}
+                  >
+                    {isUploadingFile ? 'Uploading...' : 'Upload File'}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Library Selection Dialog */}
+          <Dialog open={showLibrarySelectDialog} onOpenChange={setShowLibrarySelectDialog}>
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+              <DialogHeader>
+                <DialogTitle>Add from Course Library</DialogTitle>
+                <DialogDescription>
+                  Select PDF files from the library to add to your course materials
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto space-y-3">
+                {loadingLibrary && (
+                  <div className="text-sm text-muted-foreground p-4">Loading library items...</div>
+                )}
+                {!loadingLibrary && libraryError && (
+                  <div className="text-sm text-destructive p-4">{libraryError}</div>
+                )}
+                {!loadingLibrary && !libraryError && libraryItems.length === 0 && (
+                  <div className="text-sm text-muted-foreground p-4">
+                    No library materials found for course code: {courseCode}
+                  </div>
+                )}
+                {!loadingLibrary && !libraryError && libraryItems.length > 0 && (
+                  <div className="space-y-2">
+                    {libraryItems.map((item) => {
+                      const isSelected = selectedLibraryItems.has(item.id);
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => {
+                            const newSelected = new Set(selectedLibraryItems);
+                            if (isSelected) {
+                              newSelected.delete(item.id);
+                            } else {
+                              newSelected.add(item.id);
+                            }
+                            setSelectedLibraryItems(newSelected);
+                          }}
+                          className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                            isSelected 
+                              ? 'border-blue-500 bg-blue-50' 
+                              : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`mt-1 h-5 w-5 rounded border-2 flex items-center justify-center ${
+                              isSelected 
+                                ? 'border-blue-500 bg-blue-500' 
+                                : 'border-gray-300 bg-white'
+                            }`}>
+                              {isSelected && (
+                                <CheckCircle2 className="h-4 w-4 text-white" />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">{item.title || item.originalName || `Library item #${item.id}`}</p>
+                              {item.description && (
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>
+                              )}
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {item.originalName || 'Unnamed file'} • {formatFileSize(item.sizeBytes)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div className="border-t pt-4 flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  {selectedLibraryItems.size} item(s) selected
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowLibrarySelectDialog(false);
+                      setSelectedLibraryItems(new Set());
+                    }}
+                    disabled={isAddingLibraryItems}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleAddLibraryItems}
+                    disabled={isAddingLibraryItems || selectedLibraryItems.size === 0}
+                  >
+                    {isAddingLibraryItems ? 'Adding...' : `Add ${selectedLibraryItems.size} item(s)`}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           {/* Exit Confirmation Dialog (Student) */}
           <Dialog open={showExitDialog} onOpenChange={(open) => !open && setShowExitDialog(false)}>
             <DialogContent className="sm:max-w-lg">
@@ -1101,6 +1847,184 @@ const CourseDetails = () => {
                   <Button variant="destructive" onClick={handleDelete} disabled={deleting || deleteConfirmText !== (course?.name || '')}>{deleting ? 'Deleting...' : 'Delete Class'}</Button>
                   <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
                 </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* View All Library Files Dialog */}
+          <Dialog open={showViewAllLibraryDialog} onOpenChange={setShowViewAllLibraryDialog}>
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+              <DialogHeader>
+                <DialogTitle>All Library Files</DialogTitle>
+                <DialogDescription>
+                  All files available in the library for {courseCode}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto">
+                {loadingLibrary && (
+                  <div className="text-sm text-muted-foreground p-4">Loading library resources...</div>
+                )}
+                {!loadingLibrary && libraryError && (
+                  <div className="text-sm text-destructive p-4">{libraryError}</div>
+                )}
+                {!loadingLibrary && !libraryError && libraryItems.length === 0 && (
+                  <div className="text-sm text-muted-foreground p-4">No library materials available for this course.</div>
+                )}
+                {!loadingLibrary && !libraryError && libraryItems.length > 0 && (
+                  <div className="space-y-3">
+                    {libraryItems.map((item) => (
+                      <div key={item.id} className="p-4 rounded-lg border bg-muted/40 flex justify-between items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm">{item.title || item.originalName || `Library item #${item.id}`}</p>
+                          {item.description && (
+                            <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {item.originalName || 'Unnamed file'} • {formatFileSize(item.sizeBytes)}
+                          </p>
+                        </div>
+                        <Button size="icon" variant="ghost" className="flex-shrink-0" asChild>
+                          <a
+                            href={`${libraryApiBase}/api/library/items/${item.id}/download`}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Download file"
+                          >
+                            <Download className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="border-t pt-4">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setShowViewAllLibraryDialog(false)}
+                >
+                  Close
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* View All Materials Dialog */}
+          <Dialog open={showViewAllMaterialsDialog} onOpenChange={setShowViewAllMaterialsDialog}>
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+              <DialogHeader>
+                <DialogTitle>All Course Materials</DialogTitle>
+                <DialogDescription>
+                  All materials added to this course
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto">
+                {loadingMaterials && (
+                  <div className="text-sm text-muted-foreground p-4">Loading course materials...</div>
+                )}
+                {!loadingMaterials && materialsError && (
+                  <div className="text-sm text-destructive p-4">{materialsError}</div>
+                )}
+                {!loadingMaterials && !materialsError && sessionMaterials.length === 0 && (
+                  <div className="text-sm text-muted-foreground p-4">No course materials yet.</div>
+                )}
+                {!loadingMaterials && !materialsError && sessionMaterials.length > 0 && (
+                  <div className="space-y-3">
+                    {sessionMaterials.map((material) => (
+                      <div key={material.id} className="p-4 rounded-lg border bg-muted/40 flex justify-between items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start gap-2 flex-wrap mb-2">
+                            {material.sourceType === 'EXTERNAL_URL' && (
+                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">🔗 Link</span>
+                            )}
+                            {material.sourceType === 'LIBRARY_REF' && (
+                              <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">📚 Library</span>
+                            )}
+                            {material.sourceType === 'LOCAL_FILE' && (
+                              <span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded">📄 File</span>
+                            )}
+                          </div>
+                          <p className="font-medium text-sm">{material.title}</p>
+                          {material.description && (
+                            <p className="text-xs text-muted-foreground mt-1">{material.description}</p>
+                          )}
+                          {material.originalName && material.sourceType === 'LOCAL_FILE' && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {material.originalName}
+                            </p>
+                          )}
+                          {material.sizeBytes && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Size: {formatFileSize(material.sizeBytes)}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          {material.sourceType === 'EXTERNAL_URL' && material.externalUrl && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                if (confirm(`Open external link?\n\n${material.externalUrl}\n\nThis will open in a new tab.`)) {
+                                  window.open(material.externalUrl, '_blank', 'noopener,noreferrer');
+                                }
+                              }}
+                              title="Open external link"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                            </Button>
+                          )}
+                          {material.sourceType === 'LOCAL_FILE' && material.downloadUrl && (
+                            <Button size="icon" variant="ghost" asChild>
+                              <a
+                                href={`${apiBase}${material.downloadUrl}`}
+                                download
+                                title="Download file"
+                              >
+                                <Download className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          )}
+                          {material.sourceType === 'LIBRARY_REF' && material.downloadUrl && (
+                            <Button size="icon" variant="ghost" asChild>
+                              <a
+                                href={material.downloadUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Download file"
+                              >
+                                <Download className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          )}
+                          {isOwner && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleDeleteMaterial(material.id, material.title)}
+                              title="Delete material"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="border-t pt-4">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setShowViewAllMaterialsDialog(false)}
+                >
+                  Close
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
