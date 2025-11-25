@@ -17,6 +17,7 @@ import org.minhtrinh.hcmuttssbackend.repository.ClassRepository;
 import org.minhtrinh.hcmuttssbackend.repository.CourseRepository;
 import org.minhtrinh.hcmuttssbackend.repository.UniversityStaffRepository;
 import org.minhtrinh.hcmuttssbackend.repository.UserRepository;
+import org.minhtrinh.hcmuttssbackend.service.CourseCreationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -37,19 +38,22 @@ public class ClassService {
     private final UserRepository userRepository;
     private final UserProfilePersistenceService userProfilePersistenceService;
     private final EntityManager entityManager;
+    private final CourseCreationService courseCreationService;
 
     public ClassService(ClassRepository classRepository,
                         CourseRepository courseRepository,
                         UniversityStaffRepository staffRepository,
                         UserRepository userRepository,
                         UserProfilePersistenceService userProfilePersistenceService,
-                        EntityManager entityManager) {
+                        EntityManager entityManager,
+                        CourseCreationService courseCreationService) {
         this.classRepository = classRepository;
         this.courseRepository = courseRepository;
         this.staffRepository = staffRepository;
         this.userRepository = userRepository;
         this.userProfilePersistenceService = userProfilePersistenceService;
         this.entityManager = entityManager;
+        this.courseCreationService = courseCreationService;
     }
 
     // Helper: ensure subprofile exists and return User entity
@@ -82,27 +86,13 @@ public class ClassService {
 
         // --- Ensure Course exists (create-if-missing) ---
         String code = request.courseCode();
-        Optional<Course> existing = courseRepository.findByCode(code);
-        Course course = existing.orElseGet(() -> {
-            log.info("Course code {} not found. Creating new Course.", code);
-            
-            Course newCourse = Course.builder()
-                    .code(request.courseCode())
-                    .name(request.courseName())
-                    .description(request.courseDescription())
-                    .department(tutor.getDepartment())
-                    .departmentName(tutor.getDepartment().getDepartmentName())
-                    .build();
-            try {
-                return courseRepository.save(newCourse);
-            } catch (DataIntegrityViolationException ex) {
-                log.warn("Race condition on creating course {}, fetching again.", code);
-                // Clear the session to avoid Hibernate AssertionFailure
-                entityManager.clear();
-                return courseRepository.findByCode(code)
-                        .orElseThrow(() -> new RuntimeException("Failed to create or find course: " + code, ex));
-            }
-        });
+        Course course = courseRepository.findByCode(code)
+            .orElseGet(() -> courseCreationService.createIfNotExists(
+                code,
+                request.courseName(),
+                tutor.getDepartment(),
+                tutor.getDepartment().getDepartmentName()
+            ));
 
         // Create new class
         // Set the class custom name separately from the Course's canonical name.
@@ -127,23 +117,23 @@ public class ClassService {
     }
 
     public Optional<ClassResponse> getClassById(Long classId, TssUserPrincipal principal) {
-        return classRepository.findById(classId)
-                .map(this::mapToResponse);
+        return classRepository.findByClassIdWithTutorAndCourse(classId)
+            .map(this::mapToResponse);
     }
 
     public List<ClassResponse> getAllClasses(TssUserPrincipal principal) {
         Integer requesterUserId = getUserIdFromPrincipal(principal);
-        return classRepository.findAll().stream()
-                .filter(c -> !isCreatedByRequester(c, requesterUserId))
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return classRepository.findAllWithTutorAndCourse().stream()
+            .filter(c -> !isCreatedByRequester(c, requesterUserId))
+            .map(this::mapToResponse)
+            .collect(Collectors.toList());
     }
 
         public List<ClassResponse> getClassesByCourse(String courseCode, TssUserPrincipal principal) {
         Integer requesterUserId = getUserIdFromPrincipal(principal);
         Course course = courseRepository.findByCode(courseCode)
             .orElseThrow(() -> new RuntimeException("Course not found: " + courseCode));
-        return classRepository.findByCourse_CourseId(course.getCourseId()).stream()
+        return classRepository.findByCourse_CourseIdWithTutorAndCourse(course.getCourseId()).stream()
             .filter(c -> !isCreatedByRequester(c, requesterUserId))
             .map(this::mapToResponse)
             .collect(Collectors.toList());
@@ -156,12 +146,21 @@ public class ClassService {
         return tutorUserId != null && tutorUserId.equals(requesterUserId);
     }
 
+    private void validateClassOwnership(Class classEntity, Integer userId) {
+        if (userId == null) {
+            throw new RuntimeException("User must be authenticated");
+        }
+        if (classEntity.getTutor() == null || classEntity.getTutor().getUserId() == null || !classEntity.getTutor().getUserId().equals(userId)) {
+            throw new RuntimeException("Not authorized to modify this class");
+        }
+    }
+
         public List<ClassResponse> getClassesByTutor(TssUserPrincipal principal) {
-        User user = getUserFromPrincipal(principal);
-        Integer userId = user.getUserId();
+        Integer userId = getUserIdFromPrincipal(principal);
+        if (userId == null) throw new RuntimeException("User must be authenticated");
         UniversityStaff tutor = staffRepository.findByUser_UserId(userId)
             .orElseThrow(() -> new RuntimeException("Tutor not found"));
-        return classRepository.findByTutor_StaffId(tutor.getStaffId()).stream()
+        return classRepository.findByTutor_StaffIdWithTutorAndCourse(tutor.getStaffId()).stream()
             .map(this::mapToResponse)
             .collect(Collectors.toList());
         }
@@ -171,26 +170,21 @@ public class ClassService {
         User user = getUserFromPrincipal(principal);
         Integer userId = user.getUserId();
 
-        Class classEntity = classRepository.findById(classId)
+        Class classEntity = classRepository.findByClassIdWithTutorAndCourse(classId)
                 .orElseThrow(() -> new RuntimeException("Class not found"));
-        if (classEntity.getTutor() == null || !classEntity.getTutor().getUserId().equals(userId)) {
-            throw new RuntimeException("Not authorized to delete this class");
-        }
+        validateClassOwnership(classEntity, userId);
         classRepository.delete(classEntity);
     }
 
     @Transactional
     public ClassResponse updateClass(Long classId, UpdateClassRequest req, TssUserPrincipal principal) {
-        User user = getUserFromPrincipal(principal);
+        User user = getUserFromPrincipal(principal); 
         Integer userId = user.getUserId();
         log.info("Bắt đầu update classId: {} cho userId: {}", classId, userId);
 
-        Class classEntity = classRepository.findById(classId)
-                .orElseThrow(() -> new RuntimeException("Class not found"));
-        if (classEntity.getTutor() == null || !classEntity.getTutor().getUserId().equals(userId)) {
-            log.warn("Authorization FAILED cho userId: {} khi update classId: {}", userId, classId);
-            throw new RuntimeException("Not authorized to update this class");
-        }
+        Class classEntity = classRepository.findByClassIdWithTutorAndCourse(classId)
+            .orElseThrow(() -> new RuntimeException("Class not found"));
+        validateClassOwnership(classEntity, userId);
 
         // update semester/capacity
         if (req.getSemester() != null) classEntity.setSemester(req.getSemester());
@@ -210,22 +204,11 @@ public class ClassService {
             Optional<Course> existing = courseRepository.findByCode(code);
             
             if (existing.isPresent()) {
+                // Use existing course but DO NOT modify the canonical Course.name here (master data)
                 courseToSet = existing.get();
-                // ONLY if user ALSO provides a NEW name -> update the name of that course
-                if (!name.isEmpty() && !name.equals(courseToSet.getName())) {
-                    log.info("Updating name cho course đã có {}: {}", code, name);
-                    courseToSet.setName(name);
-                    courseToSet = courseRepository.save(courseToSet);
-                }
             } else {
-                // New course if not exist
-                log.info("Tạo course mới với code {} và tên {}", code, name);
-                Course newCourse = Course.builder()
-                        .code(code)
-                        .name(name)
-                        .description("") 
-                        .build();
-                courseToSet = courseRepository.save(newCourse); 
+                // Create new course in an isolated transaction; department info not available here
+                courseToSet = courseCreationService.createIfNotExists(code, name, null, null);
             }
             classEntity.setCourse(courseToSet);
         
@@ -241,13 +224,10 @@ public class ClassService {
 
     private ClassResponse mapToResponse(Class classEntity) {
         UniversityStaff tutor = classEntity.getTutor();
-        User tutorUser = null;
-        if (tutor != null) {
-            tutorUser = userRepository.findById(tutor.getUserId()).orElse(null);
-        }
+        User tutorUser = (tutor == null) ? null : tutor.getUser(); // rely on join-fetch to have user loaded
         String tutorName = tutorUser == null ? null :
-                ((tutorUser.getFirstName() == null ? "" : tutorUser.getFirstName()) + " " +
-                        (tutorUser.getLastName() == null ? "" : tutorUser.getLastName())).trim();
+            ((tutorUser.getFirstName() == null ? "" : tutorUser.getFirstName()) + " " +
+                (tutorUser.getLastName() == null ? "" : tutorUser.getLastName())).trim();
 
         String tutorOfficialId = null;
         String tutorSpecialization = null;
