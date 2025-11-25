@@ -9,6 +9,7 @@ import { api }from '@/lib/api';
 
 // Interface for the raw data from the backend (matches Java DTO)
 interface BackendUserDto {
+    userId: number;
     officialID: string;
     email: string;
     firstName: string;
@@ -24,6 +25,7 @@ export type UserRole = 'administrator' | 'tutor' | 'student' | 'cooperator';
 
 // Frontend User interface
 export interface User {
+    userId: number;
     officialId: string;
     email: string;
     name: string;
@@ -79,6 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             // 2. Transform backend data to frontend User interface
             const frontendUser: User = {
+                userId: backendUser.userId,
                 officialId: backendUser.officialID,
                 email: backendUser.email,
                 name: combineName(backendUser.firstName, backendUser.middleName, backendUser.lastName),

@@ -49,10 +49,11 @@ public class UserService {
     }
 
     @Transactional
-    public void getAndStoreUserFromDatacore(@AuthenticationPrincipal TssUserPrincipal principal){
+    public User getAndStoreUserFromDatacore(@AuthenticationPrincipal TssUserPrincipal principal){
         String email = principal.getEmail();
-        if (userRepository.findByEmail(email).isPresent())
-            return;
+        Optional<User> existingUser = userRepository.findByEmail(email);
+        if (existingUser.isPresent())
+            return existingUser.get();
 
         RecvDatacoreDto datacoreUser = datacoreWebClient.get()
                 .uri("/users/by-email/{email}", email)
@@ -63,7 +64,7 @@ public class UserService {
         if (datacoreUser == null)
             throw new RuntimeException("User not found in Datacore");
         User user = fromDatacoreMapper.toUser(datacoreUser);
-        userRepository.save(user);
+        User savedUser = userRepository.save(user);
         Department department = departmentRepository
             .findByDepartmentName(datacoreUser.departmentName())
             .orElseGet(() -> departmentRepository.save(
@@ -73,6 +74,8 @@ public class UserService {
             )); 
         if (user.getUserType() == UserType.STUDENT) createStudent(datacoreUser, user, department);
         else createStaff(datacoreUser, user, department);
+        
+        return savedUser;
     }
 
     private void createStudent(RecvDatacoreDto dto, User user, Department department){
