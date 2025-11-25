@@ -14,12 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/auth")
 @AllArgsConstructor
 public class AuthController {
-
-    // 1. INJECT THE MAPPER
     private final ToFEUserMapper toFEUserMapper;
-//    private final UserService userService;
 
-    // 2. The /me endpoint logic is correct
     @GetMapping("/me")
     public ResponseEntity<ToFEUserDto> getCurrentUser(@AuthenticationPrincipal TssUserPrincipal principal) {
 

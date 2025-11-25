@@ -30,4 +30,16 @@ public class CourseService {
 
         return courseRepository.save(course);
     }
+
+    public java.util.List<Course> listCourses(String q) {
+        if (q == null || q.isBlank()) {
+            return courseRepository.findAll();
+        }
+        return courseRepository.findByCodeContainingIgnoreCaseOrNameContainingIgnoreCase(q, q);
+    }
+
+    public Course findByCodeOrThrow(String code) {
+        return courseRepository.findByCode(code)
+                .orElseThrow(() -> new IllegalArgumentException("Course not found: " + code));
+    }
 }
