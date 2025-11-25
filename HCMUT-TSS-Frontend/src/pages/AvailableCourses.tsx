@@ -246,6 +246,7 @@ const AvailableCourses = () => {
           description: "", 
           tutors: filteredList.map((cl: any) => ({ 
             id: cl.classId, 
+            name: cl.tutorName, 
             tutorName: cl.tutorName, 
             tutorId: cl.tutorId,
             className: cl.courseName,
