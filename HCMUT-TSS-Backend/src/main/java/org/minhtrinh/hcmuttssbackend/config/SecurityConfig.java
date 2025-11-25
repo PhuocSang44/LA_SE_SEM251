@@ -48,7 +48,8 @@ public class SecurityConfig {
                         // Ignore CSRF for all class endpoints (including PATCH/DELETE on /api/classes/{id})
                         .ignoringRequestMatchers("/auth/logout", "/api/classes/**", "/course-registrations/**",
                                 "/api/feedback/**", "/api/sessions/**", "/api/session-enrollments/**",
-                                "/api/courses/*/materials/**", "/api/materials/**", "/api/library/**")
+                                "/api/courses/*/materials/**", "/api/materials/**", "/api/library/**",
+                                "/api/admin/**")
                 )
                 .authorizeHttpRequests(authz -> authz
                         // Allow the path that STARTS the flow (it must be public or handled by the filter)
@@ -68,6 +69,7 @@ public class SecurityConfig {
                         .userInfoEndpoint(userInfo -> userInfo //handle ID Token
                                 .oidcUserService(tssUserOAuth2UserService))
                         .successHandler(authenticationSuccessHandler)
+                        .failureUrl(frontendUrl + "/banned")
                 )
                 .logout(logout -> logout
                         .logoutUrl("/auth/logout")

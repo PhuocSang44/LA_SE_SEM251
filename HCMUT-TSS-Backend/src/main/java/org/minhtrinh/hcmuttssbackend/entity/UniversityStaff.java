@@ -30,4 +30,10 @@ public class UniversityStaff {
     @ManyToOne()
     @JoinColumn(name = "department_id", nullable = false)
     private Department department;
+
+    @Column(name = "position", length = 100)
+    private String position;
+
+    @Column(name = "role", length = 50)
+    private String role;
 }

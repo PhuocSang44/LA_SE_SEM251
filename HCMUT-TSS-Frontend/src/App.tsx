@@ -9,6 +9,7 @@ import {TooltipProvider} from "@radix-ui/react-tooltip";
 import {BrowserRouter, Route, Routes} from "react-router-dom";
 import SSO from "@/pages/SSO.tsx";
 import Unauthorized from "@/pages/Unauthorized.tsx";
+import Banned from "@/pages/Banned.tsx";
 import Dashboard from "@/pages/Dashboard.tsx";
 import MyCourses from "@/pages/MyCourses.tsx";
 import CourseDetails from "@/pages/CourseDetails.tsx";
@@ -38,6 +39,7 @@ const App = () => (
                             <Route path="/sso" element={<SSO />} />
                         </Route>
                         <Route path="/unauthorized" element={<Unauthorized />} />
+                        <Route path="/banned" element={<Banned />} />
 
                         {/* --- Standard Protected Routes (All roles) --- */}
                         <Route element={<ProtectedRoute />}>

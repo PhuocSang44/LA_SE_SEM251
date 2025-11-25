@@ -2,6 +2,8 @@ package org.minhtrinh.hcmuttssbackend.service;
 
 import org.minhtrinh.hcmuttssbackend.TssUserPrincipal;
 import org.minhtrinh.hcmuttssbackend.dto.RecvDatacoreDto;
+import org.minhtrinh.hcmuttssbackend.entity.User;
+import org.minhtrinh.hcmuttssbackend.entity.UserStatus;
 import org.minhtrinh.hcmuttssbackend.repository.UserRepository;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -13,6 +15,8 @@ import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.web.reactive.function.client.WebClient;
+
+import java.util.Optional;
 
 
 @Service
@@ -67,9 +71,23 @@ public class TssUserOAuth2UserService implements OAuth2UserService<OidcUserReque
 
 
 
-        // 5. Return your custom principal, now with BOTH OIDC and datacore data
+        // 5. Check if user is banned before allowing login
+        Optional<User> existingUser = userRepository.findByEmail(email);
+        if (existingUser.isPresent()) {
+            User user = existingUser.get();
+            if (user.getStatus() == UserStatus.BANNED) {
+                OAuth2Error error = new OAuth2Error(
+                        "USER_BANNED",
+                        "Your account has been banned. Please contact the administrator.",
+                        null
+                );
+                throw new OAuth2AuthenticationException(error);
+            }
+        }
+
+        // 6. Return your custom principal, now with BOTH OIDC and datacore data
         TssUserPrincipal principal = new TssUserPrincipal(oidcUser, datacoreUser);
-        if(userRepository.findByEmail(principal.getEmail()).isEmpty())
+        if(existingUser.isEmpty())
             userService.getAndStoreUserFromDatacore(principal);
 
         return principal;

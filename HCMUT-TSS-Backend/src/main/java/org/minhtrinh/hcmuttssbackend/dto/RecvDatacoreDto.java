@@ -12,5 +12,7 @@ public record RecvDatacoreDto(
         String userType,
         String major,
         String academicLevel,
-        String departmentName
+        String departmentName,
+        String position,
+        String role
 ) implements Serializable {}

@@ -141,6 +141,7 @@ public class SecurityConfig {
                 // 1. This chain handles ALL OTHER requests
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/error", "/login", "/home.html").permitAll()
+                        .requestMatchers("/images/**", "/css/**", "/js/**").permitAll() // Allow static resources
                         .requestMatchers("/.well-known/openid-configuration").permitAll()
                         .requestMatchers("/.well-known/jwks.json").permitAll()
                         .anyRequest().authenticated()

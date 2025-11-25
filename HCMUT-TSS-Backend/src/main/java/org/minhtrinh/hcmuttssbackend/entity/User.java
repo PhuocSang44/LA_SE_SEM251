@@ -37,4 +37,9 @@ public class User{
     @Column(name = "user_type", nullable = false)
     private UserType userType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    @Builder.Default
+    private UserStatus status = UserStatus.ACTIVE;
+
 }
