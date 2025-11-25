@@ -22,11 +22,19 @@ public class TssUserPrincipal implements OidcUser, Serializable {
 
     private final OidcUser oidcUser;
     private final RecvDatacoreDto datacoreUser;
+    private Integer userId; // Database user ID
 
     // Updated constructor
     public TssUserPrincipal(OidcUser oidcUser, RecvDatacoreDto datacoreUser) {
         this.oidcUser = oidcUser;
         this.datacoreUser = datacoreUser;
+    }
+    
+    // Constructor with userId
+    public TssUserPrincipal(OidcUser oidcUser, RecvDatacoreDto datacoreUser, Integer userId) {
+        this.oidcUser = oidcUser;
+        this.datacoreUser = datacoreUser;
+        this.userId = userId;
     }
 
     // --- Provide getters for your custom data ---

@@ -53,6 +53,11 @@ const Navbar = () => {
       label: { en: "Available Courses", vi: "Môn học khả dụng" },
       roles: ['tutor', 'student']
     },
+    {
+      path: "/tutor-hub",
+      label: { en: "Forums", vi: "Diễn đàn" },
+      roles: ['administrator', 'tutor', 'student', 'cooperator'] // All roles can access forums
+    },
   ];
 
   // This filter logic is correct and doesn't need to change

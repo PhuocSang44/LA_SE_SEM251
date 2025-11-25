@@ -3,6 +3,7 @@ package org.minhtrinh.hcmuttssbackend.dto;
 
 // Change "class" to "record"
 public record ToFEUserDto(
+        Integer userId,
         String officialID,
         String email,
         String firstName,

@@ -87,8 +87,14 @@ public class TssUserOAuth2UserService implements OAuth2UserService<OidcUserReque
 
         // 6. Return your custom principal, now with BOTH OIDC and datacore data
         TssUserPrincipal principal = new TssUserPrincipal(oidcUser, datacoreUser);
-        if(existingUser.isEmpty())
-            userService.getAndStoreUserFromDatacore(principal);
+        
+        // Store user and get userId
+        if(existingUser.isEmpty()) {
+            User newUser = userService.getAndStoreUserFromDatacore(principal);
+            principal.setUserId(newUser.getUserId());
+        } else {
+            principal.setUserId(existingUser.get().getUserId());
+        }
 
         return principal;
     }

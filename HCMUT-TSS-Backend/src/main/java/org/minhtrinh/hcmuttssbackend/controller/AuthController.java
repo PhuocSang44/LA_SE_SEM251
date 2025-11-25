@@ -23,6 +23,19 @@ public class AuthController {
             return ResponseEntity.status(401).build();
         }
 
-        return ResponseEntity.ok(toFEUserMapper.toFEUserDtoMapper(principal.getDatacoreUser() ) );
+        ToFEUserDto userDto = toFEUserMapper.toFEUserDtoMapper(principal.getDatacoreUser());
+        // Create a new ToFEUserDto with userId included
+        ToFEUserDto userDtoWithId = new ToFEUserDto(
+            principal.getUserId(),
+            userDto.officialID(),
+            userDto.email(),
+            userDto.firstName(),
+            userDto.middleName(),
+            userDto.lastName(),
+            userDto.userType(),
+            userDto.departmentName()
+        );
+        
+        return ResponseEntity.ok(userDtoWithId);
     }
 }

@@ -22,6 +22,12 @@ import CreateClass from "@/pages/CreateClass.tsx";
 import CreateSession from "@/pages/CreateSession.tsx";
 import { Toast } from "@radix-ui/react-toast";
 import { Toaster } from "./components/ui/toaster";
+import TutorHub from "@/pages/TutorHub.tsx";
+import ForumList from "@/pages/ForumList.tsx";
+import ForumDetail from "@/pages/ForumDetail.tsx";
+import CreatePost from "@/pages/CreatePost.tsx";
+import CreateForum from "@/pages/CreateForum.tsx";
+import PostDetail from "@/pages/PostDetail.tsx";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +55,13 @@ const App = () => (
                             <Route path="/course-details" element={<CourseDetails />} />
                             <Route path="/available-courses" element={<AvailableCourses />} />
                             <Route path="/profile" element={<Profile />} />
+                            
+                            {/* Forum Routes - All authenticated users */}
+                            <Route path="/tutor-hub" element={<TutorHub />} />
+                            <Route path="/forums/:forumType" element={<ForumList />} />
+                            <Route path="/forums/detail/:forumId" element={<ForumDetail />} />
+                            <Route path="/forums/:forumId/posts/create" element={<CreatePost />} />
+                            <Route path="/forums/posts/:postId" element={<PostDetail />} />
                         </Route>
 
                         {/* --- Admin Only Route --- */}
@@ -65,7 +78,7 @@ const App = () => (
                         {/* --- Tutor-only routes --- */}
                         <Route element={<ProtectedRoute allowedRoles={['tutor']} />}>
                             <Route path="/create-class" element={<CreateClass />} />
-                            
+                            <Route path="/forums/create" element={<CreateForum />} />
                         </Route>
 
                         {/* --- Not Found (Catch-all) --- */}
