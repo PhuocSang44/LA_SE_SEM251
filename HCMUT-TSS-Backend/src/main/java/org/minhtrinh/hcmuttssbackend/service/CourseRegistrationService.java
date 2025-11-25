@@ -2,8 +2,12 @@
 package org.minhtrinh.hcmuttssbackend.service;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.minhtrinh.hcmuttssbackend.TssUserPrincipal;
+import org.minhtrinh.hcmuttssbackend.dto.CourseRegistrationResponse;
 import org.minhtrinh.hcmuttssbackend.dto.EnrollmentRequest;
+import org.minhtrinh.hcmuttssbackend.dto.EnrollmentResponse;
 import org.minhtrinh.hcmuttssbackend.dto.RegisterCourseRequest;
 import org.minhtrinh.hcmuttssbackend.entity.Class;
 import org.minhtrinh.hcmuttssbackend.entity.Course;
@@ -12,6 +16,7 @@ import org.minhtrinh.hcmuttssbackend.entity.Student;
 import org.minhtrinh.hcmuttssbackend.entity.User;
 import org.minhtrinh.hcmuttssbackend.repository.*;
 import org.minhtrinh.hcmuttssbackend.service.DatacoreClient.EligibilityResponse;
+import org.minhtrinh.hcmuttssbackend.mapper.CourseRegistrationMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,22 +33,25 @@ public class CourseRegistrationService {
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
     private final DatacoreClient datacoreClient;
+    private final CourseRegistrationMapper mapper;
 
     public CourseRegistrationService(ClassRepository classRepository,
                                      CourseRegistrationRepository registrationRepository,
                                      UserRepository userRepository,
                                      StudentRepository studentRepository,
-                                     DatacoreClient datacoreClient) {
+                                     DatacoreClient datacoreClient,
+                                     CourseRegistrationMapper mapper) {
         this.classRepository = classRepository;
         this.registrationRepository = registrationRepository;
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
         this.datacoreClient = datacoreClient;
+        this.mapper = mapper;
     }
 
 
     @Transactional
-    public CourseRegistration enrollInClass(EnrollmentRequest req, TssUserPrincipal principal) {
+    public EnrollmentResponse enrollInClass(EnrollmentRequest req, TssUserPrincipal principal) {
         log.info("Processing enrollment request: classId={}, courseCode={}, tutorId={}", 
                 req.classId(), req.courseCode(), req.tutorId());
         
@@ -157,12 +165,11 @@ public class CourseRegistrationService {
             log.warn("Failed to update enrolledCount on class {}", classEntity.getClassId(), ex);
         }
         log.info("Successfully enrolled student {} in class {}", student.getStudentId(), classEntity.getClassId());
-        
-        return saved;
+        return mapper.toEnrollmentResponse(saved);
     }
 
     @Transactional
-    public CourseRegistration register(RegisterCourseRequest req, @AuthenticationPrincipal TssUserPrincipal principal) {
+    public CourseRegistrationResponse register(RegisterCourseRequest req, @AuthenticationPrincipal TssUserPrincipal principal) {
         Long classId = req.classId();
         if (classId == null) {
             throw new IllegalArgumentException("ClassId is required");
@@ -190,12 +197,13 @@ public class CourseRegistrationService {
             .ifPresent(existing -> {throw new IllegalStateException("Already registered for this specific CLASS.");});
 
         CourseRegistration cr = CourseRegistration.builder()
-                .student(student)
-                .classEntity(classEntity)
-                .course(course)
-                .registeredAt(Instant.now())
-                .build();
-        return registrationRepository.save(cr);
+            .student(student)
+            .classEntity(classEntity)
+            .course(classEntity.getCourse())
+            .registeredAt(Instant.now())
+            .build();
+        CourseRegistration saved = registrationRepository.save(cr);
+        return mapper.toResponse(saved);
     }
 
     private String resolveStudentId(RegisterCourseRequest req, TssUserPrincipal principal) {
@@ -210,6 +218,21 @@ public class CourseRegistrationService {
         Student student = studentRepository.findByUser_UserId(user.getUserId()).orElseThrow(() -> new IllegalStateException("Student profile not found for user: " + email));
         return student.getStudentId();
     }
+
+        public List<CourseRegistrationResponse> listByStudentId(String studentId) {
+        return registrationRepository.findByStudent_StudentId(studentId).stream()
+            .map(mapper::toResponse)
+            .collect(Collectors.toList());
+        }
+
+        public List<CourseRegistrationResponse> listMine(TssUserPrincipal principal) {
+        User user = userRepository.findByEmail(principal.getEmail())
+            .orElseThrow(() -> new IllegalArgumentException("User not found by email"));
+        String studentId = studentRepository.findByUser_UserId(user.getUserId())
+            .orElseThrow(() -> new IllegalArgumentException("Student profile not found for current user"))
+            .getStudentId();
+        return listByStudentId(studentId);
+        }
 
     @Transactional
     public void exitClass(Long registrationId, TssUserPrincipal principal) {
