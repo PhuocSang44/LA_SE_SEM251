@@ -13,6 +13,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext"; // Your AuthContext
 import { Badge } from "@/components/ui/badge";
 import { UserRole } from "@/contexts/AuthContext"; // <-- Import the UserRole type
+import NotificationBell from "@/components/NotificationBell";
 
 const Navbar = () => {
   const location = useLocation();
@@ -124,6 +125,9 @@ const Navbar = () => {
                   <Badge className={`${getRoleBadgeColor(user.role)} text-white`}>
                     {getRoleDisplay(user.role)}
                   </Badge>
+
+                  {/* Notification Bell */}
+                  <NotificationBell />
 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
