@@ -49,7 +49,7 @@ public class SecurityConfig {
                         .ignoringRequestMatchers("/auth/logout", "/api/classes/**", "/course-registrations/**",
                                 "/api/feedback/**", "/api/sessions/**", "/api/session-enrollments/**",
                                 "/api/courses/*/materials/**", "/api/materials/**", "/api/library/**",
-                                "/api/admin/**", "/api/forums/**")
+                                "/api/admin/**", "/api/forums/**", "/api/evaluation/**")
                 )
                 .authorizeHttpRequests(authz -> authz
                         // Allow the path that STARTS the flow (it must be public or handled by the filter)

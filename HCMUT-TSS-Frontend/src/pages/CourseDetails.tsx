@@ -3,7 +3,7 @@ import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, User, Clock, BookOpen, Plus, CheckCircle2, MessageSquare, Star, Pencil, X, FileText, Download, Trash2 } from "lucide-react";
+import { Calendar, User, Users, Clock, BookOpen, Plus, CheckCircle2, MessageSquare, Star, Pencil, X, FileText, Download, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -155,6 +155,20 @@ const CourseDetails = () => {
   const [showViewAllLibraryDialog, setShowViewAllLibraryDialog] = useState(false);
   const [showViewAllMaterialsDialog, setShowViewAllMaterialsDialog] = useState(false);
 
+  // Student list and evaluation states
+  const [enrolledStudents, setEnrolledStudents] = useState<any[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [showEvaluationDialog, setShowEvaluationDialog] = useState(false);
+  const [selectedStudentForEval, setSelectedStudentForEval] = useState<any | null>(null);
+  const [evaluationCriteria, setEvaluationCriteria] = useState([
+    { criterion: "Attendance", ratingValue: 0, maxRating: 5 },
+    { criterion: "Participation", ratingValue: 0, maxRating: 5 },
+    { criterion: "Assignment Quality", ratingValue: 0, maxRating: 5 },
+    { criterion: "Understanding of Concepts", ratingValue: 0, maxRating: 5 },
+  ]);
+  const [evaluationComment, setEvaluationComment] = useState("");
+  const [isSubmittingEvaluation, setIsSubmittingEvaluation] = useState(false);
+
   const mergeDateTime = (dateStr: string, timeStr: string) => {
     try { const [h,m] = timeStr.split(':').map(Number); const d = new Date(dateStr); d.setHours(h||0,m||0,0,0); return d.toISOString(); } catch { return new Date().toISOString(); }
   };
@@ -184,6 +198,39 @@ const CourseDetails = () => {
   // Return "YYYY-MM-DDTHH:mm:ss" (No Z, correct local numbers)
   return localDate.toISOString().slice(0, 19);
   };
+
+  // Fetch enrolled students for tutor view
+  useEffect(() => {
+    if (!isOwner || !course?.id) {
+      setEnrolledStudents([]);
+      return;
+    }
+
+    const fetchEnrolledStudents = async () => {
+      setLoadingStudents(true);
+      try {
+        const res = await fetch(`${apiBase}/api/evaluation/class/${course.id}/students`, {
+          credentials: 'include'
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setEnrolledStudents(Array.isArray(data) ? data : []);
+        } else {
+          console.error('Failed to fetch enrolled students');
+          setEnrolledStudents([]);
+        }
+      } catch (error) {
+        console.error('Error fetching enrolled students:', error);
+        setEnrolledStudents([]);
+      } finally {
+        setLoadingStudents(false);
+      }
+    };
+
+    fetchEnrolledStudents();
+  }, [apiBase, course?.id, isOwner]);
+
 
 
   useEffect(() => {
@@ -494,6 +541,92 @@ const CourseDetails = () => {
     const newRatings = [...feedbackRatings];
     newRatings[index].ratingValue = value;
     setFeedbackRatings(newRatings);
+  };
+
+  // Evaluation handlers
+  const handleEvaluateStudent = (student: any) => {
+    setSelectedStudentForEval(student);
+    setShowEvaluationDialog(true);
+    // Reset evaluation form
+    setEvaluationCriteria([
+      { criterion: "Attendance", ratingValue: 0, maxRating: 5 },
+      { criterion: "Participation", ratingValue: 0, maxRating: 5 },
+      { criterion: "Assignment Quality", ratingValue: 0, maxRating: 5 },
+      { criterion: "Understanding of Concepts", ratingValue: 0, maxRating: 5 },
+    ]);
+    setEvaluationComment("");
+  };
+
+  const handleEvaluationRatingChange = (index: number, value: number) => {
+    const updated = [...evaluationCriteria];
+    updated[index].ratingValue = value;
+    setEvaluationCriteria(updated);
+  };
+
+  const handleSubmitEvaluation = async () => {
+    // Validation
+    const allRated = evaluationCriteria.every(c => c.ratingValue > 0);
+    if (!allRated) {
+      toast({
+        title: "Please select rating stars",
+        description: "All criteria must have a rating value",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!selectedStudentForEval || !course) {
+      toast({
+        title: "Error",
+        description: "Missing student or course information",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmittingEvaluation(true);
+
+    const payload = {
+      courseId: course.courseId || course.id,
+      classId: course.classId || course.id,
+      studentId: selectedStudentForEval.studentId,
+      comment: evaluationComment || null,
+      evaluationItems: evaluationCriteria.filter(c => c.ratingValue > 0)
+    };
+
+    try {
+      const res = await fetch(`${apiBase}/api/evaluation/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        toast({
+          title: "Evaluation submitted successfully",
+          description: `Evaluation for ${selectedStudentForEval.studentName} has been saved`
+        });
+        setShowEvaluationDialog(false);
+        setSelectedStudentForEval(null);
+      } else {
+        const error = await res.json();
+        toast({
+          title: "Error",
+          description: error.error || "Failed to submit evaluation",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Failed to submit evaluation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit evaluation",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmittingEvaluation(false);
+    }
   };
 
   const handleAddExternalMaterial = async () => {
@@ -969,6 +1102,55 @@ const CourseDetails = () => {
                             </div>
                           </CardContent>
                         </Card>
+
+                        {/* Enrolled Students Card - Only visible to tutors */}
+                        {isOwner && (
+                          <Card className="rounded-xl shadow-md">
+                            <CardHeader>
+                              <CardTitle className="text-xl flex items-center gap-2">
+                                <Users className="h-5 w-5 text-muted-foreground" />
+                                Enrolled Students
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              {loadingStudents && (
+                                <div className="text-sm text-muted-foreground">Loading students...</div>
+                              )}
+                              {!loadingStudents && enrolledStudents.length === 0 && (
+                                <div className="text-sm text-muted-foreground">No students enrolled yet.</div>
+                              )}
+                              {!loadingStudents && enrolledStudents.length > 0 && (
+                                <div className="space-y-3">
+                                  {enrolledStudents.map((student) => (
+                                    <div key={student.studentId} className="p-3 rounded-lg border bg-muted/40 flex justify-between items-start gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-sm truncate">{student.studentName}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">{student.studentId}</p>
+                                        {student.major && (
+                                          <p className="text-xs text-muted-foreground">{student.major}</p>
+                                        )}
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="flex-shrink-0 text-xs"
+                                        onClick={() => handleEvaluateStudent(student)}
+                                      >
+                                        <Star className="h-3 w-3 mr-1" />
+                                        Evaluate
+                                      </Button>
+                                    </div>
+                                  ))}
+                                  {enrolledStudents.length > 5 && (
+                                    <p className="text-xs text-muted-foreground text-center pt-2">
+                                      Showing {enrolledStudents.length} student{enrolledStudents.length > 1 ? 's' : ''}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        )}
 
                         {/* Library Materials Card - Only visible to tutors */}
                         {isOwner && (
@@ -1558,6 +1740,84 @@ const CourseDetails = () => {
                 >
                   Got it
                 </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Evaluation Dialog - Tutor evaluates student */}
+          <Dialog open={showEvaluationDialog} onOpenChange={(open) => !open && setShowEvaluationDialog(false)}>
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Evaluate Student Performance</DialogTitle>
+                <DialogDescription>
+                  {selectedStudentForEval && (
+                    <>Evaluate {selectedStudentForEval.studentName} ({selectedStudentForEval.studentId}) in {course?.name}</>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6">
+                {/* Evaluation Criteria */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Evaluation Criteria <span className="text-red-500">*</span></h3>
+                  {evaluationCriteria.map((criterion, index) => (
+                    <div key={index} className="border rounded-lg p-4 space-y-3">
+                      <label className="text-sm font-medium">{criterion.criterion}</label>
+                      <div className="flex gap-2 items-center">
+                        {Array.from({ length: criterion.maxRating }, (_, i) => i + 1).map((value) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => handleEvaluationRatingChange(index, value)}
+                            className={`p-2 transition-colors ${
+                              criterion.ratingValue >= value 
+                                ? 'text-yellow-500' 
+                                : 'text-gray-300 hover:text-yellow-400'
+                            }`}
+                          >
+                            <Star className="h-8 w-8 fill-current" />
+                          </button>
+                        ))}
+                        <span className="ml-2 text-sm text-muted-foreground">
+                          {criterion.ratingValue > 0
+                            ? `${criterion.ratingValue} / ${criterion.maxRating}`
+                            : 'Not rated'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Comments */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Comments (Optional)</label>
+                  <textarea
+                    placeholder="Provide additional feedback about the student's performance..."
+                    value={evaluationComment}
+                    onChange={(e) => setEvaluationComment(e.target.value)}
+                    className="w-full border rounded-md p-3 min-h-[120px] resize-y"
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 justify-end pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowEvaluationDialog(false);
+                      setSelectedStudentForEval(null);
+                    }}
+                    disabled={isSubmittingEvaluation}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSubmitEvaluation}
+                    disabled={isSubmittingEvaluation || evaluationCriteria.some(c => c.ratingValue === 0)}
+                  >
+                    {isSubmittingEvaluation ? 'Submitting...' : 'Submit Evaluation'}
+                  </Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
