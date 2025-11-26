@@ -3,6 +3,9 @@ import java.util.List;
 
 import org.minhtrinh.hcmuttssbackend.entity.SessionEnrollment;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
 public interface SessionRegistrationRepository extends JpaRepository<SessionEnrollment, Long> {
     List<SessionEnrollment> findBySession_SessionId(Long sessionId);
     long countBySession_SessionId(Long sessionId);

@@ -11,11 +11,13 @@ import org.minhtrinh.hcmuttssbackend.dto.SessionRescheduleResponse;
 import org.minhtrinh.hcmuttssbackend.dto.SessionResponse;
 import org.minhtrinh.hcmuttssbackend.entity.ActivityLog;
 import org.minhtrinh.hcmuttssbackend.entity.Class;
+import org.minhtrinh.hcmuttssbackend.entity.CourseRegistration;
 import org.minhtrinh.hcmuttssbackend.entity.Session;
 import org.minhtrinh.hcmuttssbackend.entity.SessionEnrollment;
 import org.minhtrinh.hcmuttssbackend.entity.User;
 import org.minhtrinh.hcmuttssbackend.repository.ActivityLogRepository;
 import org.minhtrinh.hcmuttssbackend.repository.ClassRepository;
+import org.minhtrinh.hcmuttssbackend.repository.CourseRegistrationRepository;
 import org.minhtrinh.hcmuttssbackend.repository.SessionRegistrationRepository;
 import org.minhtrinh.hcmuttssbackend.repository.StudentRepository;
 import org.minhtrinh.hcmuttssbackend.repository.UniversityStaffRepository;
@@ -31,34 +33,37 @@ public class SessionService {
     private final jpaSessionRepository sessionRepository;
     private final ClassRepository classRepository;
     private final UniversityStaffRepository staffRepository;
-    private final UserProfilePersistenceService userProfilePersistenceService;
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
     private final SessionRegistrationRepository sessionRegistrationRepository;
+    private final CourseRegistrationRepository courseRegistrationRepository;
     private final ActivityLogRepository activityLogRepository;
+    private final NotificationService notificationService;
 
-    public SessionService(jpaSessionRepository sessionRepository, ClassRepository classRepository,
+    public SessionService(jpaSessionRepository sessionRepository,
+                          ClassRepository classRepository,
                           UniversityStaffRepository staffRepository,
-                          UserProfilePersistenceService userProfilePersistenceService, 
-                          UserRepository userRepository, 
+                          UserRepository userRepository,
                           StudentRepository studentRepository,
                           SessionRegistrationRepository sessionRegistrationRepository,
-                          ActivityLogRepository activityLogRepository) {
+                          CourseRegistrationRepository courseRegistrationRepository,
+                          ActivityLogRepository activityLogRepository,
+                          NotificationService notificationService) {
         this.sessionRepository = sessionRepository;
         this.classRepository = classRepository;
         this.staffRepository = staffRepository;
-        this.userProfilePersistenceService = userProfilePersistenceService;
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
         this.sessionRegistrationRepository = sessionRegistrationRepository;
+        this.courseRegistrationRepository = courseRegistrationRepository;
         this.activityLogRepository = activityLogRepository;
+        this.notificationService = notificationService;
     }
 
     private User getUserFromPrincipal(TssUserPrincipal principal) {
         if (principal == null) {
             throw new RuntimeException("User must be authenticated");
         }
-        userProfilePersistenceService.ensureUserSubProfilePersisted(principal);
         return userRepository.findByEmail(principal.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found: " + principal.getEmail()));
     }
@@ -157,6 +162,23 @@ public class SessionService {
                         title, sessionType, classId, parsedStartTime, parsedEndTime, location))
                 .build();
         activityLogRepository.save(activityLog);
+
+        // Send notification to all students enrolled in the class
+        // Get students from course_registration table who are enrolled in this class
+        List<CourseRegistration> courseRegistrations = courseRegistrationRepository.findByClassEntity_ClassId(classId);
+
+        for (CourseRegistration registration : courseRegistrations) {
+            User student = registration.getStudent().getUser();
+            if (student != null) {
+                String notifTitle = "New Session Created";
+                String notifMessage = String.format("A new session '%s' has been scheduled for %s at %s",
+                        title,
+                        parsedStartTime.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
+                        location != null ? location : "TBA");
+                notificationService.createNotification(student, notifTitle, notifMessage, "UPDATE",
+                        newSession.getSessionId(), classId);
+            }
+        }
     }
 
     @Transactional 
@@ -195,6 +217,18 @@ public class SessionService {
                         sessionTitle, sessionId, classIdForLog, previousStatus))
                 .build();
         activityLogRepository.save(activityLog);
+
+        // Send cancellation notification to enrolled students
+        List<SessionEnrollment> enrollments = sessionRegistrationRepository.findBySession_SessionId(sessionId);
+        for (SessionEnrollment enrollment : enrollments) {
+            if ("ENROLLED".equalsIgnoreCase(enrollment.getStatus())) {
+                User student = enrollment.getStudent().getUser();
+                String notifTitle = "Session Cancelled";
+                String notifMessage = String.format("The session '%s' has been cancelled", sessionTitle);
+                notificationService.createNotification(student, notifTitle, notifMessage, "CANCELLATION",
+                        sessionId, classIdForLog);
+            }
+        }
     }
 
     @Transactional
@@ -366,22 +400,20 @@ public class SessionService {
         var maybeStaff = staffRepository.findByUser_UserId(userId);
         if (maybeStaff.isPresent()) {
             String tutorStaffId = maybeStaff.get().getStaffId();
-            List<SessionResponse> sessions = sessionRepository.findByClazz_Tutor_StaffId(tutorStaffId).stream()
+            return sessionRepository.findByClazz_Tutor_StaffId(tutorStaffId).stream()
                     .map(this::mapToSessionResponse)
                     .collect(Collectors.toList());
-            return sessions;
         }
 
         // If user is a student -> return sessions they are enrolled in via session registrations
         var maybeStudent = studentRepository.findByUser_UserId(userId);
         if (maybeStudent.isPresent()) {
             Integer studentUserId = maybeStudent.get().getUserId();
-            List<SessionResponse> sessions = sessionRegistrationRepository.findByStudent_UserId(studentUserId).stream()
+            return sessionRegistrationRepository.findByStudent_UserId(studentUserId).stream()
                     .map(SessionEnrollment::getSession)
                     .filter(Objects::nonNull)
                     .map(this::mapToSessionResponse)
                     .collect(Collectors.toList());
-            return sessions;
         }
 
         // Neither tutor nor student -> return empty list
@@ -438,4 +470,5 @@ public class SessionService {
 
         return new SessionResponse(sessionId, classId, sessionTitle, startTime, endTime, location, sessionType, capacity, description, status);
     }
-}    
+}
+

@@ -10,6 +10,7 @@ import java.util.Optional;
 public interface CourseRegistrationRepository extends JpaRepository<CourseRegistration, Long> {
     Optional<CourseRegistration> findByStudent_StudentIdAndClassEntity_ClassId(String studentId, Long classId);
     List<CourseRegistration> findByStudent_StudentId(String studentId);
+    List<CourseRegistration> findByClassEntity_ClassId(Long classId);
     long countByClassEntity_ClassId(Long classId);
     // Find registration by student and course (used to enforce unique student-course constraint)
     Optional<CourseRegistration> findByStudent_StudentIdAndCourse_CourseId(String studentId, Long courseId);
