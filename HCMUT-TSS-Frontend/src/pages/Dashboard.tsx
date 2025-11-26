@@ -8,8 +8,10 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import { listSessionsByUser } from "@/lib/sessionApi";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Dashboard = () => {
+  const { user } = useAuth();
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [classesById, setClassesById] = useState<Record<number, any>>({});
@@ -131,12 +133,14 @@ const Dashboard = () => {
               <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">My Dashboard</h1>
               <p className="text-muted-foreground">Manage your tutoring sessions and schedule</p>
             </div>
-            <Link to="/create-session">
-              <Button className="rounded-lg shadow-md">
-                <Plus className="h-5 w-5 mr-2" />
-                Register a Subject
-              </Button>
-            </Link>
+            {user?.role === 'tutor' && (
+              <Link to="/create-session">
+                <Button className="rounded-lg shadow-md">
+                  <Plus className="h-5 w-5 mr-2" />
+                  Create Session
+                </Button>
+              </Link>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
@@ -180,7 +184,82 @@ const Dashboard = () => {
             </Card>
           </div>
 
-          <CalendarView />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Calendar Section - Takes 2 columns */}
+            <div className="lg:col-span-2">
+              <CalendarView />
+            </div>
+
+            {/* Upcoming Sessions Section - Takes 1 column */}
+            <div className="lg:col-span-1">
+              <Card className="rounded-xl shadow-md">
+                <CardContent className="p-6">
+                  <h2 className="text-xl font-bold text-foreground mb-4">Upcoming Sessions</h2>
+                  
+                  {loading ? (
+                    <div className="text-center py-8 text-muted-foreground">Loading sessions...</div>
+                  ) : upcoming.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">No upcoming sessions</div>
+                  ) : (
+                    <div className="space-y-3 mb-4">
+                      {upcoming.slice(0, 5).map((session) => {
+                        const startDate = new Date(session.startTime);
+                        const endDate = new Date(session.endTime);
+                        const subjectName = getSubjectNameFromSession(session);
+                        
+                        return (
+                          <div
+                            key={session.sessionId}
+                            className="p-3 rounded-lg border bg-muted/40 hover:bg-muted/60 transition-colors cursor-pointer"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{session.sessionTitle || subjectName}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {startDate.toLocaleDateString(undefined, { 
+                                    month: 'short', 
+                                    day: 'numeric',
+                                    year: 'numeric'
+                                  })}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {startDate.toLocaleTimeString(undefined, { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                  })} - {endDate.toLocaleTimeString(undefined, { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                  })}
+                                </p>
+                              </div>
+                              <div className="flex-shrink-0">
+                                <span className={`text-xs px-2 py-1 rounded ${
+                                  session.status === 'SCHEDULED' ? 'bg-blue-100 text-blue-700' :
+                                  session.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' :
+                                  session.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {session.status || 'N/A'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {!loading && upcoming.length > 0 && (
+                    <Link to="/my-courses">
+                      <Button variant="outline" className="w-full">
+                        View All Sessions
+                      </Button>
+                    </Link>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </main>
       <Footer />

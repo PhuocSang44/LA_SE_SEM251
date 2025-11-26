@@ -222,17 +222,31 @@ const CalendarView = () => {
             day === new Date().getDate() && 
             currentDate.getMonth() === new Date().getMonth() &&
             currentDate.getFullYear() === new Date().getFullYear();
+          
+          // Check if this date is in the past
+          const cellDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const isPastDate = cellDate < today;
 
           return (
             <div
               key={day}
-              className={`aspect-square border rounded-lg p-2 hover:shadow-md transition-shadow cursor-pointer ${
+              className={`aspect-square border rounded-lg p-2 ${
+                isPastDate && user?.role === 'tutor' ? 'cursor-not-allowed opacity-60' : 'hover:shadow-md transition-shadow cursor-pointer'
+              } ${
                 isToday ? "border-primary border-2 bg-primary/5" : "border-border"
               }`}
               onClick={() => {
-                if (user?.role === 'tutor') {
+                if (user?.role === 'tutor' && !isPastDate) {
                   setSelectedDate(dateKey);
                   setShowScheduler(true);
+                } else if (user?.role === 'tutor' && isPastDate) {
+                  toast({
+                    title: "Cannot create session",
+                    description: "You cannot create a session in the past.",
+                    variant: "destructive"
+                  });
                 }
               }}
             >
