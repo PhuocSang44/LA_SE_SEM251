@@ -15,7 +15,6 @@ import org.minhtrinh.hcmuttssbackend.entity.CourseRegistration;
 import org.minhtrinh.hcmuttssbackend.entity.Student;
 import org.minhtrinh.hcmuttssbackend.entity.User;
 import org.minhtrinh.hcmuttssbackend.repository.*;
-import org.minhtrinh.hcmuttssbackend.service.DatacoreClient.EligibilityResponse;
 import org.minhtrinh.hcmuttssbackend.mapper.CourseRegistrationMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,20 +31,17 @@ public class CourseRegistrationService {
     private final CourseRegistrationRepository registrationRepository;
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
-    private final DatacoreClient datacoreClient;
     private final CourseRegistrationMapper mapper;
 
     public CourseRegistrationService(ClassRepository classRepository,
                                      CourseRegistrationRepository registrationRepository,
                                      UserRepository userRepository,
                                      StudentRepository studentRepository,
-                                     DatacoreClient datacoreClient,
                                      CourseRegistrationMapper mapper) {
         this.classRepository = classRepository;
         this.registrationRepository = registrationRepository;
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
-        this.datacoreClient = datacoreClient;
         this.mapper = mapper;
     }
 
@@ -74,7 +70,7 @@ public class CourseRegistrationService {
                     .orElseThrow(() -> new IllegalArgumentException(
                             "No class found for course " + req.courseCode() + " with tutor ID " + req.tutorId()));
         } else if (req.courseCode() != null) {
-        // Auto-match tutor: find available classes for the course and pick the one with most available seats ( REMEMBER TO IMPLEMENT THIS!!!!!!!)
+        // Auto-match tutor
             var candidates = classRepository.findByCourse_Code(req.courseCode()).stream()
                     .filter(c -> c.getStatus() != null && c.getStatus().equalsIgnoreCase("ACTIVE"))
                     .toList();
@@ -109,19 +105,14 @@ public class CourseRegistrationService {
             throw new IllegalStateException("Cannot enroll in a class you are teaching");
         }
         
-        // --- Ensure we do not register the same COURSE twice (DB constraint checks by course)
         Course course = classEntity.getCourse();
         if (course == null) {
             throw new IllegalStateException("Class " + classEntity.getClassId() + " has no associated course.");
         }
-
-        // 1) Check by course (prevents duplicate course registration across classes)
         registrationRepository.findByStudent_StudentIdAndCourse_CourseId(student.getStudentId(), course.getCourseId())
             .ifPresent(existing -> {
                 throw new IllegalStateException("Already registered for this COURSE (in class " + existing.getClassEntity().getClassId() + ")");
             });
-
-        // 2) Check by exact class (previous logic)
         registrationRepository.findByStudent_StudentIdAndClassEntity_ClassId(student.getStudentId(), classEntity.getClassId())
                 .ifPresent(existing -> {
                     throw new IllegalStateException("Already registered for this specific CLASS.");
@@ -136,34 +127,23 @@ public class CourseRegistrationService {
             }
         }
 
-        // Check prerequisites via Datacore
-        try {
-            EligibilityResponse resp = datacoreClient.checkPrerequisitesByEmail(classEntity.getCourse().getCode(), user.getEmail());
-            if (!resp.eligible()) {
-                throw new IllegalStateException("Student does not satisfy prerequisites: " + String.join(", ", resp.missing()));
-            }
-        } catch (Exception ex) {
-            log.warn("Prerequisite check failed or Datacore unavailable, allowing enrollment by default", ex);
+        // Atomically increment enrolledCount in DB to prevent race conditions
+        int updated = classRepository.incrementEnrolledIfSpace(classEntity.getClassId());
+        if (updated == 0) {
+            throw new IllegalStateException("Class is full");
         }
-        
 
-        // Create registration (course already validated above)
+        // Create registration 
         CourseRegistration registration = CourseRegistration.builder()
             .student(student)
             .classEntity(classEntity)
             .course(course)
             .registeredAt(Instant.now())
             .build();
-        
+
         CourseRegistration saved = registrationRepository.save(registration);
-        // increment enrolledCount and persist class
-        try {
-            Integer ec = classEntity.getEnrolledCount() == null ? 0 : classEntity.getEnrolledCount();
-            classEntity.setEnrolledCount(ec + 1);
-            classRepository.save(classEntity);
-        } catch (Exception ex) {
-            log.warn("Failed to update enrolledCount on class {}", classEntity.getClassId(), ex);
-        }
+        Integer ec = classEntity.getEnrolledCount() == null ? 0 : classEntity.getEnrolledCount();
+        classEntity.setEnrolledCount(ec + 1);
         log.info("Successfully enrolled student {} in class {}", student.getStudentId(), classEntity.getClassId());
         return mapper.toEnrollmentResponse(saved);
     }
@@ -196,6 +176,12 @@ public class CourseRegistrationService {
         registrationRepository.findByStudent_StudentIdAndClassEntity_ClassId(studentId, classId)
             .ifPresent(existing -> {throw new IllegalStateException("Already registered for this specific CLASS.");});
 
+        // Atomically increment enrolledCount to reserve a seat (or allow unlimited)
+        int updated = classRepository.incrementEnrolledIfSpace(classEntity.getClassId());
+        if (updated == 0) {
+            throw new IllegalStateException("Class is full");
+        }
+
         CourseRegistration cr = CourseRegistration.builder()
             .student(student)
             .classEntity(classEntity)
@@ -203,6 +189,9 @@ public class CourseRegistrationService {
             .registeredAt(Instant.now())
             .build();
         CourseRegistration saved = registrationRepository.save(cr);
+        // Keep in-memory count consistent
+        Integer ec = classEntity.getEnrolledCount() == null ? 0 : classEntity.getEnrolledCount();
+        classEntity.setEnrolledCount(ec + 1);
         return mapper.toResponse(saved);
     }
 
@@ -249,14 +238,11 @@ public class CourseRegistrationService {
             throw new IllegalStateException("Not authorized to remove this registration");
         }
 
-        // Decrement enrolledCount on class if present
+        // Decrement enrolledCount atomically; if this fails, let the transaction roll back
         Class classEntity = reg.getClassEntity();
-        try {
-            Integer ec = classEntity.getEnrolledCount() == null ? 0 : classEntity.getEnrolledCount();
-            if (ec > 0) classEntity.setEnrolledCount(ec - 1);
-            classRepository.save(classEntity);
-        } catch (Exception ex) {
-            log.warn("Failed to decrement enrolledCount for class {}: {}", classEntity.getClassId(), ex.getMessage());
+        int dec = classRepository.decrementEnrolledIfPositive(classEntity.getClassId());
+        if (dec == 0) {
+            throw new IllegalStateException("Failed to decrement enrolled count for class " + classEntity.getClassId());
         }
 
         registrationRepository.delete(reg);
