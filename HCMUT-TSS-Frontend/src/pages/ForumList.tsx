@@ -151,27 +151,20 @@ export default function ForumList() {
                         </CardContent>
                     </Card>
                 ) : (
-                    <div className="grid md:grid-cols-2 gap-6">
+                    <div className="grid md:grid-cols-3 gap-6">
                         {filteredForums.map((forum) => (
                             <Card key={forum.forumId} className="hover:shadow-lg transition-shadow">
                                 <CardHeader>
                                     <div className="flex items-start justify-between">
-                                        <div className="flex items-start gap-3">
-                                            {isAcademic ? (
-                                                <BookOpen className="w-6 h-6 text-blue-600 mt-1" />
-                                            ) : (
-                                                <Briefcase className="w-6 h-6 text-blue-900 mt-1" />
-                                            )}
-                                            <div>
-                                                <CardTitle className="text-lg">{forum.title}</CardTitle>
-                                                <Badge className={`mt-2 ${
-                                                    isAcademic 
-                                                        ? 'bg-blue-100 text-blue-700' 
-                                                        : 'bg-blue-900 bg-opacity-10 text-blue-900'
-                                                }`}>
-                                                    {forum.subject}
-                                                </Badge>
-                                            </div>
+                                        <div className="flex-1">
+                                            <Badge className={`mb-2 ${
+                                                isAcademic 
+                                                    ? 'bg-blue-100 text-blue-700' 
+                                                    : 'bg-blue-900 bg-opacity-10 text-blue-900'
+                                            }`}>
+                                                {forum.subject}
+                                            </Badge>
+                                            <CardTitle className="text-lg">{forum.title}</CardTitle>
                                         </div>
                                     </div>
                                     <CardDescription className="mt-3">

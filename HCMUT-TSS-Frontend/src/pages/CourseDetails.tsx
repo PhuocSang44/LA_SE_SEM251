@@ -3,6 +3,7 @@ import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, User, Users, Clock, BookOpen, Plus, CheckCircle2, MessageSquare, Star, Pencil, X, FileText, Download, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -98,6 +99,7 @@ const CourseDetails = () => {
     })();
   }, [initialCourse]);
 
+  const [activeTab, setActiveTab] = useState("overview");
   const [showJoinSessionDialog, setShowJoinSessionDialog] = useState(false);
   const [selectedSession, setSelectedSession] = useState("");
   const [joinSessionStatus, setJoinSessionStatus] = useState<"idle" | "waiting" | "confirmed">("idle");
@@ -946,136 +948,409 @@ const CourseDetails = () => {
           >
             {user?.role === 'tutor' ? '← Back to My Class' : (course?.semester ? '← Back to My Courses' : '← Back to Available Courses')}
           </Button>
-            {}
-            {/*Title*/}
-            <div className="flex justify-between items-start mb-6">
-              {/* Class + badge */}
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-gray-900">{course?.name}</h1>
+
+          {/* Course Header Card */}
+          <Card className="mb-6 bg-white">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                {/* Book Icon */}
+                <div className="bg-blue-100 p-4 rounded-lg flex-shrink-0">
+                  <BookOpen className="h-8 w-8 text-blue-600" />
+                </div>
                 
-                <Badge className={`${course?.color || 'bg-blue-500'} text-white border-0 mt-2`}>
-                {(Array.isArray(course?.sessions) ? course.sessions.length : Number(course?.sessions ?? 0))} sessions total
-                </Badge>
+                {/* Course Info */}
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">{course?.name}</h1>
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 mb-2">
+                    <span className="font-medium">{courseCode || 'N/A'}</span>
+                    <span>•</span>
+                    <span>{course?.semester || 'No semester'}</span>
+                    <span>•</span>
+                    <Badge className="bg-green-100 text-green-700 border-0">Confirmed</Badge>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <User className="h-4 w-4" />
+                    <span>Tutor: <span className="font-medium">{course?.tutor}</span></span>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                {isOwner && (
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => { setRenameValue(course?.name || ''); setShowRenameDialog(true); }}>
+                      <Pencil className="h-4 w-4 mr-1" />
+                      Rename
+                    </Button>
+                    <Button size="sm" onClick={() => navigate('/create-session', { state: { course } })}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      New Session
+                    </Button>
+                  </div>
+                )}
+                
+                {!isOwner && (
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      if (user?.role === 'tutor') {
+                        navigate('/create-class');
+                      } else if (course?.semester) {
+                        navigate('/my-courses');
+                      } else {
+                        navigate('/available-courses');
+                      }
+                    }}
+                  >
+                    Back to Courses
+                  </Button>
+                )}
               </div>
-              {}
-            </div>
+            </CardContent>
+          </Card>
             
-            {/* main pannel */}
-            <div className="grid lg:grid-cols-3 gap-6 items-start">
-              <div className="lg:col-span-2">
-                <Card className="rounded-xl shadow-md relative">
-                  {/* action panel*/}
-                  {isOwner && (
-                    <div className="absolute top-4 right-4">
-                      <div className="bg-white shadow-sm rounded-md p-2 flex items-center gap-2">
-                        <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700 rounded-md px-3 py-1" onClick={() => navigate('/create-quiz', { state: { course } })}>
-                          Create Quiz
-                        </Button>
-                        <Button size="sm" variant="outline" className="bg-white text-blue-600 border-blue-500 hover:bg-blue-50 rounded-md px-3 py-1" onClick={() => { setRenameValue(course?.name || ''); setShowRenameDialog(true); }}>
-                          Rename
-                        </Button>
-                        <Button size="sm" variant="outline" className="bg-white text-blue-600 border-blue-500 hover:bg-blue-50 rounded-md px-3 py-1" onClick={() => navigate('/create-session', { state: { course } })}>
-                          New Session
-                        </Button>
+          {/* Tab Navigation */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="inline-flex h-10 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground mb-6">
+              <TabsTrigger value="overview" className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="sessions" className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Sessions
+              </TabsTrigger>
+              <TabsTrigger value="materials" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Materials
+              </TabsTrigger>
+              <TabsTrigger value="grades" className="flex items-center gap-2">
+                <Star className="h-4 w-4" />
+                Grades
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Overview Tab */}
+            <TabsContent value="overview">
+              <Card className="rounded-xl shadow-md">
+                <CardHeader>
+                  <CardTitle className="text-blue-600">Course Description</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6"> 
+                  <div className="space-y-4">
+                    <p className="text-gray-700">
+                      {course?.description || 'No course description available.'}
+                    </p>
+
+                    <div className="border-t pt-4 grid grid-cols-3 gap-6">
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Department</p>
+                        <p className="font-medium text-blue-600">{course?.department || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Semester</p>
+                        <p className="font-medium">{course?.semester || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Total Sessions</p>
+                        <p className="font-medium">{(Array.isArray(course?.sessions) ? course.sessions.length : Number(course?.sessions ?? 0))}</p>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="pt-4 border-t">
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-muted-foreground">Course Progress</span>
+                      <span className="font-semibold text-foreground">{course?.progress ?? 0}%</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-3">
+                      <div 
+                        className={`${course?.color || 'bg-blue-500'} h-3 rounded-full transition-all`}
+                        style={{ width: `${course?.progress ?? 0}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {isOwner && (
+                    <div className="pt-4 border-t">
+                      <div className="text-sm text-muted-foreground">Danger Zone</div>
+                      <Button variant="destructive" className="mt-2 rounded-md px-3 py-1" onClick={() => setShowDeleteDialog(true)}>
+                        Delete Class
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-2">Deleting a class is permanent. This action is restricted.</p>
+                    </div>
                   )}
+                  {/* For students Show join button + danger zone exit */}
+                  {!isOwner && (
+                    <div className="pt-4">
+                      <Button 
+                        onClick={handleJoinSessionClick}
+                        className="w-full flex items-center justify-center gap-2 mb-3"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Join a Session / Tham gia buổi học
+                      </Button>
+                      <p className="text-xs text-muted-foreground text-center mb-4">
+                        Join a tutoring session to sign up for sessions
+                      </p>
 
-                  {/* <CardHeader>  */}
-                  <CardContent className="pt-6 space-y-6"> 
-                    <div className="space-y-4">
-                              <div className="flex items-center gap-3">
-                                <User className="h-5 w-5 text-muted-foreground" />
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Tutor</p>
-                                  <p className="font-medium">{course?.tutor}</p>
-                                </div>
-                              </div>
+                      {/* Submit Feedback Button */}
+                      {user?.role?.toLowerCase?.() === 'student' && course?.registrationId && (
+                        <Button
+                          onClick={() => setShowFeedbackDialog(true)}
+                          variant="outline"
+                          className="w-full flex items-center justify-center gap-2 mb-4"
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                          Submit Feedback / Gửi đánh giá
+                        </Button>
+                      )}
 
-                              <div className="flex items-center gap-3">
-                                <Clock className="h-5 w-5 text-muted-foreground" />
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Semester</p>
-                                  <p className="font-medium">
-                                    {course?.semester || <span className="text-muted-foreground italic">Not specified</span>}
-                                  </p>
-                                </div>
-                              </div>
+                      <div className="mt-6 text-sm text-muted-foreground">Danger Zone</div>
+                      {user?.role?.toLowerCase?.() === 'student' && course?.registrationId && (
+                        <div>
+                          <Button variant="destructive" className="mt-2 rounded-md px-3 py-1" onClick={() => setShowExitDialog(true)}>
+                            Exit Class
+                          </Button>
+                          <p className="text-xs text-muted-foreground mt-2">Leaving a class will remove your registration.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-                              <div className="flex items-center gap-3">
-                                <BookOpen className="h-5 w-5 text-muted-foreground" />
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Progress</p>
-                                  <p className="font-medium">{course?.progress ?? 0}%</p>
-                                </div>
-                              </div>
-                            </div>
+              {/* Sessions Tab */}
+              <TabsContent value="sessions">
+                <Card className="rounded-xl shadow-md">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5" />
+                      Scheduled Sessions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {loadingSessions && <div className="text-sm text-muted-foreground">Loading sessions...</div>}
+                      {!loadingSessions && sessions.length === 0 && (
+                        <div className="text-sm text-muted-foreground">No sessions scheduled yet.</div>
+                      )}
+                      {!loadingSessions && sessions.map(s => (
+                        <div key={s.sessionId} className="p-4 rounded-lg border bg-accent/30 flex justify-between items-start">
+                          <div className="flex-1">
+                            <p className="font-medium">{s.sessionTitle}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{formatRange(s)}</p>
+                            <p className="text-xs text-muted-foreground mt-1">Status: {s.status}</p>
+                          </div>
+                          {isOwner && (
+                            <Button size="sm" variant="ghost" onClick={() => {
+                              setEditingSessionId(s.sessionId);
+                              setEditTopic(s.sessionTitle);
+                              setEditDate(new Date(s.startTime).toISOString().substring(0,10));
+                              setEditStart(new Date(s.startTime).toTimeString().substring(0,5));
+                              setEditEnd(new Date(s.endTime).toTimeString().substring(0,5));
+                            }}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                      {!isOwner && (
+                        <Button variant="outline" className="w-full mt-4" onClick={handleJoinSessionClick}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Join a Session
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-                            <div className="pt-4 border-t">
-                              <div className="flex justify-between text-sm mb-2">
-                                <span className="text-muted-foreground">Course Progress</span>
-                                <span className="font-semibold text-foreground">{course?.progress ?? 0}%</span>
-                              </div>
-                              <div className="w-full bg-muted rounded-full h-3">
-                                <div 
-                                  className={`${course?.color || 'bg-blue-500'} h-3 rounded-full transition-all`}
-                                  style={{ width: `${course?.progress ?? 0}%` }}
-                                />
-                              </div>
-                            </div>
-
-                            {isOwner && (
-                              <div className="pt-4">
-                               
-                                <div className="text-sm text-muted-foreground">Danger Zone</div>
-                                <Button variant="destructive" className="mt-2 rounded-md px-3 py-1" onClick={() => setShowDeleteDialog(true)}>
-                                  Delete Class
-                                </Button>
-                                <p className="text-xs text-muted-foreground mt-2">Deleting a class is permanent. This action is restricted.</p>
-                              </div>
-                            )}
-                            {/* For students Show join button + danger zone exit */}
-                            {!isOwner && (
-                              <div className="pt-4">
-                                <Button 
-                                  onClick={handleJoinSessionClick}
-                                  className="w-full flex items-center justify-center gap-2 mb-3"
-                                >
-                                  <Plus className="h-4 w-4" />
-                                  Join a Session / Tham gia buổi học
-                                </Button>
-                                <p className="text-xs text-muted-foreground text-center mb-4">
-                                  Join a tutoring session to sign up for sessions
-                                </p>
-
-                                {/* Submit Feedback Button */}
-                                {user?.role?.toLowerCase?.() === 'student' && course?.registrationId && (
-                                  <Button
-                                    onClick={() => setShowFeedbackDialog(true)}
-                                    variant="outline"
-                                    className="w-full flex items-center justify-center gap-2 mb-4"
-                                  >
-                                    <MessageSquare className="h-4 w-4" />
-                                    Submit Feedback / Gửi đánh giá
-                                  </Button>
-                                )}
-
-                                <div className="mt-6 text-sm text-muted-foreground">Danger Zone</div>
-                                {user?.role?.toLowerCase?.() === 'student' && course?.registrationId && (
-                                  <div>
-                                    <Button variant="destructive" className="mt-2 rounded-md px-3 py-1" onClick={() => setShowExitDialog(true)}>
-                                      Exit Class
-                                    </Button>
-                                    <p className="text-xs text-muted-foreground mt-2">Leaving a class will remove your registration.</p>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
+              {/* Materials Tab */}
+              <TabsContent value="materials">
+                <Card className="rounded-xl shadow-md">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <BookOpen className="h-5 w-5" />
+                        Course Materials
+                      </CardTitle>
+                      {isOwner && (
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => setShowLibrarySelectDialog(true)}>
+                            <Plus className="h-3 w-3 mr-1" />
+                            From Library
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setShowFileUploadDialog(true)}>
+                            <Plus className="h-3 w-3 mr-1" />
+                            Upload File
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setShowExternalUrlDialog(true)}>
+                            <Plus className="h-3 w-3 mr-1" />
+                            Add Link
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingMaterials && (
+                      <div className="text-sm text-muted-foreground">Loading course materials...</div>
+                    )}
+                    {!loadingMaterials && materialsError && (
+                      <div className="text-sm text-destructive">{materialsError}</div>
+                    )}
+                    {!loadingMaterials && !materialsError && sessionMaterials.length === 0 && (
+                      <div className="text-sm text-muted-foreground">
+                        No course materials yet.
+                        {isOwner && " Add materials to help students learn!"}
                       </div>
+                    )}
+                    {!loadingMaterials && !materialsError && sessionMaterials.length > 0 && (
+                      <div className="space-y-3">
+                        {sessionMaterials.map((material) => (
+                          <div key={material.id} className="p-4 rounded-lg border bg-muted/40 flex justify-between items-start gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start gap-2 flex-wrap mb-2">
+                                {material.sourceType === 'EXTERNAL_URL' && (
+                                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">🔗 Link</span>
+                                )}
+                                {material.sourceType === 'LIBRARY_REF' && (
+                                  <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">📚 Library</span>
+                                )}
+                                {material.sourceType === 'LOCAL_FILE' && (
+                                  <span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded">📄 File</span>
+                                )}
+                              </div>
+                              <p className="font-medium">{material.title}</p>
+                              {material.description && (
+                                <p className="text-sm text-muted-foreground mt-1">{material.description}</p>
+                              )}
+                              {material.originalName && material.sourceType === 'LOCAL_FILE' && (
+                                <p className="text-xs text-muted-foreground mt-1">{material.originalName}</p>
+                              )}
+                              {material.sizeBytes && (
+                                <p className="text-xs text-muted-foreground mt-1">Size: {formatFileSize(material.sizeBytes)}</p>
+                              )}
+                            </div>
+                            <div className="flex gap-1 flex-shrink-0">
+                              {material.sourceType === 'EXTERNAL_URL' && material.externalUrl && (
+                                <Button size="icon" variant="ghost" onClick={() => {
+                                  if (confirm(`Open external link?\n\n${material.externalUrl}\n\nThis will open in a new tab.`)) {
+                                    window.open(material.externalUrl, '_blank', 'noopener,noreferrer');
+                                  }
+                                }} title="Open external link">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                </Button>
+                              )}
+                              {material.sourceType === 'LOCAL_FILE' && material.downloadUrl && (
+                                <Button size="icon" variant="ghost" asChild>
+                                  <a href={`${apiBase}${material.downloadUrl}`} download title="Download file">
+                                    <Download className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              )}
+                              {material.sourceType === 'LIBRARY_REF' && material.downloadUrl && (
+                                <Button size="icon" variant="ghost" asChild>
+                                  <a href={material.downloadUrl} target="_blank" rel="noreferrer" title="Download file">
+                                    <Download className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              )}
+                              {isOwner && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteMaterial(material.id, material.title)}
+                                  title="Delete material"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-                      {/* Sessions Overview Card */}
+              {/* Grades Tab */}
+              <TabsContent value="grades">
+                <Card className="rounded-xl shadow-md">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Star className="h-5 w-5" />
+                      {isOwner ? 'Student Evaluation' : 'Course Feedback'}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {isOwner ? (
+                      /* Tutor View - Student Evaluation */
+                      <div className="space-y-4">
+                        {loadingStudents && (
+                          <div className="text-sm text-muted-foreground">Loading students...</div>
+                        )}
+                        {!loadingStudents && enrolledStudents.length === 0 && (
+                          <div className="text-sm text-muted-foreground">No students enrolled yet.</div>
+                        )}
+                        {!loadingStudents && enrolledStudents.length > 0 && (
+                          <div className="space-y-3">
+                            {enrolledStudents.map((student) => (
+                              <div key={student.studentId} className="p-4 rounded-lg border bg-muted/40 flex justify-between items-start gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium truncate">{student.studentName}</p>
+                                  <p className="text-sm text-muted-foreground mt-1">{student.studentId}</p>
+                                  {student.major && (
+                                    <p className="text-xs text-muted-foreground">{student.major}</p>
+                                  )}
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEvaluateStudent(student)}
+                                >
+                                  <Star className="h-4 w-4 mr-1" />
+                                  Evaluate
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Student View - Feedback Form */
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Share your feedback about this course to help improve the learning experience.
+                        </p>
+                        {user?.role?.toLowerCase?.() === 'student' && course?.registrationId ? (
+                          <Button
+                            onClick={() => setShowFeedbackDialog(true)}
+                            className="w-full"
+                          >
+                            <MessageSquare className="h-4 w-4 mr-2" />
+                            Submit Feedback
+                          </Button>
+                        ) : (
+                          <div className="text-sm text-muted-foreground">
+                            You need to be enrolled to submit feedback.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+
+          {/* Hidden sections moved from sidebar - keep for dialogs reference */}
+          <div className="hidden">
+                      {/* Sessions Overview Card - HIDDEN but keeping for reference */}
                       <div className="lg:col-span-1 space-y-6">
                         <Card className="rounded-xl shadow-md">
                           <CardHeader>
@@ -1364,7 +1639,8 @@ const CourseDetails = () => {
                           </CardContent>
                         </Card>
                       </div>
-                    </div>
+          </div>
+          {/* End of hidden old sidebar sections */}
 
           {/* Join Session Dialog */}
           <Dialog open={showJoinSessionDialog} onOpenChange={(open) => !open && closeJoinSessionDialog()}>
