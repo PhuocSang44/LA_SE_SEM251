@@ -80,7 +80,8 @@ const CourseDetails = () => {
           // Map backend ClassResponse to the frontend course shape used here
           setFullCourse({
             id: found.classId,
-            name: found.courseName,
+            // Prefer the class-level custom name when present, otherwise fall back to canonical course name
+            name: found.customClassName || found.courseName,
             tutor: found.tutorName,
             tutorId: found.tutorId,
             semester: found.semester,
@@ -348,7 +349,7 @@ const CourseDetails = () => {
       const baseCourse = fullCourse ?? initialCourse; 
       setFullCourse({
         id: updatedData.classId,
-        name: updatedData.courseName,
+        name: updatedData.customClassName || updatedData.courseName,
         tutor: updatedData.tutorName,
         tutorId: updatedData.tutorId,
         semester: updatedData.semester,
