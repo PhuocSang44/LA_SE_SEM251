@@ -3,6 +3,8 @@ package org.minhtrinh.hcmuttssbackend.service;
 import org.minhtrinh.hcmuttssbackend.dto.*;
 import org.minhtrinh.hcmuttssbackend.entity.*;
 import org.minhtrinh.hcmuttssbackend.repository.*;
+import org.minhtrinh.hcmuttssbackend.service.UserProfileService;
+import org.minhtrinh.hcmuttssbackend.service.LogService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,42 +15,35 @@ import java.util.stream.Collectors;
 public class EvaluationService {
 
     private final EvaluationRepository evaluationRepository;
-    private final StudentRepository studentRepository;
-    private final CourseRepository courseRepository;
-    private final ClassRepository classRepository;
-    private final UniversityStaffRepository universityStaffRepository;
-    private final CourseRegistrationRepository courseRegistrationRepository;
-    private final ActivityLogRepository activityLogRepository;
-    private final UserRepository userRepository;
+        private final StudentRepository studentRepository;
+        private final CourseRepository courseRepository;
+        private final ClassRepository classRepository;
+        private final CourseRegistrationRepository courseRegistrationRepository;
+        private final UserProfileService userProfileService;
+        private final LogService activityLogService;
 
     public EvaluationService(
             EvaluationRepository evaluationRepository,
             StudentRepository studentRepository,
             CourseRepository courseRepository,
-            ClassRepository classRepository,
-            UniversityStaffRepository universityStaffRepository,
-            CourseRegistrationRepository courseRegistrationRepository,
-            ActivityLogRepository activityLogRepository,
-            UserRepository userRepository) {
+                        ClassRepository classRepository,
+                        CourseRegistrationRepository courseRegistrationRepository,
+                        UserProfileService userProfileService,
+                        LogService activityLogService) {
         this.evaluationRepository = evaluationRepository;
         this.studentRepository = studentRepository;
         this.courseRepository = courseRepository;
         this.classRepository = classRepository;
-        this.universityStaffRepository = universityStaffRepository;
-        this.courseRegistrationRepository = courseRegistrationRepository;
-        this.activityLogRepository = activityLogRepository;
-        this.userRepository = userRepository;
+                this.courseRegistrationRepository = courseRegistrationRepository;
+                this.userProfileService = userProfileService;
+                this.activityLogService = activityLogService;
     }
 
     /**
      * Get list of courses taught by the tutor (Step 2)
      */
     public List<TutorCourseResponse> getTutorCourses(String userEmail) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userEmail));
-
-        UniversityStaff tutor = universityStaffRepository.findByUser_UserId(user.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Tutor profile not found for user: " + userEmail));
+                UniversityStaff tutor = getVerifiedTutorByEmail(userEmail);
 
         List<org.minhtrinh.hcmuttssbackend.entity.Class> classes = classRepository.findByTutor_StaffId(tutor.getStaffId());
 
@@ -56,10 +51,9 @@ public class EvaluationService {
                 .map(classEntity -> {
                     Course course = classEntity.getCourse();
 
-                    // Count enrolled students
-                    int enrolledCount = courseRegistrationRepository
-                            .findByClassEntity_ClassId(classEntity.getClassId())
-                            .size();
+                    // Count enrolled students (DB-side count)
+                    long enrolledCount = courseRegistrationRepository
+                            .countByClassEntity_ClassId(classEntity.getClassId());
 
                     return TutorCourseResponse.builder()
                             .courseId(course.getCourseId())
@@ -69,23 +63,18 @@ public class EvaluationService {
                             .className(classEntity.getCustomName() != null ? classEntity.getCustomName() : course.getName())
                             .semester(classEntity.getSemester())
                             .status(classEntity.getStatus())
-                            .enrolledCount(enrolledCount)
+                            .enrolledCount((int) enrolledCount)
                             .capacity(classEntity.getCapacity())
                             .build();
                 })
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Get enrolled students for a specific class (Step 4)
-     */
-    public List<EnrolledStudentResponse> getEnrolledStudents(Long classId, String userEmail) {
-        // Validate tutor
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userEmail));
 
-        UniversityStaff tutor = universityStaffRepository.findByUser_UserId(user.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Tutor profile not found for user: " + userEmail));
+    public List<EnrolledStudentResponse> getEnrolledStudents(Long classId, String userEmail) {
+                // Validate tutor
+                User user = userProfileService.getUserByEmailOrThrow(userEmail);
+                UniversityStaff tutor = userProfileService.getTutorByUserIdOrThrow(user.getUserId());
 
         // Validate class and ownership
         org.minhtrinh.hcmuttssbackend.entity.Class classEntity = classRepository.findById(classId)
@@ -101,8 +90,7 @@ public class EvaluationService {
         return registrations.stream()
                 .map(reg -> {
                     Student student = reg.getStudent();
-                    User studentUser = userRepository.findById(student.getUserId())
-                            .orElse(null);
+                    User studentUser = student.getUser(); 
 
                     String studentName = studentUser != null
                             ? studentUser.getFirstName() + " " + studentUser.getLastName()
@@ -122,17 +110,11 @@ public class EvaluationService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Submit evaluation for a student (Steps 7-10)
-     */
     @Transactional
     public EvaluationResponse submitEvaluation(String userEmail, SubmitEvaluationRequest request) {
-        // Validate tutor
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userEmail));
-
-        UniversityStaff tutor = universityStaffRepository.findByUser_UserId(user.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Tutor profile not found for user: " + userEmail));
+                // Validate tutor
+                User user = userProfileService.getUserByEmailOrThrow(userEmail);
+                UniversityStaff tutor = userProfileService.getTutorByUserIdOrThrow(user.getUserId());
 
         // Validate student
         Student student = studentRepository.findByStudentId(request.getStudentId())
@@ -166,7 +148,7 @@ public class EvaluationService {
             throw new IllegalArgumentException("Evaluation already submitted for this student in this class");
         }
 
-        // Validate evaluation items (Alternative flow A1)
+        // Validate evaluation items 
         if (request.getEvaluationItems() == null || request.getEvaluationItems().isEmpty()) {
             throw new IllegalArgumentException("Please select rating stars");
         }
@@ -182,8 +164,6 @@ public class EvaluationService {
                 throw new IllegalArgumentException("Rating value must be between 0 and " + item.getMaxRating());
             }
         }
-
-        // Create evaluation (Step 8)
         Evaluation evaluation = Evaluation.builder()
                 .student(student)
                 .course(course)
@@ -191,8 +171,6 @@ public class EvaluationService {
                 .tutor(tutor)
                 .comment(request.getComment())
                 .build();
-
-        // Add evaluation items
         for (SubmitEvaluationRequest.EvaluationCriterion itemReq : request.getEvaluationItems()) {
             EvaluationItem item = EvaluationItem.builder()
                     .evaluation(evaluation)
@@ -202,11 +180,7 @@ public class EvaluationService {
                     .build();
             evaluation.getEvaluationItems().add(item);
         }
-
-        // Save evaluation
         Evaluation savedEvaluation = evaluationRepository.save(evaluation);
-
-        // Log activity (Step 9)
         ActivityLog log = ActivityLog.builder()
                 .userId(user.getUserId())
                 .action("SUBMIT_EVALUATION")
@@ -216,9 +190,11 @@ public class EvaluationService {
                            " in class: " + classEntity.getClassId() +
                            " (Course: " + course.getName() + ")")
                 .build();
-        activityLogRepository.save(log);
-
-        // Return response (Step 10)
+        try {
+            activityLogService.saveLog(log);
+        } catch (Exception ex) {
+            //It cannot fail
+        }
         return mapToResponse(savedEvaluation);
     }
 
@@ -259,13 +235,9 @@ public class EvaluationService {
      * Get all evaluations created by a tutor
      */
     public List<EvaluationResponse> getTutorEvaluations(String userEmail) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userEmail));
+                UniversityStaff tutor = getVerifiedTutorByEmail(userEmail);
 
-        UniversityStaff tutor = universityStaffRepository.findByUser_UserId(user.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Tutor profile not found for user: " + userEmail));
-
-        List<Evaluation> evaluations = evaluationRepository.findByTutor_StaffId(tutor.getStaffId());
+                List<Evaluation> evaluations = evaluationRepository.findByTutor_StaffId(tutor.getStaffId());
 
         return evaluations.stream()
                 .map(this::mapToResponse)
@@ -286,14 +258,12 @@ public class EvaluationService {
      * Map Evaluation entity to EvaluationResponse DTO
      */
     private EvaluationResponse mapToResponse(Evaluation evaluation) {
-        User studentUser = userRepository.findById(evaluation.getStudent().getUserId())
-                .orElse(null);
+        User studentUser = evaluation.getStudent() != null ? evaluation.getStudent().getUser() : null;
         String studentName = studentUser != null
                 ? studentUser.getFirstName() + " " + studentUser.getLastName()
                 : "Unknown";
 
-        User tutorUser = userRepository.findById(evaluation.getTutor().getUserId())
-                .orElse(null);
+        User tutorUser = evaluation.getTutor() != null ? evaluation.getTutor().getUser() : null;
         String tutorName = tutorUser != null
                 ? tutorUser.getFirstName() + " " + tutorUser.getLastName()
                 : "Unknown";
@@ -323,5 +293,11 @@ public class EvaluationService {
                 .evaluationItems(items)
                 .build();
     }
+
+        //validate user email -> tutor profile
+        private UniversityStaff getVerifiedTutorByEmail(String userEmail) {
+                User user = userProfileService.getUserByEmailOrThrow(userEmail);
+                return userProfileService.getTutorByUserIdOrThrow(user.getUserId());
+        }
 }
 
