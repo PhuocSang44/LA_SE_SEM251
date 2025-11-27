@@ -6,7 +6,9 @@ import java.util.Optional;
 import org.minhtrinh.hcmuttssbackend.entity.Class;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface ClassRepository extends JpaRepository<Class, Long> {
     List<Class> findByCourse_CourseId(Long courseId);
@@ -34,4 +36,14 @@ public interface ClassRepository extends JpaRepository<Class, Long> {
 
     @Query("select c from Class c left join fetch c.tutor t left join fetch t.user u left join fetch c.course where c.classId = :classId")
     Optional<Class> findByClassIdWithTutorAndCourse(@Param("classId") Long classId);
+
+    @Modifying
+    @Transactional
+    @Query("update Class c set c.enrolledCount = c.enrolledCount + 1 where c.classId = :classId and (c.capacity is null or c.enrolledCount < c.capacity)")
+    int incrementEnrolledIfSpace(@Param("classId") Long classId);
+
+    @Modifying
+    @Transactional
+    @Query("update Class c set c.enrolledCount = c.enrolledCount - 1 where c.classId = :classId and c.enrolledCount > 0")
+    int decrementEnrolledIfPositive(@Param("classId") Long classId);
 }
