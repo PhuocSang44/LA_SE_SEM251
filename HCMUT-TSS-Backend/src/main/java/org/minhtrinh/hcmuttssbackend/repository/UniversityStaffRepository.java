@@ -7,7 +7,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface UniversityStaffRepository extends JpaRepository<UniversityStaff, Integer> {
-    Optional<UniversityStaff> findByUser_UserId(Integer userId);
+    Optional<UniversityStaff> findByUserId(Integer userId);
     Optional<UniversityStaff> findByStaffId(String staffId);
     List<UniversityStaff> findByDepartment_DepartmentName(String departmentName);
+    List<UniversityStaff> findByUserIdIn(List<Integer> userIds);
 }

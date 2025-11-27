@@ -81,7 +81,7 @@ public class ClassService {
         log.info("Creating class. Code: {}, Name: {}", request.courseCode(), request.courseName());
 
         // Find tutor first to get department for Course creation if needed
-        UniversityStaff tutor = staffRepository.findByUser_UserId(userId)
+        UniversityStaff tutor = staffRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Tutor not found for userId: " + userId));
 
         // --- Ensure Course exists (create-if-missing) ---
@@ -158,7 +158,7 @@ public class ClassService {
         public List<ClassResponse> getClassesByTutor(TssUserPrincipal principal) {
         Integer userId = getUserIdFromPrincipal(principal);
         if (userId == null) throw new RuntimeException("User must be authenticated");
-        UniversityStaff tutor = staffRepository.findByUser_UserId(userId)
+        UniversityStaff tutor = staffRepository.findByUserId(userId)
             .orElseThrow(() -> new RuntimeException("Tutor not found"));
         return classRepository.findByTutor_StaffIdWithTutorAndCourse(tutor.getStaffId()).stream()
             .map(this::mapToResponse)

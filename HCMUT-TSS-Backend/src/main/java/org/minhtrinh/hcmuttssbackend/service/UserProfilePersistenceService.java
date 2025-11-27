@@ -51,35 +51,49 @@ public class UserProfilePersistenceService {
         // Persist into Student or UniversityStaff table based on resolved userType
         UserType userType = user.getUserType();
 
-        Department department = departmentRepository
-                .findByDepartmentName(dto.departmentName())
-                .orElseGet(() -> departmentRepository.save(
-                        Department.builder()
-                                .departmentName(dto.departmentName())
-                                .build()
-                ));
+        persistSubProfileFromDto(user, dto);
+    }
 
+    @Transactional
+    public void persistSubProfileFromDto(User user, RecvDatacoreDto dto) {
+        if (dto == null) throw new IllegalArgumentException("Datacore DTO is required");
+
+        Department department = departmentRepository.findByDepartmentName(dto.departmentName()).orElse(null);
+        if (department == null) {
+            try {
+                department = departmentRepository.save(
+                        Department.builder().departmentName(dto.departmentName()).build()
+                );
+            } catch (Exception ex) {
+                // Another thread may have inserted the department concurrently
+                department = departmentRepository.findByDepartmentName(dto.departmentName()).orElse(null);
+                if (department == null) throw ex;
+            }
+        }
+
+        UserType userType = user.getUserType();
         if (userType == UserType.STUDENT) {
-            studentRepository.findByUser_UserId(user.getUserId())
-                    .orElseGet(() -> studentRepository.save(
-                            Student.builder()
-                                    .user(user)
-                                    .studentId(dto.officialID())
-                                    .department(department)
-                                    .major(dto.major())
-                                    .academicLevel(dto.academicLevel())
-                                    .build()
-                    ));
+            boolean exists = studentRepository.findByUserId(user.getUserId()).isPresent();
+            if (!exists) {
+            Student s = Student.builder()
+                .user(user)
+                .studentId(dto.officialID())
+                .department(department)
+                .major(dto.major())
+                .academicLevel(dto.academicLevel())
+                .build();
+            studentRepository.save(s);
+            }
         } else {
-            // TUTOR/ADMIN are staff sub-types
-            staffRepository.findByUser_UserId(user.getUserId())
-                    .orElseGet(() -> staffRepository.save(
-                            UniversityStaff.builder()
-                                    .user(user)
-                                    .staffId(dto.officialID())
-                                    .department(department)
-                                    .build()
-                    ));
+            boolean exists = staffRepository.findByUserId(user.getUserId()).isPresent();
+            if (!exists) {
+            UniversityStaff st = UniversityStaff.builder()
+                .user(user)
+                .staffId(dto.officialID())
+                .department(department)
+                .build();
+            staffRepository.save(st);
+            }
         }
     }
 }

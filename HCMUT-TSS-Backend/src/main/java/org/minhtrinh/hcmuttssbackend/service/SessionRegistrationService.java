@@ -10,7 +10,7 @@ import org.minhtrinh.hcmuttssbackend.entity.Session;
 import org.minhtrinh.hcmuttssbackend.entity.SessionEnrollment;
 import org.minhtrinh.hcmuttssbackend.entity.Student;
 import org.minhtrinh.hcmuttssbackend.entity.User;
-import org.minhtrinh.hcmuttssbackend.repository.ActivityLogRepository;
+import org.minhtrinh.hcmuttssbackend.service.ActivityLogService;
 import org.minhtrinh.hcmuttssbackend.repository.SessionRegistrationRepository;
 import org.minhtrinh.hcmuttssbackend.repository.StudentRepository;
 import org.minhtrinh.hcmuttssbackend.repository.UserRepository;
@@ -28,18 +28,18 @@ public class SessionRegistrationService {
     private final SessionRegistrationRepository sessionRegistrationRepository;
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
-    private final ActivityLogRepository activityLogRepository;
+    private final ActivityLogService activityLogService;
 
     public SessionRegistrationService(jpaSessionRepository sessionRepository,
                                SessionRegistrationRepository sessionRegistrationRepository,
                                UserRepository userRepository,
                                StudentRepository studentRepository,
-                               ActivityLogRepository activityLogRepository) {
+                               ActivityLogService activityLogService) {
         this.sessionRepository = sessionRepository;
         this.sessionRegistrationRepository = sessionRegistrationRepository;
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
-        this.activityLogRepository = activityLogRepository;
+        this.activityLogService = activityLogService;
     }
 
     @Transactional
@@ -49,7 +49,7 @@ public class SessionRegistrationService {
         User user = userRepository.findByEmail(principal.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found: " + principal.getEmail()));
         
-        Student student = studentRepository.findByUser_UserId(user.getUserId())
+        Student student = studentRepository.findByUserId(user.getUserId())
                 .orElseThrow(() -> new RuntimeException("Student profile not found for user: " + user.getEmail()));
         
         Session sessionentity = null;
@@ -108,12 +108,14 @@ public class SessionRegistrationService {
         sessionRegistrationRepository.save(enrollment);
         
         try {
-            long updatedCount = sessionRegistrationRepository.countBySession_SessionId(sessionentity.getSessionId());
-            sessionentity.setCurrentStudents((int) updatedCount);
-            sessionRepository.save(sessionentity);
+            int updated = sessionRepository.incrementCurrentStudentsIfSpace(sessionentity.getSessionId());
+            if (updated == 0) {
+                long updatedCount = sessionRegistrationRepository.countBySession_SessionId(sessionentity.getSessionId());
+                sessionentity.setCurrentStudents((int) updatedCount);
+                sessionRepository.save(sessionentity);
+            }
         } catch (Exception e) {
-            // log or handle the exception; don't swallow silently in production
-            
+
         }
 
         // Log activity to database
@@ -129,7 +131,7 @@ public class SessionRegistrationService {
                 .description(String.format("Student enrolled in session '%s' (ID: %d) for class ID %d. Session starts at %s",
                         sessionTitle, sessionentity.getSessionId(), classId, startTime))
                 .build();
-        activityLogRepository.save(activityLog);
+        activityLogService.safeSave(activityLog);
     }
 
     @Transactional
@@ -138,7 +140,7 @@ public class SessionRegistrationService {
         User user = userRepository.findByEmail(principal.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found: " + principal.getEmail()));
 
-        Student student = studentRepository.findByUser_UserId(user.getUserId())
+        Student student = studentRepository.findByUserId(user.getUserId())
                 .orElseThrow(() -> new RuntimeException("Student profile not found for user: " + user.getEmail()));
 
         if (request == null || request.sessionId() == null) {
@@ -164,12 +166,14 @@ public class SessionRegistrationService {
 
         sessionRegistrationRepository.delete(enrollment);
         try {
-            long updatedCount = sessionRegistrationRepository.countBySession_SessionId(sessionentity.getSessionId());
-            sessionentity.setCurrentStudents((int) updatedCount);
-            sessionRepository.save(sessionentity);
+            int dec = sessionRepository.decrementCurrentStudentsIfPositive(sessionentity.getSessionId());
+            if (dec == 0) {
+                // Fallback to recalculating count
+                long updatedCount = sessionRegistrationRepository.countBySession_SessionId(sessionentity.getSessionId());
+                sessionentity.setCurrentStudents((int) updatedCount);
+                sessionRepository.save(sessionentity);
+            }
         } catch (Exception e) {
-            // log or handle the exception; don't swallow silently in production
-            
         }
 
         // Log activity to database
@@ -182,6 +186,6 @@ public class SessionRegistrationService {
                         sessionTitle, sessionentity.getSessionId(), classId,
                         enrollmentDate != null ? enrollmentDate.toString() : "unknown"))
                 .build();
-        activityLogRepository.save(activityLog);
+        activityLogService.safeSave(activityLog);
     }
 }

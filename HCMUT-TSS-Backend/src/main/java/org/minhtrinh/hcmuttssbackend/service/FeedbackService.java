@@ -5,6 +5,7 @@ import org.minhtrinh.hcmuttssbackend.dto.FeedbackResponse;
 import org.minhtrinh.hcmuttssbackend.dto.SubmitFeedbackRequest;
 import org.minhtrinh.hcmuttssbackend.entity.*;
 import org.minhtrinh.hcmuttssbackend.repository.*;
+import org.minhtrinh.hcmuttssbackend.service.UserProfileService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,40 +15,34 @@ import java.util.stream.Collectors;
 @Service
 public class FeedbackService {
 
-    private final FeedbackRepository feedbackRepository;
-    private final StudentRepository studentRepository;
-    private final CourseRepository courseRepository;
-    private final ClassRepository classRepository;
-    private final CourseRegistrationRepository courseRegistrationRepository;
-    private final ActivityLogRepository activityLogRepository;
-    private final UserRepository userRepository;
+        private final FeedbackRepository feedbackRepository;
+        private final CourseRepository courseRepository;
+        private final ClassRepository classRepository;
+        private final CourseRegistrationRepository courseRegistrationRepository;
+        private final ActivityLogService activityLogService;
+        private final UserProfileService userProfileService;
 
-    public FeedbackService(
-            FeedbackRepository feedbackRepository,
-            StudentRepository studentRepository,
-            CourseRepository courseRepository,
-            ClassRepository classRepository,
-            CourseRegistrationRepository courseRegistrationRepository,
-            ActivityLogRepository activityLogRepository,
-            UserRepository userRepository) {
-        this.feedbackRepository = feedbackRepository;
-        this.studentRepository = studentRepository;
-        this.courseRepository = courseRepository;
-        this.classRepository = classRepository;
-        this.courseRegistrationRepository = courseRegistrationRepository;
-        this.activityLogRepository = activityLogRepository;
-        this.userRepository = userRepository;
-    }
+        public FeedbackService(
+                        FeedbackRepository feedbackRepository,
+                        CourseRepository courseRepository,
+                        ClassRepository classRepository,
+                        CourseRegistrationRepository courseRegistrationRepository,
+                        ActivityLogService activityLogService,
+                        UserProfileService userProfileService) {
+                this.feedbackRepository = feedbackRepository;
+                this.courseRepository = courseRepository;
+                this.classRepository = classRepository;
+                this.courseRegistrationRepository = courseRegistrationRepository;
+                this.activityLogService = activityLogService;
+                this.userProfileService = userProfileService;
+        }
 
     /**
      * Get list of enrolled courses for a student
      */
     public List<EnrolledCourseResponse> getEnrolledCourses(String userEmail) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userEmail));
-
-        Student student = studentRepository.findByUser_UserId(user.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Student profile not found for user: " + userEmail));
+        User user = userProfileService.getUserByEmail(userEmail);
+        Student student = userProfileService.getStudentByUserId(user.getUserId());
 
         List<CourseRegistration> registrations = courseRegistrationRepository.findByStudent_StudentId(student.getStudentId());
 
@@ -56,10 +51,7 @@ public class FeedbackService {
                     org.minhtrinh.hcmuttssbackend.entity.Class classEntity = reg.getClassEntity();
                     Course course = classEntity.getCourse();
                     UniversityStaff tutor = classEntity.getTutor();
-
-                    // Get tutor's user info
-                    User tutorUser = userRepository.findById(tutor.getUserId())
-                            .orElse(null);
+                    User tutorUser = tutor != null ? tutor.getUser() : null;
                     String tutorName = tutorUser != null
                             ? tutorUser.getFirstName() + " " + tutorUser.getLastName()
                             : "Unknown";
@@ -84,11 +76,8 @@ public class FeedbackService {
     @Transactional
     public FeedbackResponse submitFeedback(String userEmail, SubmitFeedbackRequest request) {
         // Validate user and get student
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userEmail));
-
-        Student student = studentRepository.findByUser_UserId(user.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Student profile not found for user: " + userEmail));
+        User user = userProfileService.getUserByEmail(userEmail);
+        Student student = userProfileService.getStudentByUserId(user.getUserId());
 
         // Validate course exists
         Course course = courseRepository.findById(request.getCourseId())
@@ -133,6 +122,7 @@ public class FeedbackService {
                 .comment(request.getComment())
                 .imageUrl(request.getImageUrl())
                 .status("PENDING") // Default status
+                .ratings(new java.util.ArrayList<>())
                 .build();
 
         // Add ratings
@@ -157,9 +147,9 @@ public class FeedbackService {
                 .description("Student submitted feedback for class: " + classEntity.getClassId() +
                            " (Course: " + course.getName() + ")")
                 .build();
-        activityLogRepository.save(log);
-
-        // Return response
+                try {
+                        activityLogService.saveLogRequiresNew(log);
+                } catch (Exception ex) {}
         return mapToResponse(savedFeedback);
     }
 
@@ -167,11 +157,8 @@ public class FeedbackService {
      * Get all feedback for a student
      */
     public List<FeedbackResponse> getStudentFeedback(String userEmail) {
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userEmail));
-
-        Student student = studentRepository.findByUser_UserId(user.getUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Student profile not found for user: " + userEmail));
+        User user = userProfileService.getUserByEmail(userEmail);
+        Student student = userProfileService.getStudentByUserId(user.getUserId());
 
         List<Feedback> feedbackList = feedbackRepository.findByStudent_StudentId(student.getStudentId());
 
@@ -235,8 +222,7 @@ public class FeedbackService {
      * Map Feedback entity to FeedbackResponse DTO
      */
     private FeedbackResponse mapToResponse(Feedback feedback) {
-        User studentUser = userRepository.findById(feedback.getStudent().getUserId())
-                .orElse(null);
+        User studentUser = feedback.getStudent() != null ? feedback.getStudent().getUser() : null;
         String studentName = studentUser != null
                 ? studentUser.getFirstName() + " " + studentUser.getLastName()
                 : "Unknown";

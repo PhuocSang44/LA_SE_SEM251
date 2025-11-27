@@ -22,21 +22,31 @@ public class AdminService {
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
     private final UniversityStaffRepository universityStaffRepository;
-    private final ActivityLogRepository activityLogRepository;
+    private final ActivityLogService activityLogService;
 
     public AdminService(UserRepository userRepository,
                         StudentRepository studentRepository,
                         UniversityStaffRepository universityStaffRepository,
-                        ActivityLogRepository activityLogRepository) {
+                        ActivityLogService activityLogService) {
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
         this.universityStaffRepository = universityStaffRepository;
-        this.activityLogRepository = activityLogRepository;
+        this.activityLogService = activityLogService;
     }
 
     public List<AdminUserResponse> getAllUsers() {
         List<User> users = userRepository.findAll();
         List<AdminUserResponse> responses = new ArrayList<>();
+
+        if (users.isEmpty()) return responses;
+
+        List<Integer> userIds = users.stream().map(User::getUserId).collect(Collectors.toList());
+
+        List<Student> students = studentRepository.findByUserIdIn(userIds);
+        List<UniversityStaff> staffs = universityStaffRepository.findByUserIdIn(userIds);
+
+        var studentMap = students.stream().collect(Collectors.toMap(Student::getUserId, s -> s));
+        var staffMap = staffs.stream().collect(Collectors.toMap(UniversityStaff::getUserId, s -> s));
 
         for (User user : users) {
             AdminUserResponse response = AdminUserResponse.builder()
@@ -50,20 +60,22 @@ public class AdminService {
                     .build();
 
             if (user.getUserType() == UserType.STUDENT) {
-                studentRepository.findByUser_UserId(user.getUserId()).ifPresent(student -> {
+                Student student = studentMap.get(user.getUserId());
+                if (student != null) {
                     response.setStudentId(student.getStudentId());
                     response.setMajor(student.getMajor());
                     response.setAcademicLevel(student.getAcademicLevel());
-                    response.setDepartmentName(student.getDepartment().getDepartmentName());
+                    if (student.getDepartment() != null) response.setDepartmentName(student.getDepartment().getDepartmentName());
                     response.setRole("STUDENT");
-                });
+                }
             } else {
-                universityStaffRepository.findByUser_UserId(user.getUserId()).ifPresent(staff -> {
+                UniversityStaff staff = staffMap.get(user.getUserId());
+                if (staff != null) {
                     response.setStaffId(staff.getStaffId());
                     response.setPosition(staff.getPosition());
-                    response.setDepartmentName(staff.getDepartment().getDepartmentName());
+                    if (staff.getDepartment() != null) response.setDepartmentName(staff.getDepartment().getDepartmentName());
                     response.setRole(staff.getRole());
-                });
+                }
             }
 
             responses.add(response);
@@ -83,9 +95,9 @@ public class AdminService {
 
         // Delete related records based on user type
         if (user.getUserType() == UserType.STUDENT) {
-            studentRepository.findByUser_UserId(userId).ifPresent(studentRepository::delete);
+            studentRepository.findByUserId(userId).ifPresent(studentRepository::delete);
         } else {
-            universityStaffRepository.findByUser_UserId(userId).ifPresent(universityStaffRepository::delete);
+            universityStaffRepository.findByUserId(userId).ifPresent(universityStaffRepository::delete);
         }
 
         userRepository.delete(user);
@@ -123,7 +135,7 @@ public class AdminService {
     }
 
     public List<ActivityLogResponse> getAllActivityLogs() {
-        List<ActivityLog> logs = activityLogRepository.findAll()
+        List<ActivityLog> logs = activityLogService.findAll()
                 .stream()
                 .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
                 .collect(Collectors.toList());
@@ -158,6 +170,6 @@ public class AdminService {
                 .description(description)
                 .createdAt(LocalDateTime.now())
                 .build();
-        activityLogRepository.save(log);
+        activityLogService.saveLogRequiresNew(log);
     }
 }

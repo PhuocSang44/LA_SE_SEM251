@@ -176,21 +176,22 @@ public class ForumService {
                 .content(request.content())
                 .build();
 
-        post = forumPostRepository.save(post);
+        ForumPost savedPost = forumPostRepository.save(post);
 
-        // Save tags
+        // Save tags (batch insert)
         if (request.tags() != null && !request.tags().isEmpty()) {
-            for (String tagName : request.tags()) {
-                PostTag tag = PostTag.builder()
-                        .post(post)
-                        .tagName(tagName.toLowerCase())
-                        .build();
-                postTagRepository.save(tag);
-            }
+            List<PostTag> tagsToSave = request.tags().stream()
+                .map(tagName -> PostTag.builder()
+                    .post(savedPost)
+                    .tagName(tagName.toLowerCase())
+                    .build())
+                .collect(Collectors.toList());
+
+            postTagRepository.saveAll(tagsToSave);
         }
 
-        log.info("Post created: {} in forum {} by user {}", post.getPostId(), forum.getForumId(), user.getUserId());
-        return mapToPostResponse(post, user.getUserId());
+        log.info("Post created: {} in forum {} by user {}", savedPost.getPostId(), forum.getForumId(), user.getUserId());
+        return mapToPostResponse(savedPost, user.getUserId());
     }
 
     @Transactional(readOnly = true)

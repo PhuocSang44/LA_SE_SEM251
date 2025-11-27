@@ -1,2 +1,1 @@
--- Add status column to user table
-ALTER TABLE user ADD status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE';
+ALTER TABLE user ADD COLUMN status VARCHAR(20) DEFAULT 'ACTIVE' NOT NULL;

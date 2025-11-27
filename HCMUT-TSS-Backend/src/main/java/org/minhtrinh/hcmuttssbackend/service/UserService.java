@@ -32,13 +32,15 @@ public class UserService {
     private final DepartmentRepository departmentRepository;
     private final WebClient datacoreWebClient;
     private final FromDatacoreMapper fromDatacoreMapper;
+    private final UserProfilePersistenceService userProfilePersistenceService;
     
     public UserService(UserRepository userRepository,
                         StudentRepository studentRepository,
                        UniversityStaffRepository universityStaffRepository,
                         DepartmentRepository departmentRepository,
                        WebClient datacoreWebClient,
-                       FromDatacoreMapper fromDatacoreMapper
+                       FromDatacoreMapper fromDatacoreMapper,
+                       UserProfilePersistenceService userProfilePersistenceService
                        ) {
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
@@ -46,6 +48,7 @@ public class UserService {
         this.departmentRepository = departmentRepository;
         this.datacoreWebClient = datacoreWebClient;
         this.fromDatacoreMapper = fromDatacoreMapper;
+        this.userProfilePersistenceService = userProfilePersistenceService;
     }
 
     @Transactional
@@ -65,16 +68,10 @@ public class UserService {
             throw new RuntimeException("User not found in Datacore");
         User user = fromDatacoreMapper.toUser(datacoreUser);
         User savedUser = userRepository.save(user);
-        Department department = departmentRepository
-            .findByDepartmentName(datacoreUser.departmentName())
-            .orElseGet(() -> departmentRepository.save(
-                Department.builder()
-                    .departmentName(datacoreUser.departmentName())
-                    .build()
-            )); 
-        if (user.getUserType() == UserType.STUDENT) createStudent(datacoreUser, user, department);
-        else createStaff(datacoreUser, user, department);
-        
+
+        // Prevent dyp
+        userProfilePersistenceService.persistSubProfileFromDto(savedUser, datacoreUser);
+
         return savedUser;
     }
 
@@ -96,7 +93,7 @@ public class UserService {
 
     @Transactional
     public void updateStaffProfile(Integer userId, UpdateStaffRequest request) {
-        UniversityStaff staff = universityStaffRepository.findByUser_UserId(userId)
+        UniversityStaff staff = universityStaffRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Staff profile not found for user: " + userId));
         staff.setDepartment(
                 departmentRepository.findByDepartmentName(request.getDepartmentName())
@@ -107,7 +104,7 @@ public class UserService {
     }
     @Transactional
     public void updateStudentProfile(Integer userId, UpdateStudentRequest request) {
-        Student student = studentRepository.findByUser_UserId(userId)
+        Student student = studentRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Student profile not found for user: " + userId));
         student.setDepartment(
                 departmentRepository.findByDepartmentName(request.getDepartmentName())

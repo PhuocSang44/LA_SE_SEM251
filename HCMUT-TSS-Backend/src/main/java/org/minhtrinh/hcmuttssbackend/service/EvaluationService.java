@@ -4,7 +4,7 @@ import org.minhtrinh.hcmuttssbackend.dto.*;
 import org.minhtrinh.hcmuttssbackend.entity.*;
 import org.minhtrinh.hcmuttssbackend.repository.*;
 import org.minhtrinh.hcmuttssbackend.service.UserProfileService;
-import org.minhtrinh.hcmuttssbackend.service.LogService;
+import org.minhtrinh.hcmuttssbackend.service.ActivityLogService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,7 +20,7 @@ public class EvaluationService {
         private final ClassRepository classRepository;
         private final CourseRegistrationRepository courseRegistrationRepository;
         private final UserProfileService userProfileService;
-        private final LogService activityLogService;
+        private final ActivityLogService activityLogService;
 
     public EvaluationService(
             EvaluationRepository evaluationRepository,
@@ -29,7 +29,7 @@ public class EvaluationService {
                         ClassRepository classRepository,
                         CourseRegistrationRepository courseRegistrationRepository,
                         UserProfileService userProfileService,
-                        LogService activityLogService) {
+                        ActivityLogService activityLogService) {
         this.evaluationRepository = evaluationRepository;
         this.studentRepository = studentRepository;
         this.courseRepository = courseRepository;
@@ -73,8 +73,8 @@ public class EvaluationService {
 
     public List<EnrolledStudentResponse> getEnrolledStudents(Long classId, String userEmail) {
                 // Validate tutor
-                User user = userProfileService.getUserByEmailOrThrow(userEmail);
-                UniversityStaff tutor = userProfileService.getTutorByUserIdOrThrow(user.getUserId());
+                User user = userProfileService.getUserByEmail(userEmail);
+                UniversityStaff tutor = userProfileService.getTutorByUserId(user.getUserId());
 
         // Validate class and ownership
         org.minhtrinh.hcmuttssbackend.entity.Class classEntity = classRepository.findById(classId)
@@ -113,8 +113,8 @@ public class EvaluationService {
     @Transactional
     public EvaluationResponse submitEvaluation(String userEmail, SubmitEvaluationRequest request) {
                 // Validate tutor
-                User user = userProfileService.getUserByEmailOrThrow(userEmail);
-                UniversityStaff tutor = userProfileService.getTutorByUserIdOrThrow(user.getUserId());
+                User user = userProfileService.getUserByEmail(userEmail);
+                UniversityStaff tutor = userProfileService.getTutorByUserId(user.getUserId());
 
         // Validate student
         Student student = studentRepository.findByStudentId(request.getStudentId())
@@ -170,6 +170,7 @@ public class EvaluationService {
                 .classEntity(classEntity)
                 .tutor(tutor)
                 .comment(request.getComment())
+                .evaluationItems(new java.util.ArrayList<>())
                 .build();
         for (SubmitEvaluationRequest.EvaluationCriterion itemReq : request.getEvaluationItems()) {
             EvaluationItem item = EvaluationItem.builder()
@@ -181,7 +182,7 @@ public class EvaluationService {
             evaluation.getEvaluationItems().add(item);
         }
         Evaluation savedEvaluation = evaluationRepository.save(evaluation);
-        ActivityLog log = ActivityLog.builder()
+                ActivityLog log = ActivityLog.builder()
                 .userId(user.getUserId())
                 .action("SUBMIT_EVALUATION")
                 .entityType("EVALUATION")
@@ -190,11 +191,11 @@ public class EvaluationService {
                            " in class: " + classEntity.getClassId() +
                            " (Course: " + course.getName() + ")")
                 .build();
-        try {
-            activityLogService.saveLog(log);
-        } catch (Exception ex) {
-            //It cannot fail
-        }
+                try {
+                        activityLogService.saveLogRequiresNew(log);
+                } catch (Exception ex) {
+                        // It must not fail the main transaction; swallow or log elsewhere
+                }
         return mapToResponse(savedEvaluation);
     }
 
@@ -296,8 +297,8 @@ public class EvaluationService {
 
         //validate user email -> tutor profile
         private UniversityStaff getVerifiedTutorByEmail(String userEmail) {
-                User user = userProfileService.getUserByEmailOrThrow(userEmail);
-                return userProfileService.getTutorByUserIdOrThrow(user.getUserId());
+                User user = userProfileService.getUserByEmail(userEmail);
+                return userProfileService.getTutorByUserId(user.getUserId());
         }
 }
 

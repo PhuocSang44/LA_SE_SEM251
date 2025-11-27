@@ -1,6 +1,6 @@
 #
 # There is insufficient memory for the Java Runtime Environment to continue.
-# Native memory allocation (malloc) failed to allocate 1048576 bytes. Error detail: AllocateHeap
+# Native memory allocation (mmap) failed to map 130023424 bytes. Error detail: G1 virtual space
 # Possible reasons:
 #   The system is out of physical RAM or swap space
 #   This process is running with CompressedOops enabled, and the Java Heap may be blocking the growth of the native heap
@@ -18,7 +18,7 @@
 #     to set the Java Heap base and to place the Java Heap above 4GB virtual address.
 # This output file may be truncated or incomplete.
 #
-#  Out of Memory Error (allocation.cpp:44), pid=12084, tid=17976
+#  Out of Memory Error (os_windows.cpp:3710), pid=27636, tid=17596
 #
 # JRE version:  (17.0.16+8) (build )
 # Java VM: OpenJDK 64-Bit Server VM (17.0.16+8-LTS, mixed mode, emulated-client, sharing, tiered, compressed oops, compressed class ptrs, g1 gc, windows-amd64)
@@ -27,25 +27,31 @@
 
 ---------------  S U M M A R Y ------------
 
-Command Line: -XX:TieredStopAtLevel=1 org.minhtrinh.hcmuttssbackend.HcmutTssBackendApplication
+Command Line: -XX:TieredStopAtLevel=1 org.minhtrinh.hcmut_library_mimic.HcmutLibraryMimicApplication
 
 Host: 11th Gen Intel(R) Core(TM) i5-11300H @ 3.10GHz, 8 cores, 7G,  Windows 11 , 64 bit Build 26100 (10.0.26100.7019)
-Time: Thu Nov 27 01:50:07 2025 SE Asia Standard Time elapsed time: 1.032477 seconds (0d 0h 0m 1s)
+Time: Fri Nov 28 01:24:20 2025 SE Asia Standard Time elapsed time: 1.381867 seconds (0d 0h 0m 1s)
 
 ---------------  T H R E A D  ---------------
 
-Current thread (0x000001c6f3c92750):  JavaThread "Unknown thread" [_thread_in_vm, id=17976, stack(0x000000b8b0700000,0x000000b8b0800000)]
+Current thread (0x00000202d6da0af0):  JavaThread "Unknown thread" [_thread_in_vm, id=17596, stack(0x000000e117a00000,0x000000e117b00000)]
 
-Stack: [0x000000b8b0700000,0x000000b8b0800000]
+Stack: [0x000000e117a00000,0x000000e117b00000]
 Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
 V  [jvm.dll+0x68ee19]
 V  [jvm.dll+0x846249]
 V  [jvm.dll+0x847fb8]
 V  [jvm.dll+0x848643]
 V  [jvm.dll+0x24cf6f]
-V  [jvm.dll+0xa93f7]
-V  [jvm.dll+0x2efc40]
-V  [jvm.dll+0x2e771f]
+V  [jvm.dll+0x68bde9]
+V  [jvm.dll+0x6803aa]
+V  [jvm.dll+0x30ffc0]
+V  [jvm.dll+0x30fe62]
+V  [jvm.dll+0x3173b9]
+V  [jvm.dll+0x3695e9]
+V  [jvm.dll+0x36981d]
+V  [jvm.dll+0x2e683a]
+V  [jvm.dll+0x2e7748]
 V  [jvm.dll+0x8186fe]
 V  [jvm.dll+0x377251]
 V  [jvm.dll+0x7f6d45]
@@ -60,20 +66,22 @@ C  [ntdll.dll+0x8c53c]
 ---------------  P R O C E S S  ---------------
 
 Threads class SMR info:
-_java_thread_list=0x00007fff6fb87018, length=0, elements={
+_java_thread_list=0x00007fffb66e7018, length=0, elements={
 }
 
 Java Threads: ( => current thread )
 
 Other Threads:
-  0x000001c6f3cf2740 GCTaskThread "GC Thread#0" [stack: 0x000000b8b0800000,0x000000b8b0900000] [id=12644]
+  0x00000202d6e03a90 GCTaskThread "GC Thread#0" [stack: 0x000000e117b00000,0x000000e117c00000] [id=20808]
+  0x00000202d6e141e0 ConcurrentGCThread "G1 Main Marker" [stack: 0x000000e117c00000,0x000000e117d00000] [id=27744]
+  0x00000202d6e16b10 ConcurrentGCThread "G1 Conc#0" [stack: 0x000000e117d00000,0x000000e117e00000] [id=21888]
 
-[error occurred during error reporting (printing all threads), id 0xc0000005, EXCEPTION_ACCESS_VIOLATION (0xc0000005) at pc=0x00007fff6f334880]
+[error occurred during error reporting (printing all threads), id 0xc0000005, EXCEPTION_ACCESS_VIOLATION (0xc0000005) at pc=0x00007fffb5e97307]
 
 VM state: not at safepoint (not fully initialized)
 
 VM Mutex/Monitor currently owned by a thread:  ([mutex/lock_event])
-[0x000001c6f3c8c3c0] Heap_lock - owner thread: 0x000001c6f3c92750
+[0x00000202d6d9d390] Heap_lock - owner thread: 0x00000202d6da0af0
 
 Heap address: 0x0000000084000000, size: 1984 MB, Compressed Oops mode: 32-bit
 
@@ -87,13 +95,13 @@ Heap:
  garbage-first heap   total 0K, used 0K [0x0000000084000000, 0x0000000100000000)
   region size 1024K, 0 young (0K), 0 survivors (0K)
 
-[error occurred during error reporting (printing heap information), id 0xc0000005, EXCEPTION_ACCESS_VIOLATION (0xc0000005) at pc=0x00007fff6f728979]
+[error occurred during error reporting (printing heap information), id 0xc0000005, EXCEPTION_ACCESS_VIOLATION (0xc0000005) at pc=0x00007fffb6288979]
 
 GC Heap History (0 events):
 No events
 
 Dll operation events (1 events):
-Event: 0.012 Loaded shared library C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\java.dll
+Event: 0.050 Loaded shared library C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\java.dll
 
 Deoptimization events (0 events):
 No events
@@ -124,48 +132,48 @@ No events
 
 
 Dynamic libraries:
-0x00007ff6cc150000 - 0x00007ff6cc15e000 	C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\java.exe
+0x00007ff718c70000 - 0x00007ff718c7e000 	C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\java.exe
 0x00007ff80b080000 - 0x00007ff80b2e8000 	C:\WINDOWS\SYSTEM32\ntdll.dll
 0x00007ff809990000 - 0x00007ff809a59000 	C:\WINDOWS\System32\KERNEL32.DLL
 0x00007ff8086c0000 - 0x00007ff808ab8000 	C:\WINDOWS\System32\KERNELBASE.dll
 0x00007ff808400000 - 0x00007ff80854b000 	C:\WINDOWS\System32\ucrtbase.dll
-0x00007fffe6950000 - 0x00007fffe696e000 	C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\VCRUNTIME140.dll
-0x00007fffe2510000 - 0x00007fffe2528000 	C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\jli.dll
+0x00007ffffe600000 - 0x00007ffffe618000 	C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\jli.dll
+0x00007ffffe300000 - 0x00007ffffe31e000 	C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\VCRUNTIME140.dll
 0x00007ff809a60000 - 0x00007ff809c27000 	C:\WINDOWS\System32\USER32.dll
-0x00007fffec5f0000 - 0x00007fffec884000 	C:\WINDOWS\WinSxS\amd64_microsoft.windows.common-controls_6595b64144ccf1df_6.0.26100.7019_none_3e06ffa0e335b8a8\COMCTL32.dll
 0x00007ff8081a0000 - 0x00007ff8081c7000 	C:\WINDOWS\System32\win32u.dll
-0x00007ff808fd0000 - 0x00007ff809079000 	C:\WINDOWS\System32\msvcrt.dll
 0x00007ff809620000 - 0x00007ff80964b000 	C:\WINDOWS\System32\GDI32.dll
+0x00007fffec5f0000 - 0x00007fffec884000 	C:\WINDOWS\WinSxS\amd64_microsoft.windows.common-controls_6595b64144ccf1df_6.0.26100.7019_none_3e06ffa0e335b8a8\COMCTL32.dll
+0x00007ff808fd0000 - 0x00007ff809079000 	C:\WINDOWS\System32\msvcrt.dll
 0x00007ff808b50000 - 0x00007ff808c7c000 	C:\WINDOWS\System32\gdi32full.dll
 0x00007ff808350000 - 0x00007ff8083f3000 	C:\WINDOWS\System32\msvcp_win.dll
 0x00007ff8095e0000 - 0x00007ff809611000 	C:\WINDOWS\System32\IMM32.DLL
-0x00007fffe2500000 - 0x00007fffe250c000 	C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\vcruntime140_1.dll
-0x00007fff93e20000 - 0x00007fff93ea9000 	C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\msvcp140.dll
-0x00007fff6f040000 - 0x00007fff6fcba000 	C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\server\jvm.dll
+0x00007ffffff30000 - 0x00007ffffff3c000 	C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\vcruntime140_1.dll
+0x00007ffffbc70000 - 0x00007ffffbcf9000 	C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\msvcp140.dll
+0x00007fffb5ba0000 - 0x00007fffb681a000 	C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\server\jvm.dll
 0x00007ff809c80000 - 0x00007ff809d34000 	C:\WINDOWS\System32\ADVAPI32.dll
 0x00007ff80a250000 - 0x00007ff80a2f6000 	C:\WINDOWS\System32\sechost.dll
 0x00007ff80a650000 - 0x00007ff80a768000 	C:\WINDOWS\System32\RPCRT4.dll
 0x00007ff809d40000 - 0x00007ff809db4000 	C:\WINDOWS\System32\WS2_32.dll
-0x00007ff808000000 - 0x00007ff80805e000 	C:\WINDOWS\SYSTEM32\POWRPROF.dll
 0x00007ff804b00000 - 0x00007ff804b35000 	C:\WINDOWS\SYSTEM32\WINMM.dll
+0x00007ff808000000 - 0x00007ff80805e000 	C:\WINDOWS\SYSTEM32\POWRPROF.dll
 0x00007ffff4690000 - 0x00007ffff469b000 	C:\WINDOWS\SYSTEM32\VERSION.dll
 0x00007ff807fe0000 - 0x00007ff807ff4000 	C:\WINDOWS\SYSTEM32\UMPDC.dll
 0x00007ff806f60000 - 0x00007ff806f7b000 	C:\WINDOWS\SYSTEM32\kernel.appcore.dll
-0x00007fffd5cd0000 - 0x00007fffd5cda000 	C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\jimage.dll
+0x00007fffffef0000 - 0x00007fffffefa000 	C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\jimage.dll
 0x00007ff805810000 - 0x00007ff805a52000 	C:\WINDOWS\SYSTEM32\DBGHELP.DLL
 0x00007ff8091e0000 - 0x00007ff80956b000 	C:\WINDOWS\System32\combase.dll
 0x00007ff809680000 - 0x00007ff809757000 	C:\WINDOWS\System32\OLEAUT32.dll
 0x00007ff804a80000 - 0x00007ff804abc000 	C:\WINDOWS\SYSTEM32\dbgcore.DLL
 0x00007ff808610000 - 0x00007ff8086b5000 	C:\WINDOWS\System32\bcryptPrimitives.dll
-0x00007fffbd540000 - 0x00007fffbd566000 	C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\java.dll
+0x00007ffffca20000 - 0x00007ffffca46000 	C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\java.dll
 
 dbghelp: loaded successfully - version: 4.0.5 - missing functions: none
 symbol engine: initialized successfully - sym options: 0x614 - pdb path: .;C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin;C:\WINDOWS\SYSTEM32;C:\WINDOWS\WinSxS\amd64_microsoft.windows.common-controls_6595b64144ccf1df_6.0.26100.7019_none_3e06ffa0e335b8a8;C:\Program Files\Microsoft\jdk-17.0.16.8-hotspot\bin\server
 
 VM Arguments:
 jvm_args: -XX:TieredStopAtLevel=1 
-java_command: org.minhtrinh.hcmuttssbackend.HcmutTssBackendApplication
-java_class_path (initial): D:\Chong rot dai phap\PROJECT\Cong nghe phan mem\a\LA_SE_SEM251\HCMUT-TSS-Backend\target\classes;C:\Users\dangt\.m2\repository\ch\qos\logback\logback-classic\1.5.20\logback-classic-1.5.20.jar;C:\Users\dangt\.m2\repository\ch\qos\logback\logback-core\1.5.20\logback-core-1.5.20.jar;C:\Users\dangt\.m2\repository\org\apache\logging\log4j\log4j-to-slf4j\2.24.3\log4j-to-slf4j-2.24.3.jar;C:\Users\dangt\.m2\repository\org\apache\logging\log4j\log4j-api\2.24.3\log4j-api-2.24.3.jar;C:\Users\dangt\.m2\repository\org\slf4j\jul-to-slf4j\2.0.17\jul-to-slf4j-2.0.17.jar;C:\Users\dangt\.m2\repository\jakarta\annotation\jakarta.annotation-api\2.1.1\jakarta.annotation-api-2.1.1.jar;C:\Users\dangt\.m2\repository\org\yaml\snakeyaml\2.4\snakeyaml-2.4.jar;C:\Users\dangt\.m2\repository\com\zaxxer\HikariCP\6.3.3\HikariCP-6.3.3.jar;C:\Users\dangt\.m2\repository\org\springframework\spring-jdbc\6.2.12\spring-jdbc-6.2.12.jar;C:\Users\dangt\.m2\repository\org\hibernate\orm\hibernate-core\6.6.33.Final\hibernate-core-6.6.33.Final.jar;C:\Users\dangt\.m2\repository\jakarta\persistence\jakarta.persistence-api\3.1.0\jakarta.persistence-api-3.1.0.jar;C:\Users\dangt\.m2\repository\jakarta\transaction\jakarta.transaction-api\2.0.1\jakarta.transaction-api-2.0.1.jar;C:\Users\dangt\.m2\repository\org\jboss\logging\jboss-logging\3.6.1.Final\jboss-logging-3.6.1.Final.jar;C:\Users\dangt\.m2\repository\org\hibernate\common\hibernate-commons-annotations\7.0.3.Final\hibernate-commons-annotations-7.0.3.Final.jar;C:\Users\dangt\.m2\repository\io\smallrye\jandex\3.2.0\jandex-3.2.0.jar;C:\Users\dangt\.m2\repository\com\fasterxml\classmate\1.7.1\classmate-1.7.1.jar;C:\Users\dangt\.m2\repository\net\bytebuddy\byte-buddy\1.17.8\byte-buddy-1.17.8.jar;C:\Users\dangt\.m2\repository\org\glassfish\jaxb\jaxb-runtime\4.0.6\jaxb-runtime-4.0.6.jar;C:\Users\dangt\.m2\repository\org\glassfish\jaxb\jaxb-core\4.0.6\jaxb-core-4.0.6.jar;C:\Users\dangt\.m2\repository\org\eclipse\angus\angus-activation\2.0.3
+java_command: org.minhtrinh.hcmut_library_mimic.HcmutLibraryMimicApplication
+java_class_path (initial): D:\Chong rot dai phap\PROJECT\Cong nghe phan mem\a\LA_SE_SEM251\HCMUT-LIBRARY-MIMIC\target\classes;C:\Users\dangt\.m2\repository\ch\qos\logback\logback-classic\1.5.20\logback-classic-1.5.20.jar;C:\Users\dangt\.m2\repository\ch\qos\logback\logback-core\1.5.20\logback-core-1.5.20.jar;C:\Users\dangt\.m2\repository\org\apache\logging\log4j\log4j-to-slf4j\2.24.3\log4j-to-slf4j-2.24.3.jar;C:\Users\dangt\.m2\repository\org\apache\logging\log4j\log4j-api\2.24.3\log4j-api-2.24.3.jar;C:\Users\dangt\.m2\repository\org\slf4j\jul-to-slf4j\2.0.17\jul-to-slf4j-2.0.17.jar;C:\Users\dangt\.m2\repository\jakarta\annotation\jakarta.annotation-api\2.1.1\jakarta.annotation-api-2.1.1.jar;C:\Users\dangt\.m2\repository\org\yaml\snakeyaml\2.4\snakeyaml-2.4.jar;C:\Users\dangt\.m2\repository\com\fasterxml\jackson\core\jackson-databind\2.19.2\jackson-databind-2.19.2.jar;C:\Users\dangt\.m2\repository\com\fasterxml\jackson\datatype\jackson-datatype-jdk8\2.19.2\jackson-datatype-jdk8-2.19.2.jar;C:\Users\dangt\.m2\repository\com\fasterxml\jackson\module\jackson-module-parameter-names\2.19.2\jackson-module-parameter-names-2.19.2.jar;C:\Users\dangt\.m2\repository\org\apache\tomcat\embed\tomcat-embed-core\10.1.48\tomcat-embed-core-10.1.48.jar;C:\Users\dangt\.m2\repository\org\apache\tomcat\embed\tomcat-embed-websocket\10.1.48\tomcat-embed-websocket-10.1.48.jar;C:\Users\dangt\.m2\repository\org\springframework\spring-web\6.2.12\spring-web-6.2.12.jar;C:\Users\dangt\.m2\repository\org\springframework\spring-beans\6.2.12\spring-beans-6.2.12.jar;C:\Users\dangt\.m2\repository\io\micrometer\micrometer-observation\1.15.5\micrometer-observation-1.15.5.jar;C:\Users\dangt\.m2\repository\io\micrometer\micrometer-commons\1.15.5\micrometer-commons-1.15.5.jar;C:\Users\dangt\.m2\repository\org\springframework\spring-webmvc\6.2.12\spring-webmvc-6.2.12.jar;C:\Users\dangt\.m2\repository\org\springframework\spring-context\6.2.12\spring-context-6.2.12.jar;C:\Users\dangt\.m2\repository\org\sprin
 Launcher Type: SUN_STANDARD
 
 [Global flags]
@@ -213,17 +221,17 @@ Periodic native trim disabled
 
 OS:
  Windows 11 , 64 bit Build 26100 (10.0.26100.7019)
-OS uptime: 5 days 6:26 hours
+OS uptime: 6 days 6:00 hours
 Hyper-V role detected
 
 CPU: total 8 (initial active 8) (4 cores per cpu, 2 threads per core) family 6 model 140 stepping 1 microcode 0xb4, cx8, cmov, fxsr, ht, mmx, 3dnowpref, sse, sse2, sse3, ssse3, sse4.1, sse4.2, popcnt, lzcnt, tsc, tscinvbit, avx, avx2, aes, erms, clmul, bmi1, bmi2, adx, avx512f, avx512dq, avx512cd, avx512bw, avx512vl, sha, fma, vzeroupper, avx512_vpopcntdq, avx512_vpclmulqdq, avx512_vaes, avx512_vnni, clflush, clflushopt, clwb, avx512_vbmi2, avx512_vbmi, hv
 Processor Information for the first 8 processors :
   Max Mhz: 2611, Current Mhz: 2611, Mhz Limit: 2611
 
-Memory: 4k page, system-wide physical 7930M (353M free)
-TotalPageFile size 27836M (AvailPageFile size 1M)
+Memory: 4k page, system-wide physical 7930M (400M free)
+TotalPageFile size 27836M (AvailPageFile size 21M)
 current process WorkingSet (physical memory assigned to process): 12M, peak: 12M
-current process commit charge ("private bytes"): 47M, peak: 48M
+current process commit charge ("private bytes"): 55M, peak: 179M
 
 vm_info: OpenJDK 64-Bit Server VM (17.0.16+8-LTS) for windows-amd64 JRE (17.0.16+8-LTS), built on Jul 10 2025 00:24:24 by "MicrosoftCorporation" with unknown MS VC++:1944
 

@@ -74,7 +74,9 @@ public class MaterialService {
 
         try {
             Files.createDirectories(storagePath.getParent());
-            Files.copy(file.getInputStream(), storagePath, StandardCopyOption.REPLACE_EXISTING);
+            try (var inputStream = file.getInputStream()) {
+                Files.copy(inputStream, storagePath, StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (IOException ex) {
             log.error("Failed to store material file", ex);
             throw new IllegalStateException("Failed to store file", ex);
