@@ -29,19 +29,16 @@ public class CourseRegistrationService {
     
     private final ClassRepository classRepository;
     private final CourseRegistrationRepository registrationRepository;
-    private final UserRepository userRepository;
-    private final StudentRepository studentRepository;
+    private final UserProfileService userProfileService;
     private final CourseRegistrationMapper mapper;
 
     public CourseRegistrationService(ClassRepository classRepository,
                                      CourseRegistrationRepository registrationRepository,
-                                     UserRepository userRepository,
-                                     StudentRepository studentRepository,
+                                     UserProfileService userProfileService,
                                      CourseRegistrationMapper mapper) {
         this.classRepository = classRepository;
         this.registrationRepository = registrationRepository;
-        this.userRepository = userRepository;
-        this.studentRepository = studentRepository;
+        this.userProfileService = userProfileService;
         this.mapper = mapper;
     }
 
@@ -51,13 +48,9 @@ public class CourseRegistrationService {
         log.info("Processing enrollment request: classId={}, courseCode={}, tutorId={}", 
                 req.classId(), req.courseCode(), req.tutorId());
         
-        // Authenticated user
-        User user = userRepository.findByEmail(principal.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + principal.getEmail()));
-        
-        // Verify 
-        Student student = studentRepository.findByUserId(user.getUserId())
-                .orElseThrow(() -> new IllegalStateException("Only students can enroll in courses. No student profile found for user: " + user.getEmail()));
+        // Authenticated user + student profile (delegated to UserProfileService)
+        User user = userProfileService.getUserByEmail(principal.getEmail());
+        Student student = userProfileService.getStudentByUserId(user.getUserId());
         
         // Find the class
         Class classEntity = null;
@@ -157,9 +150,7 @@ public class CourseRegistrationService {
             .orElseThrow(() -> new IllegalArgumentException("Cannot found class: " + classId));
 
         String studentId = resolveStudentId(req, principal);
-
-        Student student = studentRepository.findByStudentId(studentId)
-            .orElseThrow(() -> new IllegalArgumentException("Student not found: " + studentId));
+        Student student = userProfileService.getStudentByStudentId(studentId);
 
         // Check dup
         Course course = classEntity.getCourse();
@@ -193,13 +184,13 @@ public class CourseRegistrationService {
     private String resolveStudentId(RegisterCourseRequest req, TssUserPrincipal principal) {
         if (req.studentId() != null) {
             // 2nd layer check if student exists
-            Student s = studentRepository.findByStudentId(req.studentId()).orElseThrow(() -> new IllegalArgumentException("Student not found: " + req.studentId()));
+            Student s = userProfileService.getStudentByStudentId(req.studentId());
             return s.getStudentId();
         }
 
         String email = req.studentEmail() != null ? req.studentEmail() : principal.getEmail();
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new IllegalArgumentException("User not found by email: " + email));
-        Student student = studentRepository.findByUserId(user.getUserId()).orElseThrow(() -> new IllegalStateException("Student profile not found for user: " + email));
+        User user = userProfileService.getUserByEmail(email);
+        Student student = userProfileService.getStudentByUserId(user.getUserId());
         return student.getStudentId();
     }
 
@@ -210,11 +201,8 @@ public class CourseRegistrationService {
         }
 
         public List<CourseRegistrationResponse> listMine(TssUserPrincipal principal) {
-        User user = userRepository.findByEmail(principal.getEmail())
-            .orElseThrow(() -> new IllegalArgumentException("User not found by email"));
-        String studentId = studentRepository.findByUserId(user.getUserId())
-            .orElseThrow(() -> new IllegalArgumentException("Student profile not found for current user"))
-            .getStudentId();
+        User user = userProfileService.getUserByEmail(principal.getEmail());
+        String studentId = userProfileService.getStudentByUserId(user.getUserId()).getStudentId();
         return listByStudentId(studentId);
         }
 
@@ -223,11 +211,9 @@ public class CourseRegistrationService {
         CourseRegistration reg = registrationRepository.findById(registrationId)
                 .orElseThrow(() -> new IllegalArgumentException("Registration not found: " + registrationId));
 
-        // Resolve current user and student profile
-        User user = userRepository.findByEmail(principal.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + principal.getEmail()));
-        Student student = studentRepository.findByUserId(user.getUserId())
-                .orElseThrow(() -> new IllegalStateException("Student profile not found for user: " + user.getEmail()));
+        // Resolve current user and student profile (delegated)
+        User user = userProfileService.getUserByEmail(principal.getEmail());
+        Student student = userProfileService.getStudentByUserId(user.getUserId());
 
         if (!reg.getStudent().getStudentId().equals(student.getStudentId())) {
             throw new IllegalStateException("Not authorized to remove this registration");
