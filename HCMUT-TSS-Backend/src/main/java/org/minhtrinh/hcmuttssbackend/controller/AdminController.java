@@ -3,9 +3,6 @@ package org.minhtrinh.hcmuttssbackend.controller;
 import org.minhtrinh.hcmuttssbackend.TssUserPrincipal;
 import org.minhtrinh.hcmuttssbackend.dto.ActivityLogResponse;
 import org.minhtrinh.hcmuttssbackend.dto.AdminUserResponse;
-import org.minhtrinh.hcmuttssbackend.entity.User;
-import org.minhtrinh.hcmuttssbackend.entity.UserType;
-import org.minhtrinh.hcmuttssbackend.repository.UserRepository;
 import org.minhtrinh.hcmuttssbackend.service.AdminService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,22 +20,16 @@ public class AdminController {
     private static final Logger log = LoggerFactory.getLogger(AdminController.class);
 
     private final AdminService adminService;
-    private final UserRepository userRepository;
 
-    public AdminController(AdminService adminService, 
-                          UserRepository userRepository) {
+    public AdminController(AdminService adminService) {
         this.adminService = adminService;
-        this.userRepository = userRepository;
     }
 
     /**
      * Check if current user is an administrator
      */
     private boolean isAdmin(TssUserPrincipal principal) {
-        return userRepository.findByEmail(principal.getEmail())
-                .map(user -> user.getUserType() == UserType.ADMINISTRATOR || 
-                             user.getUserType() == UserType.COOPERATOR)
-                .orElse(false);
+        return adminService.isUserAdmin(principal.getEmail());
     }
 
     /**
@@ -75,16 +66,14 @@ public class AdminController {
         }
 
         try {
-            User adminUser = userRepository.findByEmail(principal.getEmail())
-                    .orElseThrow(() -> new IllegalArgumentException("Admin user not found"));
-
             // Prevent deleting yourself
-            if (userId.equals(adminUser.getUserId())) {
+            if (adminService.isSameUser(userId, principal.getEmail())) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body("Cannot delete your own account");
             }
 
-            adminService.deleteUser(userId, adminUser.getUserId());
+            Integer adminUserId = adminService.getAdminUserIdByEmail(principal.getEmail());
+            adminService.deleteUser(userId, adminUserId);
             return ResponseEntity.ok("User deleted successfully");
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
@@ -109,16 +98,14 @@ public class AdminController {
         }
 
         try {
-            User adminUser = userRepository.findByEmail(principal.getEmail())
-                    .orElseThrow(() -> new IllegalArgumentException("Admin user not found"));
-
             // Prevent banning yourself
-            if (userId.equals(adminUser.getUserId())) {
+            if (adminService.isSameUser(userId, principal.getEmail())) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body("Cannot ban your own account");
             }
 
-            adminService.banUser(userId, adminUser.getUserId());
+            Integer adminUserId = adminService.getAdminUserIdByEmail(principal.getEmail());
+            adminService.banUser(userId, adminUserId);
             return ResponseEntity.ok("User banned successfully");
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
@@ -143,10 +130,8 @@ public class AdminController {
         }
 
         try {
-            User adminUser = userRepository.findByEmail(principal.getEmail())
-                    .orElseThrow(() -> new IllegalArgumentException("Admin user not found"));
-
-            adminService.unbanUser(userId, adminUser.getUserId());
+            Integer adminUserId = adminService.getAdminUserIdByEmail(principal.getEmail());
+            adminService.unbanUser(userId, adminUserId);
             return ResponseEntity.ok("User unbanned successfully");
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());

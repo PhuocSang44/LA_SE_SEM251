@@ -172,4 +172,32 @@ public class AdminService {
                 .build();
         activityLogService.saveLogRequiresNew(log);
     }
+
+    /**
+     * Check if user is an administrator or cooperator
+     */
+    public boolean isUserAdmin(String email) {
+        return userRepository.findByEmail(email)
+                .map(user -> user.getUserType() == UserType.ADMINISTRATOR || 
+                             user.getUserType() == UserType.COOPERATOR)
+                .orElse(false);
+    }
+
+    /**
+     * Check if the target userId belongs to the user with given email
+     */
+    public boolean isSameUser(Integer targetUserId, String userEmail) {
+        return userRepository.findByEmail(userEmail)
+                .map(user -> user.getUserId().equals(targetUserId))
+                .orElse(false);
+    }
+
+    /**
+     * Get admin user ID by email
+     */
+    public Integer getAdminUserIdByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .map(User::getUserId)
+                .orElseThrow(() -> new IllegalArgumentException("Admin user not found"));
+    }
 }
