@@ -19,9 +19,7 @@ import org.minhtrinh.hcmuttssbackend.service.ActivityLogService;
 import org.minhtrinh.hcmuttssbackend.repository.ClassRepository;
 import org.minhtrinh.hcmuttssbackend.repository.CourseRegistrationRepository;
 import org.minhtrinh.hcmuttssbackend.repository.SessionRegistrationRepository;
-import org.minhtrinh.hcmuttssbackend.repository.StudentRepository;
-import org.minhtrinh.hcmuttssbackend.repository.UniversityStaffRepository;
-import org.minhtrinh.hcmuttssbackend.repository.UserRepository;
+import org.minhtrinh.hcmuttssbackend.service.UserProfileService;
 import org.minhtrinh.hcmuttssbackend.repository.jpaSessionRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -32,9 +30,7 @@ import jakarta.transaction.Transactional;
 public class SessionService {
     private final jpaSessionRepository sessionRepository;
     private final ClassRepository classRepository;
-    private final UniversityStaffRepository staffRepository;
-    private final UserRepository userRepository;
-    private final StudentRepository studentRepository;
+    private final UserProfileService userProfileService;
     private final SessionRegistrationRepository sessionRegistrationRepository;
     private final CourseRegistrationRepository courseRegistrationRepository;
     private final ActivityLogService activityLogService;
@@ -42,18 +38,14 @@ public class SessionService {
 
     public SessionService(jpaSessionRepository sessionRepository,
                           ClassRepository classRepository,
-                          UniversityStaffRepository staffRepository,
-                          UserRepository userRepository,
-                          StudentRepository studentRepository,
+                          UserProfileService userProfileService,
                           SessionRegistrationRepository sessionRegistrationRepository,
                           CourseRegistrationRepository courseRegistrationRepository,
                           ActivityLogService activityLogService,
                           NotificationService notificationService) {
         this.sessionRepository = sessionRepository;
         this.classRepository = classRepository;
-        this.staffRepository = staffRepository;
-        this.userRepository = userRepository;
-        this.studentRepository = studentRepository;
+        this.userProfileService = userProfileService;
         this.sessionRegistrationRepository = sessionRegistrationRepository;
         this.courseRegistrationRepository = courseRegistrationRepository;
         this.activityLogService = activityLogService;
@@ -64,13 +56,16 @@ public class SessionService {
         if (principal == null) {
             throw new RuntimeException("User must be authenticated");
         }
-        return userRepository.findByEmail(principal.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found: " + principal.getEmail()));
+        return userProfileService.getUserByEmail(principal.getEmail());
     }
 
     private Integer getUserIdFromPrincipal(TssUserPrincipal principal) {
         if (principal == null) return null;
-        return userRepository.findByEmail(principal.getEmail()).map(User::getUserId).orElse(null);
+        try {
+            return userProfileService.getUserByEmail(principal.getEmail()).getUserId();
+        } catch (RuntimeException ex) {
+            return null;
+        }
     }
 
 
@@ -95,11 +90,8 @@ public class SessionService {
             throw new RuntimeException("Invalid class ID format: " + classIdStr);
         }
         
-        // Get staff record to find staffId
-        var staff = staffRepository.findByUserId(userId)
-                .orElseThrow(() -> {
-                    return new RuntimeException("Staff profile not found for user");
-                });
+        // Get staff record to find staffId (delegated to UserProfileService)
+        var staff = userProfileService.getTutorByUserId(userId);
         String staffId = staff.getStaffId();
 
         Optional<Class> existingClass = classRepository.findByClassIdAndTutor_StaffId(classId, staffId);
@@ -164,7 +156,6 @@ public class SessionService {
         activityLogService.safeSave(activityLog);
 
         // Send notification to all students enrolled in the class
-        // Get students from course_registration table who are enrolled in this class
         List<CourseRegistration> courseRegistrations = courseRegistrationRepository.findByClassEntity_ClassIdWithStudentUser(classId);
 
         for (CourseRegistration registration : courseRegistrations) {
@@ -398,23 +389,31 @@ public class SessionService {
         Integer userId = user.getUserId();
 
         // If user is a tutor (has a UniversityStaff record) -> return sessions they teach
-        var maybeStaff = staffRepository.findByUserId(userId);
-        if (maybeStaff.isPresent()) {
-            String tutorStaffId = maybeStaff.get().getStaffId();
-            return sessionRepository.findByClazz_Tutor_StaffId(tutorStaffId).stream()
-                    .map(this::mapToSessionResponse)
-                    .collect(Collectors.toList());
+        try {
+            var maybeStaff = userProfileService.getTutorByUserId(userId);
+            if (maybeStaff != null) {
+                String tutorStaffId = maybeStaff.getStaffId();
+                return sessionRepository.findByClazz_Tutor_StaffId(tutorStaffId).stream()
+                        .map(this::mapToSessionResponse)
+                        .collect(Collectors.toList());
+            }
+        } catch (RuntimeException ex) {
+            // not a tutor
         }
 
         // If user is a student -> return sessions they are enrolled in via session registrations
-        var maybeStudent = studentRepository.findByUserId(userId);
-        if (maybeStudent.isPresent()) {
-            Integer studentUserId = maybeStudent.get().getUserId();
-            return sessionRegistrationRepository.findByStudent_UserId(studentUserId).stream()
-                    .map(SessionEnrollment::getSession)
-                    .filter(Objects::nonNull)
-                    .map(this::mapToSessionResponse)
-                    .collect(Collectors.toList());
+        try {
+            var maybeStudent = userProfileService.getStudentByUserId(userId);
+            if (maybeStudent != null) {
+                Integer studentUserId = maybeStudent.getUserId();
+                return sessionRegistrationRepository.findByStudent_UserId(studentUserId).stream()
+                        .map(SessionEnrollment::getSession)
+                        .filter(Objects::nonNull)
+                        .map(this::mapToSessionResponse)
+                        .collect(Collectors.toList());
+            }
+        } catch (RuntimeException ex) {
+            // not a student
         }
 
         // Neither tutor nor student -> return empty list
@@ -435,8 +434,6 @@ public class SessionService {
     //                 .map(this::mapToSessionResponse)
     //                 .collect(Collectors.toList());
     //     }
-
-    //     // If user is a student -> return sessions they are enrolled in via session registrations
     //     var maybeStudent = studentRepository.findByUser_UserId(userId);
     //     if (maybeStudent.isPresent()) {
     //         Integer studentUserId = maybeStudent.get().getUserId();

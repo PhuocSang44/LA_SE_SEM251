@@ -23,9 +23,8 @@ public class ForumService {
     private final PostTagRepository postTagRepository;
     private final ForumCommentRepository forumCommentRepository;
     private final ForumVoteRepository forumVoteRepository;
-    private final UserRepository userRepository;
-    private final UniversityStaffRepository staffRepository;
     private final UserProfilePersistenceService userProfilePersistenceService;
+    private final UserProfileService userProfileService;
 
     // ===================== FORUM MANAGEMENT =====================
 
@@ -33,7 +32,7 @@ public class ForumService {
     public ForumResponse createForum(CreateForumRequest request, TssUserPrincipal principal) {
         User user = getUserFromPrincipal(principal);
         
-        // Only tutors (university staff) can create forums
+        // Only tutors can create
         if (!isUserTutor(user.getUserId())) {
             throw new RuntimeException("Only tutors can create forums");
         }
@@ -340,11 +339,10 @@ public class ForumService {
         if (existingVote.isPresent()) {
             ForumVote vote = existingVote.get();
             if (vote.getVoteType() == request.voteType()) {
-                // Same vote - remove it (toggle)
                 forumVoteRepository.delete(vote);
                 log.info("User {} removed vote on comment {}", user.getUserId(), commentId);
             } else {
-                // Different vote - update it
+                // Different vote
                 vote.setVoteType(request.voteType());
                 forumVoteRepository.save(vote);
                 log.info("User {} changed vote to {} on comment {}", user.getUserId(), request.voteType(), commentId);
@@ -368,24 +366,33 @@ public class ForumService {
             throw new RuntimeException("User must be authenticated");
         }
         userProfilePersistenceService.ensureUserSubProfilePersisted(principal);
-        return userRepository.findByEmail(principal.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found: " + principal.getEmail()));
+        return userProfileService.getUserByEmail(principal.getEmail());
     }
 
     private Integer getUserIdFromPrincipal(TssUserPrincipal principal) {
         if (principal == null) return null;
-        return userRepository.findByEmail(principal.getEmail())
-                .map(User::getUserId)
-                .orElse(null);
+        try {
+            return userProfileService.getUserByEmail(principal.getEmail()).getUserId();
+        } catch (RuntimeException ex) {
+            return null;
+        }
     }
 
     private boolean isUserTutor(Integer userId) {
-        return staffRepository.existsById(userId);
+        try {
+            userProfileService.getTutorByUserId(userId);
+            return true;
+        } catch (RuntimeException ex) {
+            return false;
+        }
     }
 
     private String getUserRole(User user) {
-        if (staffRepository.existsById(user.getUserId())) {
+        try {
+            userProfileService.getTutorByUserId(user.getUserId());
             return "tutor";
+        } catch (RuntimeException ex) {
+            // fall through to student
         }
         return "student";
     }
