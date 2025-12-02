@@ -1,29 +1,7 @@
 {
-  "version": 2,
-  "name": "hcmut-tss",
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
-    }
-  ],
-  "routes": [
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ],
-  "env": {
-    "VITE_API_BASE_URL": "http://103.20.96.46:8080",
-    "VITE_SSO_URL": "http://103.20.96.46:8081",
-    "VITE_DATACORE_URL": "http://103.20.96.46:8082",
-    "VITE_LIBRARY_URL": "http://103.20.96.46:8083"
-  },
-  "functions": {},
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
   "rewrites": [
     {
       "source": "/((?!api/).*)",
