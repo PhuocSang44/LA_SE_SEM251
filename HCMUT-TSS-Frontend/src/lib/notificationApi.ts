@@ -1,6 +1,6 @@
 import { Notification, NotificationCount } from "@/types/notification";
 
-const API = import.meta.env.VITE_API_BASE || "http://localhost:10001";
+const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:10001";
 
 export async function getAllNotifications(): Promise<Notification[]> {
   try {

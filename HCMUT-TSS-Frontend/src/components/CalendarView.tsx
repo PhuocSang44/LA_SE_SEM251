@@ -29,7 +29,7 @@ const CalendarView = () => {
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
-  const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
+  const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:10001";
   const numericUserId: number | null = user?.officialId ? Number(user.officialId) : null;
   const refreshSessions = async () => {
     try {

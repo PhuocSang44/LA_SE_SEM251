@@ -35,8 +35,8 @@ const CourseDetails = () => {
   // 'course' is the canonical source of truth for this component (fullCourse when available, otherwise initialCourse)
   const course = fullCourse ?? initialCourse;
   const courseCode = course?.code ?? course?.courseCode ?? null;
-  const apiBase = import.meta.env.VITE_API_BASE || 'http://localhost:10001';
-  const libraryApiBase = import.meta.env.VITE_LIBRARY_BASE || 'http://localhost:10006';
+  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:10001';
+  const libraryApiBase = import.meta.env.VITE_LIBRARY_URL || 'http://localhost:10006';
 
   // Determine ownership using datacore official ID (frontend User does not expose DB id)
   const userOfficialIdNum = user?.officialId ? Number(user.officialId) : null;
@@ -62,7 +62,7 @@ const CourseDetails = () => {
       if (!initialCourse) return;
       if (initialCourse.tutorId && initialCourse.tutor) return; // already complete
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE || 'http://localhost:10001'}/api/classes`, { credentials: 'include' });
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:10001'}/api/classes`, { credentials: 'include' });
         if (!res.ok) return;
         const list = await res.json();
         // Try to match by known id properties

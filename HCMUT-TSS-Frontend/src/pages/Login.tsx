@@ -8,7 +8,7 @@ import Footer from '../components/Footer';
 import hcmutLogo from '../assets/logo_BK.png';
 
 // BACK-END constants are still needed
-const BACKEND_URL = 'http://localhost:10001';
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:10001';
 const SSO_REGISTRATION_ID = 'sso-server'; // This should match your backend's provider ID
 
 const Login = () => {

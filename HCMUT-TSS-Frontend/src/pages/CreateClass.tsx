@@ -47,7 +47,7 @@ const CreateClass = () => {
   const [myClasses, setMyClasses] = useState<any[]>([]);
   const [expandedClassId, setExpandedClassId] = useState<number | null>(null);
 
-  const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
+  const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:10001";
 
   // Map backend ClassResponse to frontend course model (consistent with MyCourses.tsx)
   const mapResponseToCourse = (c: any) => {

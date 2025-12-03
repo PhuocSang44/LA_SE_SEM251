@@ -51,7 +51,7 @@ const CreateSession = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
+  const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:10001";
   // course passed in state
   const course = location.state?.course || null;
   const presetDate: string | undefined = location.state?.presetDate;

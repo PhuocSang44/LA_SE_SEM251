@@ -38,7 +38,7 @@ const AvailableCourses = () => {
 
   // Load courses and exclude classes the user already enrolled in
   const loadAvailableCourses = () => {
-    const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
+    const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:10001";
     return fetch(`${apiBase}/course-registrations/me`, { credentials: 'include' })
       .then(res => res.ok ? res.json() : Promise.resolve([]))
       .then((enrolledList: any[]) => {
@@ -114,7 +114,7 @@ const AvailableCourses = () => {
     setStatus("waiting");
 
     const payload = { classId: parseInt(classId, 10) };
-    const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
+    const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:10001";
 
     fetch(`${apiBase}/course-registrations/enroll`, {
       method: 'POST',
@@ -218,7 +218,7 @@ const AvailableCourses = () => {
     }
 
     const code = courseId.trim();
-    fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:10001"}/api/classes/course/${encodeURIComponent(code)}`, { credentials: 'include' })
+    fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:10001"}/api/classes/course/${encodeURIComponent(code)}`, { credentials: 'include' })
       .then(res => {
         if (res.ok) return res.json();
         if (res.status === 404) return Promise.resolve([]);

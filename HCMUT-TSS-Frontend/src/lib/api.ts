@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 export const api = axios.create({
-    // Your backend's base URL
-    baseURL: 'http://localhost:10001',
+    // Use environment variable, fallback to localhost for development
+    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:10001',
 
     // THIS IS THE MOST IMPORTANT PART
     // It tells Axios to send cookies (like your session cookie)

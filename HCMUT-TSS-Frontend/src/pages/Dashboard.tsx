@@ -15,7 +15,7 @@ const Dashboard = () => {
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [classesById, setClassesById] = useState<Record<number, any>>({});
-  const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:10001";
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:10001";
 
   useEffect(() => {
     setLoading(true);

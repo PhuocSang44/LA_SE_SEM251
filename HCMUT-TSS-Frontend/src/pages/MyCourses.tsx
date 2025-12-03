@@ -28,7 +28,7 @@ const MyCourses = () => {
   const isTutor = user?.role === 'tutor';
   const isStudent = user?.role?.toLowerCase?.() === 'student';
 
-  const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:10001";
+  const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:10001";
 
   // Numeric user id for ownership checks: use datacore `officialId` (frontend `User` doesn't expose DB id)
   const numericUserId = user?.officialId ? Number(user.officialId) : null;
@@ -206,7 +206,7 @@ const MyCourses = () => {
     }
 
     const code = courseId.trim();
-    fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:10001"}/api/classes/course/${encodeURIComponent(code)}`, { credentials: 'include' })
+    fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:10001"}/api/classes/course/${encodeURIComponent(code)}`, { credentials: 'include' })
       .then(res => {
         if (res.ok) return res.json();
         if (res.status === 404) return Promise.resolve([]);
@@ -260,7 +260,7 @@ const MyCourses = () => {
         return;
       }
     }
-    fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:10001"}/course-registrations/enroll`, {
+    fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:10001"}/course-registrations/enroll`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
