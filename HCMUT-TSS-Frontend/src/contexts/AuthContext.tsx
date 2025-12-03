@@ -76,7 +76,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const refetchUser = useCallback(async () => {
         try {
             // 1. Fetch data expecting the BackendUserDto type
+            console.log('🔍 Fetching /auth/me...');
             const response = await api.get<BackendUserDto>('/auth/me');
+            console.log('✅ /auth/me response:', response.data);
             const backendUser = response.data;
 
             // 2. Transform backend data to frontend User interface
@@ -93,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(frontendUser);
 
         } catch (error) {
+            console.error('❌ /auth/me failed:', error);
             setUser(null);
         }
     }, []);
