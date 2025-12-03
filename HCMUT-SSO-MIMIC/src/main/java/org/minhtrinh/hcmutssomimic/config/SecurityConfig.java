@@ -46,6 +46,10 @@ public class SecurityConfig {
     @Value("${spring.security.oauth2.authorizationserver.issuer:http://localhost:10003}")
     private String issuerUri;
 
+    // 🎯 Inject backend URL for redirect URIs
+    @Value("${backend.url:http://localhost:10001}")
+    private String backendUrl;
+
     // --- DEPENDENCIES (Needed for new AuthenticationManager bean) ---
     private final JsonUserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
@@ -186,10 +190,9 @@ public class SecurityConfig {
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-                // This is the URL the SSO server will redirect back to
-                .redirectUri("http://localhost:10001/login/oauth2/code/sso-server")
-                .postLogoutRedirectUri("http://localhost:10001")
-                .postLogoutRedirectUri("http://localhost:10004")
+                // 🎯 Use injected backend URL instead of hardcoded localhost
+                .redirectUri(backendUrl + "/login/oauth2/code/sso-server")
+                .postLogoutRedirectUri(backendUrl)
                 .scope(OidcScopes.OPENID)
                 .scope(OidcScopes.PROFILE)
                 .scope(OidcScopes.EMAIL)

@@ -67,6 +67,8 @@ services:
       JAVA_OPTS: -Xmx128m -Xms64m -XX:+UseG1GC
       # 🎯 Override Issuer URL to use public IP via Nginx (port 80)
       SPRING_SECURITY_OAUTH2_AUTHORIZATIONSERVER_ISSUER: http://103.20.96.46
+      # 🎯 Override Backend URL for OAuth2 redirect URIs
+      BACKEND_URL: http://103.20.96.46
     depends_on:
       db:
         condition: service_healthy
