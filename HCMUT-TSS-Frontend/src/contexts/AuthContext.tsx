@@ -77,18 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             // 1. Fetch data expecting the BackendUserDto type
             console.log('🔍 Fetching /auth/me...');
-            const response = await api.get<BackendUserDto>('/auth/me', {
-                maxRedirects: 0, // Don't follow redirects
-                validateStatus: (status) => status >= 200 && status < 400 // Accept 2xx and 3xx
-            });
-
-            // If we get a redirect (302), it means user is not authenticated
-            if (response.status === 302) {
-                console.log('⚠️ User not authenticated, clearing user state');
-                setUser(null);
-                return;
-            }
-
+            const response = await api.get<BackendUserDto>('/auth/me');
             console.log('✅ /auth/me response:', response.data);
             const backendUser = response.data;
 

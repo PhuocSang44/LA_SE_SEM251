@@ -64,6 +64,23 @@ public class SecurityConfig {
                         // All other requests must be authenticated
                         .anyRequest().authenticated()
                 )
+                // Custom exception handling to return 401 for AJAX requests instead of redirect
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            // If request is AJAX (has X-Requested-With header or Accept: application/json)
+                            String requestedWith = request.getHeader("X-Requested-With");
+                            String accept = request.getHeader("Accept");
+                            
+                            if ("XMLHttpRequest".equals(requestedWith) || 
+                                (accept != null && accept.contains("application/json"))) {
+                                // Return 401 for AJAX requests
+                                response.sendError(401, "Unauthorized");
+                            } else {
+                                // Redirect to OAuth2 login for browser requests
+                                response.sendRedirect("/oauth2/authorization/sso-server");
+                            }
+                        })
+                )
                 // This enables the OAuth2 login flow
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo //handle ID Token
