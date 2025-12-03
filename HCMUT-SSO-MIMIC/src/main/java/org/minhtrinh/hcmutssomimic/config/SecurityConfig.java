@@ -1,6 +1,7 @@
 package org.minhtrinh.hcmutssomimic.config;
 
 import com.nimbusds.jose.jwk.JWKSet;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -41,6 +42,10 @@ import org.minhtrinh.hcmutssomimic.service.JsonUserDetailsService;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    // 🎯 Inject issuer URL from configuration (ENV var > application-prod.properties > application.properties)
+    @Value("${spring.security.oauth2.authorizationserver.issuer:http://localhost:10003}")
+    private String issuerUri;
+
     // --- DEPENDENCIES (Needed for new AuthenticationManager bean) ---
     private final JsonUserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
@@ -75,7 +80,7 @@ public class SecurityConfig {
     @Bean
     public AuthorizationServerSettings authorizationServerSettings() {
         return AuthorizationServerSettings.builder()
-                .issuer("http://localhost:10003")
+                .issuer(this.issuerUri) // 🎯 Use injected value instead of hardcoded localhost
                 .build();
     }
     /*
