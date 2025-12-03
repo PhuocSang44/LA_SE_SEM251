@@ -65,6 +65,8 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       JAVA_OPTS: -Xmx128m -Xms64m -XX:+UseG1GC
+      # 🎯 Override Issuer URL for Docker network (highest priority)
+      SPRING_SECURITY_OAUTH2_AUTHORIZATIONSERVER_ISSUER: http://sso-mimic:10003
     depends_on:
       db:
         condition: service_healthy
