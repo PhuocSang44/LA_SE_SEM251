@@ -24,8 +24,15 @@ WORKDIR /app
 # Copy the built JAR from builder stage
 COPY --from=builder /app/target/*.jar app.jar
 
+# Create uploads directory with proper permissions
+RUN mkdir -p /app/uploads/materials && chmod -R 777 /app/uploads
+
 # Create non-root user
 RUN addgroup -S spring && adduser -S spring -G spring
+
+# Change ownership of uploads directory to spring user
+RUN chown -R spring:spring /app/uploads
+
 USER spring:spring
 
 # Expose port (will be overridden by docker-compose)
