@@ -891,7 +891,7 @@ const CourseDetails = () => {
       // Resolve registrationId if missing
       if (!course?.registrationId) {
         try {
-          const me = await fetch(`${apiBase}/course-registrations/me`, { credentials: 'include' });
+          const me = await fetch(`${apiBase}/api/course-registrations/me`, { credentials: 'include' });
           if (me.ok) {
             const regs = await me.json();
             const found = regs.find((r: any) => r.classId === course.id || r.classId === course.classId);
@@ -904,7 +904,7 @@ const CourseDetails = () => {
         return;
       }
 
-      const res = await fetch(`${apiBase}/course-registrations/${course.registrationId}`, { method: 'DELETE', credentials: 'include' });
+      const res = await fetch(`${apiBase}/api/course-registrations/${course.registrationId}`, { method: 'DELETE', credentials: 'include' });
       if (!res.ok) {
         const txt = await res.text();
         throw new Error(txt || 'Failed to exit class');

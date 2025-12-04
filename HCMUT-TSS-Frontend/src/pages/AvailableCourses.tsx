@@ -39,7 +39,7 @@ const AvailableCourses = () => {
   // Load courses and exclude classes the user already enrolled in
   const loadAvailableCourses = () => {
     const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:10001";
-    return fetch(`${apiBase}/course-registrations/me`, { credentials: 'include' })
+    return fetch(`${apiBase}/api/course-registrations/me`, { credentials: 'include' })
       .then(res => res.ok ? res.json() : Promise.resolve([]))
       .then((enrolledList: any[]) => {
         const enrolledIds = new Set(enrolledList.map((r: any) => r.classId));
@@ -116,7 +116,7 @@ const AvailableCourses = () => {
     const payload = { classId: parseInt(classId, 10) };
     const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:10001";
 
-    fetch(`${apiBase}/course-registrations/enroll`, {
+    fetch(`${apiBase}/api/course-registrations/enroll`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },

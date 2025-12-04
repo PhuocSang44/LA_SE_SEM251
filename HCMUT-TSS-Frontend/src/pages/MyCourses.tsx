@@ -70,7 +70,7 @@ const MyCourses = () => {
   const loadStudentCourses = async () => {
     setLoadingCourses(true);
     try {
-      const res = await fetch(`${apiBase}/course-registrations/me`, { credentials: 'include' });
+      const res = await fetch(`${apiBase}/api/course-registrations/me`, { credentials: 'include' });
       if (!res.ok) throw new Error('Không lấy được danh sách khóa học');
       const data = await res.json();
       const baseCourses = data.map((r: any) => ({
@@ -260,7 +260,7 @@ const MyCourses = () => {
         return;
       }
     }
-    fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:10001"}/course-registrations/enroll`, {
+    fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:10001"}/api/course-registrations/enroll`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
