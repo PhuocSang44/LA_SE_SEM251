@@ -5,8 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 // Button is no longer needed
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-// Updated imports: Removed Phone/MapPin, Added UserCheck
-import { Mail, BookOpen, Loader2, UserCheck } from "lucide-react";
+// Updated imports: Removed Phone/MapPin, Added UserCheck, UserCircle2
+import { Mail, BookOpen, Loader2, UserCheck, UserCircle2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext"; // <-- 1. Import useAuth
 import { useNavigate } from "react-router-dom"; // <-- Import navigate for redirect
 import { useEffect } from "react"; // <-- Import useEffect for redirect
@@ -49,9 +49,10 @@ const Profile = () => {
               <Card className="lg:col-span-1 rounded-xl shadow-md">
                 <CardContent className="pt-6">
                   <div className="flex flex-col items-center text-center">
-                    <Avatar className="h-32 w-32 mb-4">
-                      <AvatarImage src="https://github.com/shadcn.png" />
-                      <AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    <Avatar className="h-32 w-32 mb-4 bg-primary/10">
+                      <AvatarFallback className="bg-primary/10">
+                        <UserCircle2 className="h-20 w-20 text-primary" />
+                      </AvatarFallback>
                     </Avatar>
                     <h2 className="text-2xl font-bold text-foreground mb-1">{user.name}</h2>
                     <p className="text-muted-foreground mb-4">ID: {user.officialId}</p>
@@ -72,8 +73,8 @@ const Profile = () => {
                       <Input id="fullName" defaultValue={user.name} className="rounded-lg" disabled />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="studentId">Student ID</Label>
-                      <Input id="studentId" defaultValue={user.officialId} disabled className="rounded-lg" />
+                      <Label htmlFor="userId">User ID</Label>
+                      <Input id="userId" defaultValue={user.officialId} disabled className="rounded-lg" />
                     </div>
                   </div>
 

@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { GraduationCap, Globe, LogOut, User } from "lucide-react";
+import { GraduationCap, Globe, LogOut, User, UserCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import logoBK from '@/assets/logo_BK.png';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -105,7 +106,7 @@ const Navbar = () => {
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-8">
             <Link to="/" className="flex items-center gap-2 text-primary">
-              <GraduationCap className="h-8 w-8" />
+              <img src={logoBK} alt="HCMUT Logo" className="h-10 w-10 object-contain" />
               <span className="text-xl font-bold">HCMUT TSS</span>
             </Link>
 
@@ -152,10 +153,9 @@ const Navbar = () => {
 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Avatar className="h-9 w-9 cursor-pointer ring-2 ring-transparent hover:ring-primary transition-all">
-                        <AvatarImage src="https://github.com/shadcn.png" />
-                        <AvatarFallback>
-                          {user.name.substring(0, 2).toUpperCase()}
+                      <Avatar className="h-9 w-9 cursor-pointer ring-2 ring-transparent hover:ring-primary transition-all bg-primary/10">
+                        <AvatarFallback className="bg-primary/10">
+                          <UserCircle2 className="h-6 w-6 text-primary" />
                         </AvatarFallback>
                       </Avatar>
                     </DropdownMenuTrigger>

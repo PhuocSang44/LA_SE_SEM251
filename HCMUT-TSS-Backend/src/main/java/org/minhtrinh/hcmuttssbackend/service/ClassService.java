@@ -235,7 +235,10 @@ public class ClassService {
         if (tutor != null) {
             tutorOfficialId = tutor.getStaffId();
             //tutorSpecialization = tutor.getSpecialization();
-            tutorDepartment = tutor.getDepartment().getDepartmentName();
+            // Null-safe access to department
+            if (tutor.getDepartment() != null) {
+                tutorDepartment = tutor.getDepartment().getDepartmentName();
+            }
         }
 
         // Prepare course fields for response. Prefer class.customName if present.

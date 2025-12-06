@@ -62,10 +62,16 @@ const NotificationBell = () => {
   const handleMarkAllAsRead = async () => {
     const success = await markAllAsRead();
     if (success) {
+      // Update local state immediately
       setNotifications((prev) =>
         prev.map((n) => ({ ...n, isRead: true }))
       );
       setUnreadCount(0);
+      // Force reload to sync with backend
+      setTimeout(() => {
+        loadNotifications();
+        loadUnreadCount();
+      }, 100);
     }
   };
 

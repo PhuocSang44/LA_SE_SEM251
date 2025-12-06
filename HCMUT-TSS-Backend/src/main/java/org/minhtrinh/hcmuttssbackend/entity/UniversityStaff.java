@@ -27,7 +27,7 @@ public class UniversityStaff {
     @Column(name = "staff_id", unique = true)
     private String staffId;
 
-    @ManyToOne()
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "department_id", nullable = false)
     private Department department;
 

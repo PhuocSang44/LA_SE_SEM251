@@ -34,7 +34,7 @@ const CourseDetails = () => {
 
   // 'course' is the canonical source of truth for this component (fullCourse when available, otherwise initialCourse)
   const course = fullCourse ?? initialCourse;
-  const courseCode = course?.code ?? course?.courseCode ?? null;
+  const courseCode = course?.courseCode ?? course?.code ?? null;
   const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:10001';
   const libraryApiBase = import.meta.env.VITE_LIBRARY_URL || 'http://localhost:10006';
 
@@ -55,12 +55,17 @@ const CourseDetails = () => {
   console.log("Current course object:", course);
   console.log("-------------------------------------");
 
+  useEffect(() => {
+  console.log("DEBUG COURSE DEP", course?.department);
+}, [course]);
+
   // If the passed `course` is missing tutorId or tutor name, try to resolve full data from backend
   // by fetching all classes and matching by id or name.
   useEffect(() => {
     (async () => {
       if (!initialCourse) return;
-      if (initialCourse.tutorId && initialCourse.tutor) return; // already complete
+      // Always fetch if courseCode is missing (for students who don't have full data)
+      if (initialCourse.courseCode && initialCourse.tutorId && initialCourse.tutor) return; // already complete
       try {
         const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:10001'}/api/classes`, { credentials: 'include' });
         if (!res.ok) return;
@@ -81,10 +86,13 @@ const CourseDetails = () => {
           // Map backend ClassResponse to the frontend course shape used here
           setFullCourse({
             id: found.classId,
+            courseId: found.courseId, // Add courseId for materials API
+            code: found.courseCode, // Add courseCode for display
             // Prefer the class-level custom name when present, otherwise fall back to canonical course name
             name: found.customClassName || found.courseName,
             tutor: found.tutorName,
             tutorId: found.tutorId,
+            department: found.tutorDepartment, // Add department from backend
             semester: found.semester,
             sessions: 1,
             color: 'bg-blue-500',
@@ -300,7 +308,9 @@ const CourseDetails = () => {
     setLoadingMaterials(true);
     setMaterialsError(null);
     const controller = new AbortController();
-    const url = `${apiBase}/api/courses/${course.id}/materials`;
+    // Use courseId if available, otherwise fallback to id (classId)
+    const courseIdForMaterials = course.courseId || course.id;
+    const url = `${apiBase}/api/courses/${courseIdForMaterials}/materials`;
     fetch(url, { credentials: 'include', signal: controller.signal })
       .then(res => {
         if (!res.ok) {
@@ -672,8 +682,9 @@ const CourseDetails = () => {
         setExternalUrlTitle("");
         setExternalUrlDescription("");
         setExternalUrl("");
-        // Refresh materials
-        const refreshRes = await fetch(`${apiBase}/api/courses/${course?.id}/materials`, { credentials: 'include' });
+        // Refresh materials using courseId
+        const courseIdForRefresh = course?.courseId || course?.id;
+        const refreshRes = await fetch(`${apiBase}/api/courses/${courseIdForRefresh}/materials`, { credentials: 'include' });
         if (refreshRes.ok) {
           const data = await refreshRes.json();
           setSessionMaterials(Array.isArray(data) ? data : []);
@@ -721,7 +732,7 @@ const CourseDetails = () => {
         formData.append('description', uploadFileDescription);
       }
 
-      const res = await fetch(`${apiBase}/api/courses/${course?.id}/materials/upload`, {
+      const res = await fetch(`${apiBase}/api/classes/${course?.id}/materials/upload`, {
         method: 'POST',
         credentials: 'include',
         body: formData
@@ -736,8 +747,9 @@ const CourseDetails = () => {
         setUploadFileTitle("");
         setUploadFileDescription("");
         setSelectedFile(null);
-        // Refresh materials
-        const refreshRes = await fetch(`${apiBase}/api/courses/${course?.id}/materials`, { credentials: 'include' });
+        // Refresh materials using courseId
+        const courseIdForRefresh = course?.courseId || course?.id;
+        const refreshRes = await fetch(`${apiBase}/api/courses/${courseIdForRefresh}/materials`, { credentials: 'include' });
         if (refreshRes.ok) {
           const data = await refreshRes.json();
           setSessionMaterials(Array.isArray(data) ? data : []);
@@ -805,8 +817,9 @@ const CourseDetails = () => {
           description: `Successfully added ${successCount} item(s) to course materials`
         });
 
-        // Refresh materials
-        const refreshRes = await fetch(`${apiBase}/api/courses/${course?.id}/materials`, { credentials: 'include' });
+        // Refresh materials using courseId
+        const courseIdForRefresh = course?.courseId || course?.id;
+        const refreshRes = await fetch(`${apiBase}/api/courses/${courseIdForRefresh}/materials`, { credentials: 'include' });
         if (refreshRes.ok) {
           const data = await refreshRes.json();
           setSessionMaterials(Array.isArray(data) ? data : []);
@@ -854,8 +867,9 @@ const CourseDetails = () => {
           description: "Material has been removed successfully"
         });
 
-        // Refresh materials
-        const refreshRes = await fetch(`${apiBase}/api/courses/${course?.id}/materials`, { credentials: 'include' });
+        // Refresh materials using courseId
+        const courseIdForRefresh = course?.courseId || course?.id;
+        const refreshRes = await fetch(`${apiBase}/api/courses/${courseIdForRefresh}/materials`, { credentials: 'include' });
         if (refreshRes.ok) {
           const data = await refreshRes.json();
           setSessionMaterials(Array.isArray(data) ? data : []);
@@ -1041,11 +1055,7 @@ const CourseDetails = () => {
                       {course?.description || 'No course description available.'}
                     </p>
 
-                    <div className="border-t pt-4 grid grid-cols-3 gap-6">
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-1">Department</p>
-                        <p className="font-medium text-blue-600">{course?.department || 'N/A'}</p>
-                      </div>
+                    <div className="border-t pt-4 grid grid-cols-2 gap-6">
                       <div>
                         <p className="text-sm text-muted-foreground mb-1">Semester</p>
                         <p className="font-medium">{course?.semester || 'N/A'}</p>
@@ -1054,19 +1064,6 @@ const CourseDetails = () => {
                         <p className="text-sm text-muted-foreground mb-1">Total Sessions</p>
                         <p className="font-medium">{(Array.isArray(course?.sessions) ? course.sessions.length : Number(course?.sessions ?? 0))}</p>
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t">
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-muted-foreground">Course Progress</span>
-                      <span className="font-semibold text-foreground">{course?.progress ?? 0}%</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-3">
-                      <div 
-                        className={`${course?.color || 'bg-blue-500'} h-3 rounded-full transition-all`}
-                        style={{ width: `${course?.progress ?? 0}%` }}
-                      />
                     </div>
                   </div>
 
