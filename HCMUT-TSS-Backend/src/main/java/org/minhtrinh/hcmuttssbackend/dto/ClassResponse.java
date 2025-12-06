@@ -2,6 +2,7 @@ package org.minhtrinh.hcmuttssbackend.dto;
 
 public record ClassResponse(
         Long classId,
+        Long courseId,
         String courseCode,
         String courseName,
         String customClassName,

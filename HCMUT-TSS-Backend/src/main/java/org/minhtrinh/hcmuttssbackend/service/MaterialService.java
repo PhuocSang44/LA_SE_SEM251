@@ -12,9 +12,11 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.minhtrinh.hcmuttssbackend.dto.MaterialResponse;
+import org.minhtrinh.hcmuttssbackend.entity.Class;
 import org.minhtrinh.hcmuttssbackend.entity.Course;
 import org.minhtrinh.hcmuttssbackend.entity.Material;
 import org.minhtrinh.hcmuttssbackend.entity.MaterialSourceType;
+import org.minhtrinh.hcmuttssbackend.repository.ClassRepository;
 import org.minhtrinh.hcmuttssbackend.repository.CourseRepository;
 import org.minhtrinh.hcmuttssbackend.repository.MaterialRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +33,7 @@ public class MaterialService {
 
     private final MaterialRepository materialRepository;
     private final CourseRepository courseRepository;
+    private final ClassRepository classRepository;
 
     @Value("${material.file-storage.dir:uploads/materials}")
     private String materialsDir;
@@ -65,7 +68,58 @@ public class MaterialService {
         }
 
         Course course = courseRepository.findById(courseId)
-            .orElseThrow(() -> new EntityNotFoundException("Course not found"));
+            .orElseThrow(() -> new EntityNotFoundException(
+                String.format("Course with ID %d not found. It may have been deleted. Please check the course ID or contact administrator.", courseId)
+            ));
+
+        String originalName = file.getOriginalFilename();
+        String targetTitle = StringUtils.hasText(title) ? title : originalName;
+        String storedFileName = buildStoredFileName(originalName);
+        Path storagePath = resolveStorageDir().resolve(storedFileName);
+
+        try {
+            Files.createDirectories(storagePath.getParent());
+            try (var inputStream = file.getInputStream()) {
+                Files.copy(inputStream, storagePath, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException ex) {
+            log.error("Failed to store material file", ex);
+            throw new IllegalStateException("Failed to store file", ex);
+        }
+
+        Material material = Material.builder()
+            .course(course)
+            .ownerId(ownerId)
+            .title(targetTitle)
+            .description(description)
+            .sourceType(MaterialSourceType.LOCAL_FILE)
+            .filePath(storedFileName)
+            .originalName(originalName)
+            .contentType(file.getContentType())
+            .sizeBytes(file.getSize())
+            .build();
+
+        Material saved = materialRepository.save(material);
+        return mapToResponse(saved);
+    }
+
+    public MaterialResponse uploadFileByClassId(Long classId, String ownerId, String title, String description, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File is required");
+        }
+
+        // Find class and get its course
+        Class classEntity = classRepository.findById(classId)
+            .orElseThrow(() -> new EntityNotFoundException(
+                String.format("Class with ID %d not found. It may have been deleted.", classId)
+            ));
+
+        Course course = classEntity.getCourse();
+        if (course == null) {
+            throw new EntityNotFoundException(
+                String.format("Class with ID %d has no associated course.", classId)
+            );
+        }
 
         String originalName = file.getOriginalFilename();
         String targetTitle = StringUtils.hasText(title) ? title : originalName;

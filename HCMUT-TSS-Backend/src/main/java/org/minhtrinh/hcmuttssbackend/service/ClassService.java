@@ -249,12 +249,15 @@ public class ClassService {
 
         String responseCustomClassName = null;
         String responseDescription = null;
+        Long responseCourseId = null;
         if (course != null) {
             responseCustomClassName = classEntity.getCustomName();
             responseDescription = course.getDescription();
+            responseCourseId = course.getCourseId();
         }
         return new ClassResponse(
                 classEntity.getClassId(),
+                responseCourseId,
                 responseCourseCode,
                 responseCourseName,
                 responseCustomClassName,

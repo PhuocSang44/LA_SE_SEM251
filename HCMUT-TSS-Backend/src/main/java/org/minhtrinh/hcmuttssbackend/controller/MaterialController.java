@@ -66,6 +66,24 @@ public class MaterialController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping(value = "/classes/{classId}/materials/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<MaterialResponse> uploadFileByClassId(
+            @PathVariable Long classId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "description", required = false) String description,
+            @AuthenticationPrincipal TssUserPrincipal principal) {
+
+        MaterialResponse response = materialService.uploadFileByClassId(
+            classId,
+            principal.getOfficialID(),
+            title,
+            description,
+            file
+        );
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/courses/{courseId}/materials/add-library-ref")
     public ResponseEntity<MaterialResponse> addLibraryReference(
             @PathVariable Long courseId,
