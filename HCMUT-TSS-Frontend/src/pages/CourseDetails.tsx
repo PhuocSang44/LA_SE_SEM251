@@ -113,7 +113,6 @@ const CourseDetails = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
-  // Exit class states (for students)
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [exitConfirmText, setExitConfirmText] = useState("");
   const [isExiting, setIsExiting] = useState(false);
@@ -439,6 +438,7 @@ const CourseDetails = () => {
         sessions: course?.sessions ?? prev?.sessions ?? 1,
         color: course?.color || prev?.color || 'bg-blue-500',
         progress: course?.progress ?? prev?.progress ?? 0,
+        description: updatedData.description ?? prev?.description ?? baseCourse?.description ?? '',
         registrationId: prev?.registrationId ?? baseCourse?.registrationId ?? updatedData.registrationId ?? null
       }));
 
@@ -560,7 +560,6 @@ const CourseDetails = () => {
       console.error("DEBUG: Fetch error:", err);
       const errorMsg = err.message || String(err);
 
-      // Don't show toast if we already handled the "already submitted" case
       if (!errorMsg.toLowerCase().includes('already submitted')) {
         toast({
           title: "Failed to submit feedback",
@@ -1064,30 +1063,24 @@ const CourseDetails = () => {
               </TabsTrigger>
               <TabsTrigger value="grades" className="flex items-center gap-2">
                 <Star className="h-4 w-4" />
-                Students
+                Details
               </TabsTrigger>
             </TabsList>
 
             {/* Overview Tab */}
             <TabsContent value="overview">
               <Card className="rounded-xl shadow-md">
-                <CardHeader>
-                  <CardTitle className="text-blue-600">Course Description</CardTitle>
-                </CardHeader>
+                <CardHeader></CardHeader>
                 <CardContent className="space-y-6"> 
                   <div className="space-y-4">
-                    <p className="text-gray-700">
-                      {course?.description || 'No course description available.'}
-                    </p>
-
-                    <div className="border-t pt-4 grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-2 gap-6">
                       <div>
                         <p className="text-sm text-muted-foreground mb-1">Semester</p>
                         <p className="font-medium">{course?.semester || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground mb-1">Total Sessions</p>
-                        <p className="font-medium">{(Array.isArray(course?.sessions) ? course.sessions.length : Number(course?.sessions ?? 0))}</p>
+                        <p className="font-medium">{(Array.isArray(course?.sessions) ? course.sessions.length : 0)}</p>
                       </div>
                     </div>
                   </div>
@@ -1162,6 +1155,9 @@ const CourseDetails = () => {
                           <div className="flex-1">
                             <p className="font-medium">{s.sessionTitle}</p>
                             <p className="text-sm text-muted-foreground mt-1">{formatRange(s)}</p>
+                            {s.location && (
+                              <p className="text-sm text-muted-foreground mt-1">Location: {s.location}</p>
+                            )}
                             <p className="text-xs text-muted-foreground mt-1">Status: {s.status}</p>
                           </div>
                           {isOwner && (
