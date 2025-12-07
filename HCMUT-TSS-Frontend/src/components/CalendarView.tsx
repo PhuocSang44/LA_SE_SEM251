@@ -12,6 +12,38 @@ import { listSessionsByUser } from "@/lib/sessionApi";
 import type { Session } from "@/types/session";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Merge a date string (YYYY-MM-DD) and time string (HH:mm) into a local ISO-like string with timezone offset
+const mergeDateTime = (dateStr: string, timeStr: string): string => {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  try {
+    const [h, m] = timeStr.split(":").map(Number);
+    const d = new Date(dateStr);
+    d.setHours(h || 0, m || 0, 0, 0);
+    const Y = d.getFullYear();
+    const M = pad(d.getMonth() + 1);
+    const D = pad(d.getDate());
+    const H = pad(d.getHours());
+    const Min = pad(d.getMinutes());
+    const offsetMinutes = -d.getTimezoneOffset();
+    const sign = offsetMinutes >= 0 ? "+" : "-";
+    const offH = pad(Math.floor(Math.abs(offsetMinutes) / 60));
+    const offM = pad(Math.abs(offsetMinutes) % 60);
+    return `${Y}-${M}-${D}T${H}:${Min}:00${sign}${offH}:${offM}`;
+  } catch {
+    const now = new Date();
+    const Y = now.getFullYear();
+    const M = pad(now.getMonth() + 1);
+    const D = pad(now.getDate());
+    const H = pad(now.getHours());
+    const Min = pad(now.getMinutes());
+    const offsetMinutes = -now.getTimezoneOffset();
+    const sign = offsetMinutes >= 0 ? "+" : "-";
+    const offH = pad(Math.floor(Math.abs(offsetMinutes) / 60));
+    const offM = pad(Math.abs(offsetMinutes) % 60);
+    return `${Y}-${M}-${D}T${H}:${Min}:00${sign}${offH}:${offM}`;
+  }
+};
+
 const CalendarView = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [allSessions, setAllSessions] = useState<Session[]>([]);
@@ -389,8 +421,8 @@ const CalendarView = () => {
                 toast({ title: 'Missing information', description: 'Please fill in class, topic, start/end time', variant: 'destructive' });
                 return;
               }
-              const startIso = new Date(`${selectedDate}T${startTime}:00`).toISOString();
-              const endIso = new Date(`${selectedDate}T${endTime}:00`).toISOString();
+              const startIso = mergeDateTime(selectedDate, startTime);
+              const endIso = mergeDateTime(selectedDate, endTime);
               if (new Date(startIso) >= new Date(endIso)) {
                 toast({ title: 'Invalid time range', description: 'End time must be after start time', variant: 'destructive' });
                 return;

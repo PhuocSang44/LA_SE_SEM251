@@ -69,6 +69,9 @@ const AvailableCourses = () => {
             data.forEach(c => {
               if (enrolledIds.has(c.classId)) return; // skip classes already enrolled
               const key = c.courseCode || c.courseName;
+              const classDisplayName = c.customClassName && c.customClassName.trim() !== ''
+                ? c.customClassName
+                : c.courseName;
               if (!byCourse[key]) {
                 byCourse[key] = {
                   id: key,
@@ -87,7 +90,7 @@ const AvailableCourses = () => {
                 id: c.classId, 
                 tutorName: c.tutorName, 
                 tutorId: c.tutorId, 
-                className: c.courseName, // class display name set by tutor
+                className: classDisplayName, // class display name set by tutor
                 capacity: c.capacity, 
                 enrolledCount: c.enrolledCount,
                 specialization: c.tutorSpecialization,
@@ -252,7 +255,7 @@ const AvailableCourses = () => {
             name: cl.tutorName, 
             tutorName: cl.tutorName, 
             tutorId: cl.tutorId,
-            className: cl.courseName,
+            className: (cl.customClassName && cl.customClassName.trim() !== '') ? cl.customClassName : cl.courseName,
             specialization: cl.tutorSpecialization, 
             department: cl.tutorDepartment,
             capacity: cl.capacity,
@@ -375,14 +378,14 @@ const AvailableCourses = () => {
                       <Button size="sm" onClick={() => {
                         const assignedClassId = autoAssignClass(selectedCourse);
                         if (assignedClassId) {
-                          toast({ title: "Auto-assigning...", description: "Attempting to enroll you in the best available class." });
+                          toast({ title: t(language, 'availableCourses.autoAssign'), description: "Attempting to enroll you in the best available class." });
                           setSelectedTutor(assignedClassId);
                           performEnrollment(assignedClassId, setEnrollmentStatus, closeDialog);
                         } else {
                           toast({ title: "Auto-assign failed", description: "No suitable class found", variant: 'destructive' });
                         }
                       }}>
-                        {t(language, 'common.confirm')}
+                        {t(language, 'availableCourses.autoAssign')}
                       </Button>
                     </div>
                     <h4 className="text-sm font-medium mb-3">Available Classes / Danh sách lớp:</h4>

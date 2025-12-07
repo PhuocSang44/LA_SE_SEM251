@@ -42,7 +42,12 @@ const CourseDetails = () => {
   const isStudent = user?.role?.toLowerCase?.() === 'student';
 
   // Compute owner status from the (possibly updated) `course` object
-  const courseTutorIdNum = course?.tutorId != null ? Number(course.tutorId) : null;
+  const rawTutorId =
+    course?.tutorId ??
+    (course as any)?.tutor?.id ??
+    (course as any)?.tutor?.officialId ??
+    (course as any)?.tutor?.tutorId;
+  const courseTutorIdNum = rawTutorId != null ? Number(rawTutorId) : null;
   const isOwner = courseTutorIdNum != null && userOfficialIdNum != null && courseTutorIdNum === userOfficialIdNum;
   console.log("--- DEBUG COURSE DETAILS RENDER ---");
   console.log("User (user.officialId):", user?.officialId, "-> userOfficialIdNum:", userOfficialIdNum);
@@ -86,7 +91,8 @@ const CourseDetails = () => {
             semester: found.semester,
             sessions: 1,
             color: 'bg-blue-500',
-            progress: 0
+            progress: 0,
+            registrationId: initialCourse?.registrationId ?? found.registrationId ?? null
           });
         } else {
           console.log(`DEBUG: Could not find full course data for id/name: ${id} / ${initialCourse.name}`);
@@ -112,6 +118,34 @@ const CourseDetails = () => {
   const [exitConfirmText, setExitConfirmText] = useState("");
   const [isExiting, setIsExiting] = useState(false);
   const [joinedSessionId, setJoinedSessionId] = useState<any[]>([]);
+
+  // Ensure registrationId is available for students (needed to show Exit button)
+  useEffect(() => {
+    if (isOwner) return; // owners don't need registrationId
+    if (user?.role?.toLowerCase?.() !== 'student') return;
+    const classId = course?.id ?? course?.classId;
+    if (!classId) return;
+    if (course?.registrationId) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${apiBase}/api/course-registrations/me`, { credentials: 'include' });
+        if (!res.ok) return;
+        const regs = await res.json();
+        const found = Array.isArray(regs)
+          ? regs.find((r: any) => r.classId === classId || r.classId === Number(classId))
+          : null;
+        if (found && !cancelled) {
+          setFullCourse((prev: any) => ({ ...(prev ?? course), registrationId: found.registrationId }));
+        }
+      } catch (e) {
+        console.error('Failed to resolve registrationId', e);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [apiBase, course, course?.id, course?.classId, course?.registrationId, isOwner, user?.role]);
 
   // Feedback states
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
@@ -393,16 +427,20 @@ const CourseDetails = () => {
       const updatedData = await res.json();
 
       const baseCourse = fullCourse ?? initialCourse; 
-      setFullCourse({
+      setFullCourse((prev: any) => ({
+        ...(prev ?? {}),
         id: updatedData.classId,
+        courseId: prev?.courseId ?? updatedData.courseId ?? baseCourse?.courseId,
+        code: prev?.code ?? updatedData.courseCode ?? baseCourse?.courseCode,
         name: updatedData.customClassName || updatedData.courseName,
         tutor: updatedData.tutorName,
         tutorId: updatedData.tutorId,
         semester: updatedData.semester,
-        sessions: course?.sessions ?? 1,
-        color: course?.color || 'bg-blue-500',
-        progress: course?.progress ?? 0
-      });
+        sessions: course?.sessions ?? prev?.sessions ?? 1,
+        color: course?.color || prev?.color || 'bg-blue-500',
+        progress: course?.progress ?? prev?.progress ?? 0,
+        registrationId: prev?.registrationId ?? baseCourse?.registrationId ?? updatedData.registrationId ?? null
+      }));
 
       toast({ title: 'Renamed', description: 'Class renamed successfully' });
       setShowRenameDialog(false);

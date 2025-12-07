@@ -86,6 +86,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'availableCourses.noResults': 'No courses available',
     'availableCourses.enroll': 'Enroll',
     'availableCourses.enrolled': 'Enrolled',
+    'availableCourses.autoAssign': 'Auto-assign',
     
     // Profile
     'profile.title': 'User Profile',
@@ -252,6 +253,7 @@ export const translations: Record<Language, Record<string, string>> = {
     'availableCourses.noResults': 'Không có môn học nào',
     'availableCourses.enroll': 'Đăng ký',
     'availableCourses.enrolled': 'Đã đăng ký',
+    'availableCourses.autoAssign': 'Tự gán lớp',
     
     // Profile
     'profile.title': 'Hồ sơ người dùng',
