@@ -81,6 +81,7 @@ const Dashboard = () => {
     const classId = s?.classId ?? s?.class?.id ?? s?.classIdString;
     const cls = classId != null ? classesById[Number(classId)] : null;
     return (
+      (cls?.customClassName && cls.customClassName.trim() !== '' ? cls.customClassName : null) ||
       cls?.courseName ||
       cls?.courseCode ||
       s?.subject ||
