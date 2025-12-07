@@ -13,6 +13,8 @@ export interface Forum {
   memberCount: number;
   postCount: number;
   isJoined: boolean;
+  classId?: number; // Optional: class-specific forum
+  className?: string; // Optional: class name for display
   createdAt: string;
   updatedAt: string;
 }

@@ -6,6 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { BookOpen, Briefcase, Users, MessageSquare, Search, Plus, ArrowLeft, Trash2 } from "lucide-react";
 import { forumApi } from "@/lib/forumApi";
 import type { Forum, ForumType } from "@/types/forum";
@@ -23,13 +30,35 @@ export default function ForumList() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedSubject, setSelectedSubject] = useState<string>("all");
+    const [myClasses, setMyClasses] = useState<any[]>([]);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [deleteConfirmText, setDeleteConfirmText] = useState("");
+    const [deletingForumId, setDeletingForumId] = useState<number | null>(null);
+    const [deletingForumTitle, setDeletingForumTitle] = useState("");
+    const [deleting, setDeleting] = useState(false);
 
     const forumType: ForumType = type === 'career' ? 'CAREER' : 'ACADEMIC';
     const isAcademic = type === 'academic';
 
     useEffect(() => {
         loadForums();
+        loadMyClasses();
     }, [type]);
+
+    const loadMyClasses = async () => {
+        try {
+            const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:10001';
+            const res = await fetch(`${apiBase}/api/classes/my-classes`, { 
+                credentials: 'include' 
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setMyClasses(data);
+            }
+        } catch (error) {
+            console.error('Error loading my classes:', error);
+        }
+    };
 
     const loadForums = async () => {
         try {
@@ -48,7 +77,8 @@ export default function ForumList() {
         try {
             await forumApi.joinForum(forumId);
             toast.success(t(language, 'forums.successfully'));
-            await loadForums(); // Reload to update isJoined status
+            // Navigate to forum after joining
+            navigate(`/forums/detail/${forumId}`);
         } catch (error) {
             console.error('Error joining forum:', error);
             toast.error(t(language, 'forums.failedToJoin'));
@@ -56,25 +86,48 @@ export default function ForumList() {
     };
 
     const handleDeleteForum = async (forumId: number, forumTitle: string) => {
-        if (!window.confirm(`Are you sure you want to delete the forum "${forumTitle}"? This action cannot be undone and will delete all posts and comments.`)) {
+        setDeletingForumId(forumId);
+        setDeletingForumTitle(forumTitle);
+        setDeleteConfirmText("");
+        setShowDeleteDialog(true);
+    };
+
+    const confirmDeleteForum = async () => {
+        if (!deletingForumId) return;
+        
+        if (deleteConfirmText !== deletingForumTitle) {
+            toast.error('Forum name does not match. Deletion cancelled.');
             return;
         }
         
+        setDeleting(true);
         try {
-            await forumApi.deleteForum(forumId);
+            await forumApi.deleteForum(deletingForumId);
             toast.success(t(language, 'forums.deletedSuccess'));
+            setShowDeleteDialog(false);
+            setDeleteConfirmText("");
             await loadForums(); // Reload forums list
         } catch (error) {
             console.error('Error deleting forum:', error);
             toast.error(t(language, 'forums.failedDelete'));
+        } finally {
+            setDeleting(false);
         }
     };
 
     // Get unique subjects
     const subjects = ['all', ...Array.from(new Set(forums.map(f => f.subject)))];
 
+    // Get IDs of classes user has joined
+    const myClassIds = new Set(myClasses.map(c => c.classId || c.id));
+
     // Filter forums
     const filteredForums = forums.filter(forum => {
+        // If forum is class-specific, only show if user joined that class
+        if (forum.classId && !myClassIds.has(forum.classId)) {
+            return false;
+        }
+
         const matchesSearch = 
             forum.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             forum.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -160,15 +213,25 @@ export default function ForumList() {
                                 <CardHeader>
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
-                                            <Badge className={`mb-2 ${
-                                                isAcademic 
-                                                    ? 'bg-blue-100 text-blue-700' 
-                                                    : 'bg-blue-900 bg-opacity-10 text-blue-900'
-                                            }`}>
-                                                {forum.subject}
-                                            </Badge>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Badge className={`${
+                                                    isAcademic 
+                                                        ? 'bg-blue-100 text-blue-700' 
+                                                        : 'bg-blue-900 bg-opacity-10 text-blue-900'
+                                                }`}>
+                                                    {forum.subject}
+                                                </Badge>
+                                                {forum.classId && forum.className && (
+                                                    <Badge variant="outline" className="text-xs">
+                                                        {forum.className}
+                                                    </Badge>
+                                                )}
+                                            </div>
                                             <CardTitle className="text-lg">{forum.title}</CardTitle>
                                         </div>
+                                        {forum.isJoined && (
+                                            <Badge variant="secondary" className="ml-2">Joined</Badge>
+                                        )}
                                     </div>
                                     <CardDescription className="mt-3">
                                         {forum.description}
@@ -196,20 +259,17 @@ export default function ForumList() {
                                         {/* Actions */}
                                         <div className="flex gap-2 flex-wrap">
                                             {forum.isJoined ? (
-                                                <>
-                                                    <Badge variant="secondary">Joined</Badge>
-                                                    <Button 
-                                                        onClick={() => navigate(`/forums/detail/${forum.forumId}`)}
-                                                        variant="outline"
-                                                        size="sm"
-                                                    >
-                                                        {t(language, 'common.close')}
-                                                    </Button>
-                                                </>
+                                                <Button 
+                                                    onClick={() => navigate(`/forums/detail/${forum.forumId}`)}
+                                                    className="bg-blue-600 hover:bg-blue-700"
+                                                    size="sm"
+                                                >
+                                                    {t(language, 'forums.enterForum')}
+                                                </Button>
                                             ) : (
                                                 <Button 
                                                     onClick={() => handleJoinForum(forum.forumId)}
-                                                    className="bg-blue-600 hover:bg-blue-700"
+                                                    className="bg-green-600 hover:bg-green-700"
                                                     size="sm"
                                                 >
                                                     {t(language, 'forums.joinForum')}
@@ -234,6 +294,34 @@ export default function ForumList() {
                     </div>
                 )}
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={showDeleteDialog} onOpenChange={(open) => !open && setShowDeleteDialog(false)}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Delete Forum</DialogTitle>
+                        <DialogDescription>This action cannot be undone. Type the forum name to confirm.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <input 
+                            className="w-full border rounded p-2" 
+                            placeholder="Type forum name to confirm" 
+                            value={deleteConfirmText} 
+                            onChange={(e) => setDeleteConfirmText(e.target.value)} 
+                        />
+                        <div className="flex gap-2">
+                            <Button 
+                                variant="destructive" 
+                                onClick={confirmDeleteForum} 
+                                disabled={deleting || deleteConfirmText !== deletingForumTitle}
+                            >
+                                {deleting ? 'Deleting...' : 'Delete Forum'}
+                            </Button>
+                            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             <Footer />
         </div>
