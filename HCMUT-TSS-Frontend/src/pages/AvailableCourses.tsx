@@ -293,7 +293,7 @@ const AvailableCourses = () => {
           <div className="mb-8 flex items-start justify-between">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">{t(language, 'availableCourses.title')}</h1>
-              <p className="text-muted-foreground">Browse and register for tutoring sessions</p>
+              <p className="text-muted-foreground">{t(language, 'availableCourses.browseDescription')}</p>
             </div>
             <Button 
               onClick={handleJoinCourseClick}
@@ -413,8 +413,8 @@ const AvailableCourses = () => {
                 <div className="flex flex-col items-center justify-center py-8 space-y-4">
                   <Clock className="h-12 w-12 text-primary animate-pulse" />
                   <div className="text-center">
-                    <p className="font-medium">Waiting for tutor confirmation...</p>
-                    <p className="text-sm text-muted-foreground">Đang chờ xác nhận từ tutor...</p>
+                    <p className="font-medium">Loadingn...</p>
+                    <p className="text-sm text-muted-foreground">Đang chờ...</p>
                   </div>
                 </div>
               )}
@@ -423,8 +423,8 @@ const AvailableCourses = () => {
                 <div className="flex flex-col items-center justify-center py-8 space-y-4">
                   <CheckCircle2 className="h-12 w-12 text-green-600" />
                   <div className="text-center">
-                    <p className="font-medium text-green-600">Tutor Confirmed!</p>
-                    <p className="text-sm text-muted-foreground">Tutor đã xác nhận!</p>
+                    <p className="font-medium text-green-600">Confirmed!</p>
+                    <p className="text-sm text-muted-foreground">Đã xác nhận!</p>
                     <p className="text-sm text-muted-foreground mt-2">
                       You have been enrolled in {selectedCourse?.name}
                     </p>
@@ -508,8 +508,8 @@ const AvailableCourses = () => {
                 <div className="flex flex-col items-center justify-center py-8 space-y-4">
                   <Clock className="h-12 w-12 text-primary animate-pulse" />
                   <div className="text-center">
-                    <p className="font-medium">Waiting for tutor confirmation...</p>
-                    <p className="text-sm text-muted-foreground">Đang chờ xác nhận từ tutor...</p>
+                    <p className="font-medium">Waiting...</p>
+                    <p className="text-sm text-muted-foreground">Đang chờ...</p>
                   </div>
                 </div>
               )}
@@ -518,8 +518,8 @@ const AvailableCourses = () => {
                 <div className="flex flex-col items-center justify-center py-8 space-y-4">
                   <CheckCircle2 className="h-12 w-12 text-green-600" />
                   <div className="text-center">
-                    <p className="font-medium text-green-600">Tutor Confirmed!</p>
-                    <p className="text-sm text-muted-foreground">Tutor đã xác nhận!</p>
+                    <p className="font-medium text-green-600">Confirmed!</p>
+                    <p className="text-sm text-muted-foreground">Đã xác nhận!</p>
                     <p className="text-sm text-muted-foreground mt-2">
                       You have been enrolled in {foundCourse?.name}
                     </p>

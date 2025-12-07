@@ -134,7 +134,7 @@ const Dashboard = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">{t(language, 'dashboard.title')}</h1>
-              <p className="text-muted-foreground">Manage your tutoring sessions and schedule</p>
+              <p className="text-muted-foreground">{t(language, 'pageDesc.dashboard')}</p>
             </div>
             {user?.role === 'tutor' && (
               <Link to="/create-session">
@@ -149,7 +149,7 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             <Card className="rounded-xl shadow-md">
               <CardContent className="p-6">
-                <div className="text-sm text-muted-foreground mb-1">Total Sessions</div>
+                <div className="text-sm text-muted-foreground mb-1">{t(language, 'dashboard.totalSessions')}</div>
                 <div className="text-3xl font-bold text-foreground">{loading ? "..." : totalSessions}</div>
                 <div className="text-xs text-green-600 mt-2">
                   {loading
@@ -157,14 +157,14 @@ const Dashboard = () => {
                     : `+${sessions.filter((s) => {
                         const dt = new Date(s.startTime);
                         return !isNaN(dt.getTime()) && dt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-                      }).length} this month`}
+                      }).length} ${t(language, 'dashboard.thisMonth')}`}
                 </div>
               </CardContent>
             </Card>
 
             <Card className="rounded-xl shadow-md">
               <CardContent className="p-6">
-                <div className="text-sm text-muted-foreground mb-1">Active Subjects</div>
+                <div className="text-sm text-muted-foreground mb-1">{t(language, 'dashboard.activeSubjects')}</div>
                 <div className="text-3xl font-bold text-foreground">{loading ? "..." : activeSubjects.length}</div>
                 <div className="text-xs text-muted-foreground mt-2">
                   {loading ? "" : activeSubjects.join(", ")}
@@ -174,7 +174,7 @@ const Dashboard = () => {
 
             <Card className="rounded-xl shadow-md">
               <CardContent className="p-6">
-                <div className="text-sm text-muted-foreground mb-1">Next Session</div>
+                <div className="text-sm text-muted-foreground mb-1">{t(language, 'dashboard.nextSession')}</div>
                 <div className="text-xl font-bold text-foreground">{loading ? "..." : formatNext(nextSession)}</div>
                 <div className="text-xs text-muted-foreground mt-2">
                   {loading

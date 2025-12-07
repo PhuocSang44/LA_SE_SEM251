@@ -35,12 +35,12 @@ const RegisterSubject = () => {
           <div className="max-w-2xl mx-auto">
             <div className="mb-8">
               <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">{t(language, 'courses.title')}</h1>
-              <p className="text-muted-foreground">Submit your tutoring request for a specific subject</p>
+              <p className="text-muted-foreground">{t(language, 'pageDesc.registerSubject')}</p>
             </div>
 
             <Card className="rounded-xl shadow-md">
               <CardHeader>
-                <CardTitle>Subject Registration Form</CardTitle>
+                <CardTitle>{t(language, 'pageDesc.registerSubjectForm')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">

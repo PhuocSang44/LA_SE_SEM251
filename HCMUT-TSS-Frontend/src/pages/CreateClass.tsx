@@ -234,7 +234,7 @@ const CreateClass = () => {
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-1">{t(language, 'createClass.myClasses')}</h1>
-              <p className="text-sm text-muted-foreground">Create and manage the classes you teach</p>
+              <p className="text-sm text-muted-foreground">{t(language, 'pageDesc.createClass')}</p>
             </div>
             <div>
               <Button onClick={() => navigate('/my-courses')}>{t(language, 'navbar.myCourses')}</Button>
@@ -325,7 +325,7 @@ const CreateClass = () => {
                             <div>
                               
                               <CardTitle className="text-lg">{c.name}</CardTitle>
-                              <div className="text-sm text-muted-foreground">Capacity: {c.enrolledCount} / {c.capacity}</div>
+                              <div className="text-sm text-muted-foreground">{t(language, 'courses.capacityLabel')}: {c.enrolledCount} / {c.capacity}</div>
                               <div className="text-sm text-muted-foreground">{c.code} • {c.semester}</div>
 
                             </div>

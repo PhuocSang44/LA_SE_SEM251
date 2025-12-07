@@ -45,7 +45,7 @@ const Index = () => {
                 {t(language, 'home.whyChoose')}
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Our platform makes it simple to find and connect with the best tutors for your academic needs
+                {t(language, 'pageDesc.indexSubtitle')}
               </p>
             </div>
 

@@ -145,7 +145,7 @@ export default function CreatePost() {
                                 <Input
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
-                                    placeholder="Be specific and clear about your question (3-20 words)..."
+                                    placeholder={t(language, 'forums.postTitlePlaceholder')}
                                     required
                                 />
                                 <p className={`text-xs mt-1 ${titleWordCount > 20 ? 'text-red-500' : 'text-gray-500'}`}>
@@ -158,7 +158,7 @@ export default function CreatePost() {
                                 <Textarea
                                     value={content}
                                     onChange={(e) => setContent(e.target.value)}
-                                    placeholder="Provide details, context, and what you've tried (10-200 words)..."
+                                    placeholder={t(language, 'forums.postContentPlaceholder')}
                                     rows={8}
                                     required
                                 />

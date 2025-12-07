@@ -657,8 +657,8 @@ const MyCourses = () => {
                 <div className="flex flex-col items-center justify-center py-8 space-y-4">
                   <Clock className="h-12 w-12 text-primary animate-pulse" />
                   <div className="text-center">
-                    <p className="font-medium">Waiting for tutor confirmation...</p>
-                    <p className="text-sm text-muted-foreground">Đang chờ xác nhận từ tutor...</p>
+                    <p className="font-medium">Waiting...</p>
+                    <p className="text-sm text-muted-foreground">Đang chờ...</p>
                   </div>
                 </div>
               )}
@@ -667,8 +667,8 @@ const MyCourses = () => {
                 <div className="flex flex-col items-center justify-center py-8 space-y-4">
                   <CheckCircle2 className="h-12 w-12 text-green-600" />
                   <div className="text-center">
-                    <p className="font-medium text-green-600">Tutor Confirmed!</p>
-                    <p className="text-sm text-muted-foreground">Tutor đã xác nhận!</p>
+                    <p className="font-medium text-green-600">Confirmed!</p>
+                    <p className="text-sm text-muted-foreground">Đã xác nhận!</p>
                     <p className="text-sm text-muted-foreground mt-2">
                       You have joined the session for {foundCourse?.name}
                     </p>

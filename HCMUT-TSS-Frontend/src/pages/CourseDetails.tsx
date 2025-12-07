@@ -8,6 +8,8 @@ import { Calendar, User, Users, Clock, BookOpen, Plus, CheckCircle2, MessageSqua
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { t } from "@/lib/translations";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +31,7 @@ const CourseDetails = () => {
   const initialCourse = location.state?.course;
   console.log("DEBUG: initialCourse from location.state:", initialCourse);
   const { user } = useAuth();
+  const { language } = useLanguage();
 
   const [fullCourse, setFullCourse] = useState<any | null>(null);
 
@@ -357,8 +360,8 @@ const CourseDetails = () => {
         <Navbar />
         <main className="flex-1 bg-muted/30 flex items-center justify-center">
           <div className="text-center">
-            <h2 className="text-2xl font-bold mb-4">Course not found</h2>
-            <Button onClick={() => navigate("/my-courses")}>Back to My Courses</Button>
+            <h2 className="text-2xl font-bold mb-4">{t(language, 'courses.courseNotFound')}</h2>
+            <Button onClick={() => navigate("/my-courses")}>{t(language, 'courses.backToMyCourses')}</Button>
           </div>
         </main>
         <Footer />
@@ -1146,9 +1149,9 @@ const CourseDetails = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {loadingSessions && <div className="text-sm text-muted-foreground">Loading sessions...</div>}
+                      {loadingSessions && <div className="text-sm text-muted-foreground">{t(language, 'courses.loadingSessions')}</div>}
                       {!loadingSessions && sessions.length === 0 && (
-                        <div className="text-sm text-muted-foreground">No sessions scheduled yet.</div>
+                        <div className="text-sm text-muted-foreground">{t(language, 'courses.noSessionsScheduled')}</div>
                       )}
                       {!loadingSessions && sessions.map(s => (
                         <div key={s.sessionId} className="p-4 rounded-lg border bg-accent/30 flex justify-between items-start">
@@ -1376,7 +1379,7 @@ const CourseDetails = () => {
                           </CardHeader>
                           <CardContent>
                             <div className="space-y-3">
-                              {loadingSessions && <div className="text-sm text-muted-foreground">Loading sessions...</div>}
+                              {loadingSessions && <div className="text-sm text-muted-foreground">{t(language, 'courses.loadingSessions')}</div>}
                               {!loadingSessions && sessions.slice(0,8).map(s => (
                                 <div key={s.sessionId} className="p-3 rounded-lg border bg-accent/30 flex justify-between items-start">
                                   <div>
@@ -1744,8 +1747,8 @@ const CourseDetails = () => {
                 <div className="flex flex-col items-center justify-center py-8 space-y-4">
                   <Clock className="h-12 w-12 text-primary animate-pulse" />
                   <div className="text-center">
-                    <p className="font-medium">Waiting for tutor confirmation...</p>
-                    <p className="text-sm text-muted-foreground">Đang chờ xác nhận từ tutor...</p>
+                    <p className="font-medium">Waiting...</p>
+                    <p className="text-sm text-muted-foreground">Đang chờ...</p>
                   </div>
                 </div>
               )}
@@ -1754,8 +1757,8 @@ const CourseDetails = () => {
                 <div className="flex flex-col items-center justify-center py-8 space-y-4">
                   <CheckCircle2 className="h-12 w-12 text-green-600" />
                   <div className="text-center">
-                    <p className="font-medium text-green-600">Tutor Confirmed!</p>
-                    <p className="text-sm text-muted-foreground">Tutor đã xác nhận!</p>
+                    <p className="font-medium text-green-600">Confirmed!</p>
+                    <p className="text-sm text-muted-foreground">Đã xác nhận!</p>
                     <p className="text-sm text-muted-foreground mt-2">
                       Your semester has been updated
                     </p>

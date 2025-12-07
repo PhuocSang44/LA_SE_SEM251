@@ -82,8 +82,8 @@ export default function ForumDetail() {
                         <p className="text-gray-600 mb-4">{forum.description}</p>
                         <div className="flex items-center gap-4 text-sm text-gray-600">
                             <Badge>{forum.subject}</Badge>
-                            <span>{forum.memberCount} Members</span>
-                            <span>{forum.postCount} Questions</span>
+                            <span>{forum.memberCount} {t(language, 'forums.members')}</span>
+                            <span>{forum.postCount} {t(language, 'forums.questions')}</span>
                         </div>
                         {forum.isJoined && (
                             <Button 
@@ -113,9 +113,9 @@ export default function ForumDetail() {
                         onChange={(e) => setSortBy(e.target.value as any)}
                         className="px-4 py-2 border rounded-md"
                     >
-                        <option value="popular">Popular</option>
-                        <option value="newest">Newest</option>
-                        <option value="unanswered">Unanswered</option>
+                        <option value="popular">{t(language, 'forumDetail.popular')}</option>
+                        <option value="newest">{t(language, 'forumDetail.newest')}</option>
+                        <option value="unanswered">{t(language, 'forumDetail.unanswered')}</option>
                     </select>
                 </div>
 

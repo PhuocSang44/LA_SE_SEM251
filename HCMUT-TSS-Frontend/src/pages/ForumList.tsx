@@ -48,12 +48,33 @@ export default function ForumList() {
     const loadMyClasses = async () => {
         try {
             const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:10001';
-            const res = await fetch(`${apiBase}/api/classes/my-classes`, { 
-                credentials: 'include' 
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setMyClasses(data);
+            
+            // For tutors: get classes they teach
+            if (user?.role === 'tutor') {
+                const res = await fetch(`${apiBase}/api/classes/my-classes`, { 
+                    credentials: 'include' 
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setMyClasses(data);
+                }
+            } 
+            // For students: get classes they're enrolled in
+            else {
+                const res = await fetch(`${apiBase}/api/course-registrations/me`, { 
+                    credentials: 'include' 
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    // Extract class info from course registrations
+                    const enrolledClasses = data.map((reg: any) => ({
+                        id: reg.classId,
+                        classId: reg.classId,
+                        name: reg.className,
+                        code: reg.courseCode
+                    }));
+                    setMyClasses(enrolledClasses);
+                }
             }
         } catch (error) {
             console.error('Error loading my classes:', error);
@@ -75,6 +96,18 @@ export default function ForumList() {
 
     const handleJoinForum = async (forumId: number) => {
         try {
+            // Find the forum to check if it's class-specific
+            const forum = forums.find(f => f.forumId === forumId);
+            
+            // If forum is class-specific, verify user is enrolled in that class
+            if (forum?.classId) {
+                const myClassIds = new Set(myClasses.map(c => c.classId || c.id));
+                if (!myClassIds.has(forum.classId)) {
+                    toast.error(t(language, 'courses.mustEnrollToJoinForum'));
+                    return;
+                }
+            }
+            
             await forumApi.joinForum(forumId);
             toast.success(t(language, 'forums.successfully'));
             // Navigate to forum after joining
@@ -82,6 +115,17 @@ export default function ForumList() {
         } catch (error) {
             console.error('Error joining forum:', error);
             toast.error(t(language, 'forums.failedToJoin'));
+        }
+    };
+
+    const handleLeaveForum = async (forumId: number) => {
+        try {
+            await forumApi.leaveForum(forumId);
+            toast.success('Left forum successfully!');
+            await loadForums(); // Reload forums to update UI
+        } catch (error) {
+            console.error('Error leaving forum:', error);
+            toast.error('Failed to leave forum');
         }
     };
 
@@ -138,10 +182,10 @@ export default function ForumList() {
         return matchesSearch && matchesSubject;
     });
 
-    const title = isAcademic ? 'Academic Community Forums' : 'Career & Professional Development Forums';
+    const title = isAcademic ? t(language, 'forums.academicTitle') : t(language, 'forums.careerTitle');
     const subtitle = isAcademic 
-        ? 'Join subject-specific forums to learn and collaborate'
-        : 'Connect with mentors and explore career opportunities';
+        ? t(language, 'forums.academicSubtitle')
+        : t(language, 'forums.careerSubtitle');
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -190,7 +234,7 @@ export default function ForumList() {
                         onChange={(e) => setSelectedSubject(e.target.value)}
                         className="px-4 py-2 border border-gray-300 rounded-md"
                     >
-                        <option value="all">{isAcademic ? 'All Subjects' : 'All Topics'}</option>
+                        <option value="all">{isAcademic ? t(language, 'forums.allSubjects') : t(language, 'forums.allTopics')}</option>
                         {subjects.filter(s => s !== 'all').map(subject => (
                             <option key={subject} value={subject}>{subject}</option>
                         ))}
@@ -259,21 +303,39 @@ export default function ForumList() {
                                         {/* Actions */}
                                         <div className="flex gap-2 flex-wrap">
                                             {forum.isJoined ? (
-                                                <Button 
-                                                    onClick={() => navigate(`/forums/detail/${forum.forumId}`)}
-                                                    className="bg-blue-600 hover:bg-blue-700"
-                                                    size="sm"
-                                                >
-                                                    {t(language, 'forums.enterForum')}
-                                                </Button>
+                                                <>
+                                                    <Button 
+                                                        onClick={() => navigate(`/forums/detail/${forum.forumId}`)}
+                                                        className="bg-blue-600 hover:bg-blue-700"
+                                                        size="sm"
+                                                    >
+                                                        {t(language, 'forums.enterForum')}
+                                                    </Button>
+                                                    {user?.userId !== forum.creatorUserId && (
+                                                        <Button 
+                                                            onClick={() => handleLeaveForum(forum.forumId)}
+                                                            variant="destructive"
+                                                            size="sm"
+                                                        >
+                                                            {t(language, 'forums.leaveForum')}
+                                                        </Button>
+                                                    )}
+                                                </>
                                             ) : (
-                                                <Button 
-                                                    onClick={() => handleJoinForum(forum.forumId)}
-                                                    className="bg-green-600 hover:bg-green-700"
-                                                    size="sm"
-                                                >
-                                                    {t(language, 'forums.joinForum')}
-                                                </Button>
+                                                // Only show Join button if forum is public (no classId) OR user is enrolled in the class
+                                                !forum.classId || myClassIds.has(forum.classId) ? (
+                                                    <Button 
+                                                        onClick={() => handleJoinForum(forum.forumId)}
+                                                        className="bg-green-600 hover:bg-green-700"
+                                                        size="sm"
+                                                    >
+                                                        {t(language, 'forums.joinForum')}
+                                                    </Button>
+                                                ) : (
+                                                    <div className="text-sm text-gray-500 italic">
+                                                        {t(language, 'courses.mustEnrollToJoinForum')}
+                                                    </div>
+                                                )
                                             )}
                                             {user?.userId === forum.creatorUserId && (
                                                 <Button 
