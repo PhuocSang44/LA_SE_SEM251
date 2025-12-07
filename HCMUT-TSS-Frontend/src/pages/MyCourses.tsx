@@ -433,7 +433,7 @@ const MyCourses = () => {
           <div className="mb-8 flex items-start justify-between">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">{t(language, 'courses.title')}</h1>
-              <p className="text-muted-foreground">{t(language, 'courses.description')}</p>
+              <p className="text-muted-foreground">{t(language, 'myCourses.description')}</p>
             </div>
             {isStudent && (
               <Button 
@@ -486,7 +486,7 @@ const MyCourses = () => {
                       
                       <div>
                         <div className="flex justify-between text-sm mb-2">
-                          <span className="text-muted-foreground">Progress</span>
+                          <span className="text-muted-foreground">{t(language, 'myCourses.progress')}</span>
                           <span className="font-semibold text-foreground">{course.progress}%</span>
                         </div>
                         <div className="w-full bg-muted rounded-full h-2">
@@ -526,9 +526,9 @@ const MyCourses = () => {
 
                       {isStudent && (
                         <div className="space-y-3 border-t pt-4">
-                          <span className="text-sm font-semibold">Upcoming Sessions</span>
+                          <span className="text-sm font-semibold">{t(language, 'myCourses.upcomingSessions')}</span>
                           {visibleSessions.length === 0 && (
-                            <p className="text-sm text-muted-foreground">Tutor has not created any sessions.</p>
+                            <p className="text-sm text-muted-foreground">{t(language, 'myCourses.noSessionsCreated')}</p>
                           )}
                           {visibleSessions.map((session) => (
                             <div key={session.id} className="border rounded-lg p-3 text-sm flex items-center gap-3 justify-between">
