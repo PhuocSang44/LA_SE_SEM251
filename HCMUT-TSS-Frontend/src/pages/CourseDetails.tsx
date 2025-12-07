@@ -32,13 +32,11 @@ const CourseDetails = () => {
 
   const [fullCourse, setFullCourse] = useState<any | null>(null);
 
-  // 'course' is the canonical source of truth for this component (fullCourse when available, otherwise initialCourse)
   const course = fullCourse ?? initialCourse;
   const courseCode = course?.courseCode ?? course?.code ?? null;
   const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:10001';
   const libraryApiBase = import.meta.env.VITE_LIBRARY_URL || 'http://localhost:10006';
 
-  // Determine ownership using datacore official ID (frontend User does not expose DB id)
   const userOfficialIdNum = user?.officialId ? Number(user.officialId) : null;
   const isTutor = user?.role === 'tutor';
   const isStudent = user?.role?.toLowerCase?.() === 'student';
@@ -46,7 +44,6 @@ const CourseDetails = () => {
   // Compute owner status from the (possibly updated) `course` object
   const courseTutorIdNum = course?.tutorId != null ? Number(course.tutorId) : null;
   const isOwner = courseTutorIdNum != null && userOfficialIdNum != null && courseTutorIdNum === userOfficialIdNum;
-  // --- DEBUG LOGS: inspect owner check values each render ---
   console.log("--- DEBUG COURSE DETAILS RENDER ---");
   console.log("User (user.officialId):", user?.officialId, "-> userOfficialIdNum:", userOfficialIdNum);
   console.log("Course (course.tutorId):", course?.tutorId, "-> courseTutorIdNum:", courseTutorIdNum);
@@ -59,40 +56,33 @@ const CourseDetails = () => {
   console.log("DEBUG COURSE DEP", course?.department);
 }, [course]);
 
-  // If the passed `course` is missing tutorId or tutor name, try to resolve full data from backend
-  // by fetching all classes and matching by id or name.
   useEffect(() => {
     (async () => {
       if (!initialCourse) return;
-      // Always fetch if courseCode is missing (for students who don't have full data)
-      if (initialCourse.courseCode && initialCourse.tutorId && initialCourse.tutor) return; // already complete
+      if (initialCourse.courseCode && initialCourse.tutorId && initialCourse.tutor) return; 
       try {
         const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:10001'}/api/classes`, { credentials: 'include' });
         if (!res.ok) return;
         const list = await res.json();
-        // Try to match by known id properties
         const id = initialCourse.id ?? initialCourse.classId ?? null;
         let found = null;
         if (id != null) {
           found = list.find((c: any) => c.classId === id || c.classId === Number(id));
         }
         if (!found) {
-          // fallback to match by courseName using initialCourse to avoid loop
           const name = initialCourse.name || initialCourse.courseName;
           found = list.find((c: any) => c.courseName === name || c.courseCode === name);
         }
         if (found) {
           console.log("DEBUG: Fetched full course data:", found);
-          // Map backend ClassResponse to the frontend course shape used here
           setFullCourse({
             id: found.classId,
-            courseId: found.courseId, // Add courseId for materials API
-            code: found.courseCode, // Add courseCode for display
-            // Prefer the class-level custom name when present, otherwise fall back to canonical course name
+            courseId: found.courseId,
+            code: found.courseCode, 
             name: found.customClassName || found.courseName,
             tutor: found.tutorName,
             tutorId: found.tutorId,
-            department: found.tutorDepartment, // Add department from backend
+            department: found.tutorDepartment, 
             semester: found.semester,
             sessions: 1,
             color: 'bg-blue-500',
@@ -201,11 +191,8 @@ const CourseDetails = () => {
 
   const toLocalISOString = (isoString: string) => {
   const date = new Date(isoString);
-  // Calculate offset (e.g., -420 mins for Vietnam) and convert to ms
   const offsetMs = date.getTimezoneOffset() * 60000;
-  // Create a new date that is shifted so toISOString() outputs local numbers
   const localDate = new Date(date.getTime() - offsetMs);
-  // Return "YYYY-MM-DDTHH:mm:ss" (No Z, correct local numbers)
   return localDate.toISOString().slice(0, 19);
   };
 
@@ -1039,7 +1026,7 @@ const CourseDetails = () => {
               </TabsTrigger>
               <TabsTrigger value="grades" className="flex items-center gap-2">
                 <Star className="h-4 w-4" />
-                Grades
+                Students
               </TabsTrigger>
             </TabsList>
 

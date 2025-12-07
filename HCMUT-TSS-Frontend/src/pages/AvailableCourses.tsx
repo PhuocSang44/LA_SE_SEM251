@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, BookOpen, CheckCircle2, Clock, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { t } from "@/lib/translations";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const AvailableCourses = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const { user } = useAuth();
+  const { language } = useLanguage();
   const isStudent = user?.role?.toUpperCase() === 'STUDENT';
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [selectedTutor, setSelectedTutor] = useState("");
@@ -286,7 +289,7 @@ const AvailableCourses = () => {
         <div className="container mx-auto px-4 py-8">
           <div className="mb-8 flex items-start justify-between">
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">Available Courses</h1>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">{t(language, 'availableCourses.title')}</h1>
               <p className="text-muted-foreground">Browse and register for tutoring sessions</p>
             </div>
             <Button 
@@ -294,7 +297,7 @@ const AvailableCourses = () => {
               className="flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
-              Join Course
+              {t(language, 'courses.join')}
             </Button>
           </div>
 
@@ -303,7 +306,7 @@ const AvailableCourses = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Search courses..."
+                placeholder={t(language, 'common.search') + '...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 rounded-lg"
@@ -346,7 +349,7 @@ const AvailableCourses = () => {
                         className="w-full rounded-lg"
                         onClick={() => handleEnrollClick(course)}
                       >
-                        Enroll / Đăng ký
+                        {t(language, 'availableCourses.enroll')}
                       </Button>
                     </div>
                   </div>
@@ -359,7 +362,7 @@ const AvailableCourses = () => {
           <Dialog open={!!selectedCourse} onOpenChange={(open) => !open && closeDialog()}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Select Tutor / Chọn Tutor</DialogTitle>
+                <DialogTitle>{t(language, 'common.confirm')}</DialogTitle>
                 <DialogDescription>
                   {selectedCourse?.name} ({selectedCourse?.code})
                 </DialogDescription>
@@ -373,13 +376,13 @@ const AvailableCourses = () => {
                         const assignedClassId = autoAssignClass(selectedCourse);
                         if (assignedClassId) {
                           toast({ title: "Auto-assigning...", description: "Attempting to enroll you in the best available class." });
-                          setSelectedTutor(assignedClassId); // Set state so confirmation screen can show correct info if needed
+                          setSelectedTutor(assignedClassId);
                           performEnrollment(assignedClassId, setEnrollmentStatus, closeDialog);
                         } else {
                           toast({ title: "Auto-assign failed", description: "No suitable class found", variant: 'destructive' });
                         }
                       }}>
-                        Auto assign / Tự chọn lớp
+                        {t(language, 'common.confirm')}
                       </Button>
                     </div>
                     <h4 className="text-sm font-medium mb-3">Available Classes / Danh sách lớp:</h4>
@@ -398,7 +401,7 @@ const AvailableCourses = () => {
                     </RadioGroup>
                   </div>
                   <Button onClick={handleTutorSelect} className="w-full">
-                    Confirm Selection / Xác nhận
+                    {t(language, 'common.confirm')}
                   </Button>
                 </div>
               )}
@@ -424,7 +427,7 @@ const AvailableCourses = () => {
                     </p>
                   </div>
                   <Button onClick={closeDialog} variant="outline" className="mt-4">
-                    Close / Đóng
+                    {t(language, 'common.close')}
                   </Button>
                 </div>
               )}
@@ -435,16 +438,16 @@ const AvailableCourses = () => {
           <Dialog open={showJoinDialog} onOpenChange={(open) => !open && closeJoinDialog()}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Join Course by ID / Tham gia khóa học bằng ID</DialogTitle>
+                <DialogTitle>{t(language, 'courses.findCourse')}</DialogTitle>
                 <DialogDescription>
-                  Enter the course ID to join
+                  {t(language, 'courses.searchById')}
                 </DialogDescription>
               </DialogHeader>
 
               {joinEnrollmentStatus === "idle" && !foundCourse && (
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="courseId">Course ID / Mã khóa học</Label>
+                    <Label htmlFor="courseId">{t(language, 'courses.searchById')}</Label>
                     <div className="flex gap-2 mt-2">
                       <Input
                         id="courseId"
@@ -454,7 +457,7 @@ const AvailableCourses = () => {
                         onKeyDown={(e) => e.key === 'Enter' && handleSearchCourseById()}
                       />
                       <Button onClick={handleSearchCourseById}>
-                        Search / Tìm
+                        {t(language, 'common.confirm')}
                       </Button>
                     </div>
                   </div>
@@ -489,10 +492,10 @@ const AvailableCourses = () => {
                   
                   <div className="flex gap-2">
                     <Button onClick={() => { setFoundCourse(null); setCourseId(""); }} variant="outline" className="flex-1">
-                      Back / Quay lại
+                      {t(language, 'common.back')}
                     </Button>
                     <Button onClick={handleJoinTutorSelect} className="flex-1">
-                      Confirm Selection / Xác nhận
+                      {t(language, 'common.confirm')}
                     </Button>
                   </div>
                 </div>
@@ -519,7 +522,7 @@ const AvailableCourses = () => {
                     </p>
                   </div>
                   <Button onClick={closeJoinDialog} variant="outline" className="mt-4">
-                    Close / Đóng
+                    {t(language, 'common.close')}
                   </Button>
                 </div>
               )}

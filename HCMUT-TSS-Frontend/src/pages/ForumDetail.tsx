@@ -11,10 +11,13 @@ import { forumApi } from "@/lib/forumApi";
 import type { Forum, Post } from "@/types/forum";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { t } from "@/lib/translations";
 
 export default function ForumDetail() {
     const { forumId } = useParams<{ forumId: string }>();
     const navigate = useNavigate();
+    const { language } = useLanguage();
     const [forum, setForum] = useState<Forum | null>(null);
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
@@ -38,7 +41,7 @@ export default function ForumDetail() {
             setPosts(postsData);
         } catch (error) {
             console.error('Error loading forum:', error);
-            toast.error('Failed to load forum');
+            toast.error(t(language, 'forums.failedToLoad'));
         } finally {
             setLoading(false);
         }
@@ -69,7 +72,7 @@ export default function ForumDetail() {
                     className="text-blue-600 hover:underline mb-6 flex items-center gap-2"
                 >
                     <ArrowLeft className="w-4 h-4" />
-                    Back to Forums
+                    {t(language, 'common.back')}
                 </button>
 
                 {/* Forum Header */}
@@ -88,7 +91,7 @@ export default function ForumDetail() {
                                 className="mt-4 bg-blue-600"
                             >
                                 <Plus className="w-4 h-4 mr-2" />
-                                Ask Question
+                                {t(language, 'forums.createPost')}
                             </Button>
                         )}
                     </CardContent>
@@ -99,7 +102,7 @@ export default function ForumDetail() {
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
-                            placeholder="Search questions..."
+                            placeholder={t(language, 'common.search')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="pl-10"
@@ -120,13 +123,13 @@ export default function ForumDetail() {
                 {!forum.isJoined ? (
                     <Card className="text-center py-12">
                         <CardContent>
-                            <p className="text-gray-600 mb-4">Join this forum to view and post questions</p>
-                            <Button onClick={() => window.location.reload()}>Join Forum</Button>
+                            <p className="text-gray-600 mb-4">{t(language, 'forums.joinForum')}</p>
+                            <Button onClick={() => window.location.reload()}>{t(language, 'forums.joinForum')}</Button>
                         </CardContent>
                     </Card>
                 ) : filteredPosts.length === 0 ? (
                     <Card className="text-center py-12">
-                        <CardContent><p className="text-gray-600">No questions found</p></CardContent>
+                        <CardContent><p className="text-gray-600">{t(language, 'forums.noPosts')}</p></CardContent>
                     </Card>
                 ) : (
                     <div className="space-y-4">

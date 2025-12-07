@@ -11,6 +11,8 @@ import { toast } from "@/hooks/use-toast";
 import { createSession } from "@/lib/sessionApi";
 import type { CreateSessionPayload } from "@/types/session";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { t } from "@/lib/translations";
 import { Toast } from "@radix-ui/react-toast";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -51,6 +53,7 @@ const CreateSession = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { language } = useLanguage();
   const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:10001";
   // course passed in state
   const course = location.state?.course || null;
@@ -92,36 +95,51 @@ const CreateSession = () => {
   useEffect(() => {
     if (course || user?.role !== 'tutor') return;
     setLoadingClasses(true);
-    fetch(`${apiBase}/api/classes`, { credentials: 'include' })
+    fetch(`${apiBase}/api/classes/my-classes`, { credentials: 'include' })
       .then(res => res.ok ? res.json() : Promise.reject(res))
       .then((list: any[]) => {
-        const tutorId = user?.officialId ? Number(user.officialId) : null;
-        const mine = tutorId == null ? [] : list.filter(cls => cls.tutorId === tutorId);
-        setClassOptions(mine);
-        if (!selectedClassId && mine.length === 1) {
-          setSelectedClassId(mine[0].classId);
+        // returns class objects with classId, courseCode, courseName, customClassName, semester, etc.
+        const mapped = list.map(cls => {
+          // Use customClassName if available, otherwise use courseName
+          const displayName = cls.customClassName && cls.customClassName.trim() !== '' 
+            ? cls.customClassName 
+            : cls.courseName;
+          
+          return {
+            classId: cls.classId,
+            courseCode: cls.courseCode,
+            courseName: cls.courseName,
+            customClassName: cls.customClassName,
+            displayName: displayName,
+            semester: cls.semester,
+            tutorId: cls.tutorId
+          };
+        });
+        setClassOptions(mapped);
+        if (!selectedClassId && mapped.length === 1) {
+          setSelectedClassId(mapped[0].classId);
         }
       }).catch((err) => {
         console.error('Unable to load class list', err);
-        toast({ title: 'Unable to load classes', description: 'Check your connection or access rights', variant: 'destructive' });
+        toast({ title: t(language, 'common.error'), description: t(language, 'courses.noClasses'), variant: 'destructive' });
       }).finally(() => setLoadingClasses(false));
-  }, [apiBase, course, selectedClassId, user?.officialId, user?.role]);
+  }, [apiBase, course, selectedClassId, user?.role, language]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const classId = course?.id ?? selectedClassId;
     if (!classId) {
-      toast({ title: "Missing class", description: "Please select a class before creating a session", variant: "destructive" });
+      toast({ title: t(language, 'courses.missingClass'), description: t(language, 'courses.selectClassFirst'), variant: "destructive" });
       return;
     }
     if (!title || !date || !startTime || !endTime) {
-      toast({ title: "Missing fields", description: "Please fill topic, date, start/end time", variant: "destructive" });
+      toast({ title: t(language, 'courses.missingFields'), description: t(language, 'courses.fillRequired'), variant: "destructive" });
       return;
     }
     const startIso = mergeDateTime(date, startTime);
     const endIso = mergeDateTime(date, endTime);
     if (new Date(startIso) >= new Date(endIso)) {
-      toast({ title: "Invalid time range", description: "End time must be after start time", variant: "destructive" });
+      toast({ title: t(language, 'courses.invalidTime'), description: t(language, 'courses.endAfterStart'), variant: "destructive" });
       return;
     }
     setSubmitting(true);
@@ -138,14 +156,14 @@ const CreateSession = () => {
     console.log('Creating session with payload', payload);
     const created = await createSession(payload);
     if (created) {
-      toast({ title: "Session created", description: `${title} on ${date}` });
+      toast({ title: t(language, 'courses.sessionCreated'), description: `${title} on ${date}` });
       if (course) {
         navigate('/course-details', { state: { course } });
       } else {
         resetForm();
       }
     } else {
-      toast({ title: "Failed", description: "Could not create session (endpoint missing?)", variant: 'destructive' });
+      toast({ title: t(language, 'courses.failed'), description: t(language, 'courses.couldNotCreate'), variant: 'destructive' });
     }
     setSubmitting(false);
   };
@@ -156,86 +174,86 @@ const CreateSession = () => {
       <main className="flex-1 bg-muted/30">
         <div className="container mx-auto px-4 py-8">
           <div className="mb-6 flex items-center justify-between">
-            <h1 className="text-3xl md:text-4xl font-bold">Create Session</h1>
-            <Button variant="outline" onClick={() => navigate(-1)}>Back</Button>
+            <h1 className="text-3xl md:text-4xl font-bold">{t(language, 'courses.createSession')}</h1>
+            <Button variant="outline" onClick={() => navigate(-1)}>{t(language, 'common.back')}</Button>
           </div>
           <Card className="max-w-xl mx-auto">
             <CardHeader>
-              <CardTitle>New Tutoring Session</CardTitle>
+              <CardTitle>{t(language, 'courses.createSession')}</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label>Class</Label>
+                  <Label>{t(language, 'courses.class')}</Label>
                   {course ? (
                     <Input value={course?.name || ''} disabled />
                   ) : (
                     <Select value={selectedClassId ? String(selectedClassId) : undefined} onValueChange={(val) => setSelectedClassId(Number(val))} disabled={loadingClasses || !classOptions.length}>
                       <SelectTrigger>
-                        <SelectValue placeholder={loadingClasses ? 'Loading...' : 'Select a class'} />
+                        <SelectValue placeholder={loadingClasses ? t(language, 'courses.loading') : t(language, 'courses.selectClass')} />
                       </SelectTrigger>
                       <SelectContent>
                         {classOptions.map((cls) => (
                           <SelectItem key={cls.classId} value={String(cls.classId)}>
-                            {cls.courseName} ({cls.courseCode})
+                            {cls.displayName} ({cls.courseCode}) - {cls.semester}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   )}
                   {!course && !classOptions.length && !loadingClasses && (
-                    <p className="text-xs text-muted-foreground mt-1">You don't have any classes yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t(language, 'courses.noClasses')}</p>
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="topic">Topic</Label>
+                  <Label htmlFor="topic">{t(language, 'courses.sessionTopic')}</Label>
                   <Input id="topic" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Chapter 3 Review" />
                 </div>
                 <div>
-                  <Label htmlFor="date">Date</Label>
+                  <Label htmlFor="date">{t(language, 'courses.sessionDate')}</Label>
                   <Input type="date" id="date" value={date} onChange={e => setDate(e.target.value)} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="startTime">Start Time</Label>
+                    <Label htmlFor="startTime">{t(language, 'courses.sessionStartTime')}</Label>
                     <Input type="time" id="startTime" value={startTime} onChange={e => setStartTime(e.target.value)} />
                   </div>
                   <div>
-                    <Label htmlFor="endTime">End Time</Label>
+                    <Label htmlFor="endTime">{t(language, 'courses.sessionEndTime')}</Label>
                     <Input type="time" id="endTime" value={endTime} onChange={e => setEndTime(e.target.value)} />
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="location">Location (optional)</Label>
-                  <Input id="location" value={sessionLocation} onChange={e => setSessionLocation(e.target.value)} placeholder="e.g. Room 101 or Zoom link" />
+                  <Label htmlFor="location">{t(language, 'courses.location')}</Label>
+                  <Input id="location" value={sessionLocation} onChange={e => setSessionLocation(e.target.value)} placeholder={t(language, 'courses.locationPlaceholder')} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="sessionType">Session Type (optional)</Label>
+                    <Label htmlFor="sessionType">{t(language, 'courses.sessionType')}</Label>
                     <Select value={sessionType} onValueChange={setSessionType}>
                       <SelectTrigger id="sessionType">
-                        <SelectValue placeholder="Select type" />
+                        <SelectValue placeholder={t(language, 'courses.selectType')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="LECTURE">Lecture</SelectItem>
-                        <SelectItem value="LAB">Lab</SelectItem>
-                        <SelectItem value="TUTORIAL">Tutorial</SelectItem>
-                        <SelectItem value="DISCUSSION">Discussion</SelectItem>
+                        <SelectItem value="LECTURE">{t(language, 'courses.lecture')}</SelectItem>
+                        <SelectItem value="LAB">{t(language, 'courses.lab')}</SelectItem>
+                        <SelectItem value="TUTORIAL">{t(language, 'courses.tutorial')}</SelectItem>
+                        <SelectItem value="DISCUSSION">{t(language, 'courses.discussion')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label htmlFor="capacity">Capacity (optional, default: 30)</Label>
-                    <Input type="number" id="capacity" value={capacity} onChange={e => setCapacity(e.target.value)} placeholder="30" min="1" />
-                  </div>
+                  {/* <div>
+                    <Label htmlFor="capacity">{t(language, 'courses.capacity')}</Label>
+                    <Input type="number" id="capacity" value={capacity} onChange={e => setCapacity(e.target.value)} placeholder={t(language, 'courses.capacityPlaceholder')} min="1" />
+                  </div> */}
                 </div>
                 <div>
-                  <Label htmlFor="description">Description (optional)</Label>
-                  <Input id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="Additional notes or requirements" />
+                  <Label htmlFor="description">{t(language, 'courses.description')}</Label>
+                  <Input id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder={t(language, 'courses.descriptionPlaceholder')} />
                 </div>
                 <div className="flex gap-2">
-                  <Button type="submit" disabled={submitting}>{submitting ? 'Creating...' : 'Create'}</Button>
-                  <Button type="button" variant="outline" onClick={() => { setTitle(''); setDate(''); setStartTime(''); setEndTime(''); }}>Reset</Button>
+                  <Button type="submit" disabled={submitting}>{submitting ? t(language, 'common.creating') : t(language, 'common.submit')}</Button>
+                  <Button type="button" variant="outline" onClick={() => { setTitle(''); setDate(''); setStartTime(''); setEndTime(''); }}>{t(language, 'common.reset')}</Button>
                 </div>
               </form>
             </CardContent>

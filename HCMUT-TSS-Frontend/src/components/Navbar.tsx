@@ -12,6 +12,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext"; // Your AuthContext
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Badge } from "@/components/ui/badge";
 import { UserRole } from "@/contexts/AuthContext"; // <-- Import the UserRole type
 import NotificationBell from "@/components/NotificationBell";
@@ -20,7 +21,7 @@ const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [language, setLanguage] = useState<"en" | "vi">("en");
+  const { language, setLanguage } = useLanguage();
 
   // --- UPDATED ---
   // Added 'administrator' and 'cooperator' roles

@@ -55,11 +55,19 @@ const CalendarView = () => {
         }
         const list = await res.json();
         const normalized = Array.isArray(list)
-          ? list.map((cls) => ({
-              classId: cls.classId ?? cls.id,
-              courseName: cls.courseName ?? cls.name,
-              courseCode: cls.courseCode ?? cls.code,
-            }))
+          ? list.map((cls) => {
+              const displayName = cls.customClassName && cls.customClassName.trim() !== '' 
+                ? cls.customClassName 
+                : cls.courseName;
+              return {
+                classId: cls.classId ?? cls.id,
+                displayName: displayName,
+                courseName: cls.courseName ?? cls.name,
+                courseCode: cls.courseCode ?? cls.code,
+                customClassName: cls.customClassName,
+                semester: cls.semester,
+              };
+            })
           : [];
         setOwnedClasses(normalized);
       } catch (error) {
@@ -72,11 +80,19 @@ const CalendarView = () => {
           const mine = tutorId == null
             ? []
             : list.filter((cls: any) => String(cls.tutorId ?? "") === tutorId)
-                .map((cls: any) => ({
-                  classId: cls.classId ?? cls.id,
-                  courseName: cls.courseName ?? cls.name,
-                  courseCode: cls.courseCode ?? cls.code,
-                }));
+                .map((cls: any) => {
+                  const displayName = cls.customClassName && cls.customClassName.trim() !== '' 
+                    ? cls.customClassName 
+                    : cls.courseName;
+                  return {
+                    classId: cls.classId ?? cls.id,
+                    displayName: displayName,
+                    courseName: cls.courseName ?? cls.name,
+                    courseCode: cls.courseCode ?? cls.code,
+                    customClassName: cls.customClassName,
+                    semester: cls.semester,
+                  };
+                });
           setOwnedClasses(mine);
         } catch (fallbackError) {
           console.error('Unable to load class list', fallbackError);
@@ -141,6 +157,7 @@ const CalendarView = () => {
     const classId = s?.classId ?? s?.class?.id ?? null;
     const cls = classId != null ? classesById[Number(classId)] : null;
     return (
+      (cls?.customClassName && cls.customClassName.trim() !== '' ? cls.customClassName : null) ||
       cls?.courseName ||
       cls?.courseCode ||
       s?.subject ||
@@ -319,7 +336,7 @@ const CalendarView = () => {
                 <SelectContent>
                   {ownedClasses.map((cls) => (
                     <SelectItem key={cls.classId} value={String(cls.classId)}>
-                      {cls.courseName} ({cls.courseCode})
+                      {cls.displayName} ({cls.courseCode}){cls.semester ? ` - ${cls.semester}` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -358,10 +375,10 @@ const CalendarView = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
+              {/* <div>
                 <Label htmlFor="calendar-capacity">Capacity (optional, default: 30)</Label>
                 <Input type="number" id="calendar-capacity" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="30" min="1" />
-              </div>
+              </div> */}
             </div>
             <div className="space-y-2">
               <Label htmlFor="calendar-description">Description (optional)</Label>

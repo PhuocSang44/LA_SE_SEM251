@@ -2,22 +2,22 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-// Button is no longer needed
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-// Updated imports: Removed Phone/MapPin, Added UserCheck, UserCircle2
 import { Mail, BookOpen, Loader2, UserCheck, UserCircle2 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext"; // <-- 1. Import useAuth
-import { useNavigate } from "react-router-dom"; // <-- Import navigate for redirect
-import { useEffect } from "react"; // <-- Import useEffect for redirect
+import { useAuth } from "@/contexts/AuthContext"; 
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { t } from "@/lib/translations";
 
 const Profile = () => {
-  const { user, isLoading } = useAuth(); // <-- 2. Get user and loading state
+  const { user, isLoading } = useAuth();
   const navigate = useNavigate();
+  const { language } = useLanguage();
 
-  // --- 3. Handle loading and unauthenticated states ---
+  // --- Handle loading and unauthenticated states ---
   useEffect(() => {
-    // If auth check is done and there's still no user, redirect to login
     if (!isLoading && !user) {
       navigate('/login');
     }
@@ -36,13 +36,13 @@ const Profile = () => {
     );
   }
 
-  // --- 4. Render with user data ---
+  // --- Render with user data ---
   return (
       <div className="min-h-screen flex flex-col">
         <Navbar />
         <main className="flex-1 bg-muted/30">
           <div className="container mx-auto px-4 py-8">
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-8">User Profile</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-8">{t(language, 'profile.title')}</h1>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* --- AVATAR CARD --- */}
@@ -64,22 +64,22 @@ const Profile = () => {
               {/* --- PERSONAL INFO CARD --- */}
               <Card className="lg:col-span-2 rounded-xl shadow-md">
                 <CardHeader>
-                  <CardTitle>Personal Information</CardTitle>
+                  <CardTitle>{t(language, 'profile.personalInfo')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="fullName">Full Name</Label>
+                      <Label htmlFor="fullName">{t(language, 'profile.fullName')}</Label>
                       <Input id="fullName" defaultValue={user.name} className="rounded-lg" disabled />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="userId">User ID</Label>
+                      <Label htmlFor="userId">{t(language, 'profile.userId')}</Label>
                       <Input id="userId" defaultValue={user.officialId} disabled className="rounded-lg" />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">{t(language, 'profile.email')}</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input id="email" type="email" defaultValue={user.email} className="pl-10 rounded-lg" disabled />
@@ -88,7 +88,7 @@ const Profile = () => {
 
                   {/* --- FIELD ADDED --- */}
                   <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
+                    <Label htmlFor="role">{t(language, 'profile.role')}</Label>
                     <div className="relative">
                       <UserCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -102,7 +102,7 @@ const Profile = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="faculty">Faculty / Department</Label>
+                    <Label htmlFor="faculty">{t(language, 'profile.faculty')}</Label>
                     <div className="relative">
                       <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input id="faculty" defaultValue={user.departmentName} className="pl-10 rounded-lg" disabled />

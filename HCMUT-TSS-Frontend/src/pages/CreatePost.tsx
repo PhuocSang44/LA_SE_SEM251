@@ -10,9 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, X } from "lucide-react";
 import { forumApi } from "@/lib/forumApi";
 import { toast } from "sonner";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { t } from "@/lib/translations";
 
 export default function CreatePost() {
     const navigate = useNavigate();
+    const { language } = useLanguage();
     const { forumId } = useParams<{ forumId: string }>();
     const forumIdNum = Number(forumId);
     
@@ -25,7 +28,7 @@ export default function CreatePost() {
         if (e.key === 'Enter' && tagInput.trim()) {
             e.preventDefault();
             if (tags.length >= 5) {
-                toast.error('Maximum 5 tags allowed');
+                toast.error(t(language, 'forums.maxTags'));
                 return;
             }
             if (!tags.includes(tagInput.trim().toLowerCase())) {
@@ -38,7 +41,7 @@ export default function CreatePost() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title.trim() || !content.trim()) {
-            toast.error('Please fill in all required fields');
+            toast.error(t(language, 'forums.fillRequired'));
             return;
         }
 
@@ -49,11 +52,11 @@ export default function CreatePost() {
                 content,
                 tags
             });
-            toast.success('Question posted successfully!');
+            toast.success(t(language, 'forums.postedSuccess'));
             navigate(`/forums/detail/${forumId}`);
         } catch (error) {
             console.error('Error creating post:', error);
-            toast.error('Failed to create post');
+            toast.error(t(language, 'forums.failedCreate'));
         }
     };
 
@@ -63,17 +66,17 @@ export default function CreatePost() {
             <div className="max-w-4xl mx-auto px-6 py-8">
                 <button onClick={() => navigate(-1)} className="text-blue-600 hover:underline mb-6 flex items-center gap-2">
                     <ArrowLeft className="w-4 h-4" />
-                    Back to Forum
+                    {t(language, 'common.back')}
                 </button>
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Ask a Question</CardTitle>
+                        <CardTitle>{t(language, 'forums.postQuestion')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div>
-                                <label className="block text-sm font-medium mb-2">Question Title *</label>
+                                <label className="block text-sm font-medium mb-2">{t(language, 'forums.questionTitle')} *</label>
                                 <Input
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
@@ -83,7 +86,7 @@ export default function CreatePost() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium mb-2">Question Details *</label>
+                                <label className="block text-sm font-medium mb-2">{t(language, 'forums.questionContent')} *</label>
                                 <Textarea
                                     value={content}
                                     onChange={(e) => setContent(e.target.value)}
@@ -94,7 +97,7 @@ export default function CreatePost() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium mb-2">Tags (max 5)</label>
+                                <label className="block text-sm font-medium mb-2">{t(language, 'forums.tags')} (max 5)</label>
                                 <Input
                                     value={tagInput}
                                     onChange={(e) => setTagInput(e.target.value)}
@@ -115,8 +118,8 @@ export default function CreatePost() {
                             </div>
 
                             <div className="flex gap-2">
-                                <Button type="submit" className="bg-blue-600">Post Question</Button>
-                                <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
+                                <Button type="submit" className="bg-blue-600">{t(language, 'forums.postQuestion')}</Button>
+                                <Button type="button" variant="outline" onClick={() => navigate(-1)}>{t(language, 'common.cancel')}</Button>
                             </div>
                         </form>
                     </CardContent>

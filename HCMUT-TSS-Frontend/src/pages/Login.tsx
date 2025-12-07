@@ -6,12 +6,15 @@ import { KeyRound } from 'lucide-react';
 import Footer from '../components/Footer';
 // 2. Switched to relative path for logo
 import hcmutLogo from '../assets/logo_BK.png';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { t } from '@/lib/translations';
 
 // BACK-END constants are still needed
 const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:10001';
 const SSO_REGISTRATION_ID = 'sso-server'; // This should match your backend's provider ID
 
 const Login = () => {
+  const { language } = useLanguage();
 
   /**
    * This function now directly triggers the SSO redirect.
@@ -35,10 +38,10 @@ const Login = () => {
               </a>
               <div>
                 <CardTitle className="text-3xl md:text-4xl font-bold text-primary">
-                  HCMUT Tutor Supporting System
+                  {t(language, 'auth.title')}
                 </CardTitle>
                 <CardDescription className="text-lg">
-                  Đăng nhập bằng tài khoản trường của bạn để tiếp tục
+                  {t(language, 'auth.subtitle')}
                 </CardDescription>
               </div>
             </CardHeader>
@@ -50,7 +53,7 @@ const Login = () => {
                     className="w-full md:w-auto px-12"
                 >
                   <KeyRound className="mr-2 h-5 w-5" />
-                  Sign in with SSO
+                  {t(language, 'auth.loginButton')}
                 </Button>
               </div>
             </CardContent>
