@@ -1007,7 +1007,7 @@ const CourseDetails = () => {
                     <span>•</span>
                     <span>{course?.semester || 'No semester'}</span>
                     <span>•</span>
-                    <Badge className="bg-green-100 text-green-700 border-0">Confirmed</Badge>
+                    <Badge className="bg-green-100 text-green-700 border-0">{t(language, 'courseDetails.confirmed')}</Badge>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <User className="h-4 w-4" />
@@ -1020,11 +1020,11 @@ const CourseDetails = () => {
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <Button size="sm" variant="outline" onClick={() => { setRenameValue(course?.name || ''); setShowRenameDialog(true); }}>
                       <Pencil className="h-4 w-4 mr-1" />
-                      Rename
+                      {t(language, 'courseDetails.rename')}
                     </Button>
                     <Button size="sm" onClick={() => navigate('/create-session', { state: { course } })}>
                       <Plus className="h-4 w-4 mr-1" />
-                      New Session
+                      {t(language, 'courseDetails.newSession')}
                     </Button>
                   </div>
                 )}
@@ -1042,7 +1042,7 @@ const CourseDetails = () => {
                       }
                     }}
                   >
-                    Back to Courses
+                    {t(language, 'courseDetails.backToAvailableCourses')}
                   </Button>
                 )}
               </div>
@@ -1054,19 +1054,19 @@ const CourseDetails = () => {
             <TabsList className="inline-flex h-10 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground mb-6">
               <TabsTrigger value="overview" className="flex items-center gap-2">
                 <BookOpen className="h-4 w-4" />
-                Overview
+                {t(language, 'courseDetails.overview')}
               </TabsTrigger>
               <TabsTrigger value="sessions" className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
-                Sessions
+                {t(language, 'courseDetails.sessions')}
               </TabsTrigger>
               <TabsTrigger value="materials" className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                Materials
+                {t(language, 'courseDetails.materials')}
               </TabsTrigger>
               <TabsTrigger value="grades" className="flex items-center gap-2">
                 <Star className="h-4 w-4" />
-                Details
+                {t(language, 'courseDetails.details')}
               </TabsTrigger>
             </TabsList>
 
@@ -1078,11 +1078,11 @@ const CourseDetails = () => {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <p className="text-sm text-muted-foreground mb-1">Semester</p>
+                        <p className="text-sm text-muted-foreground mb-1">{t(language, 'courseDetails.semester')}</p>
                         <p className="font-medium">{course?.semester || 'N/A'}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground mb-1">Total Sessions</p>
+                        <p className="text-sm text-muted-foreground mb-1">{t(language, 'courseDetails.totalSessions')}</p>
                         <p className="font-medium">{(Array.isArray(course?.sessions) ? course.sessions.length : 0)}</p>
                       </div>
                     </div>
@@ -1090,9 +1090,9 @@ const CourseDetails = () => {
 
                   {isOwner && (
                     <div className="pt-4 border-t">
-                      <div className="text-sm text-muted-foreground">Danger Zone</div>
+                      <div className="text-sm text-muted-foreground">{t(language, 'courseDetails.dangerZone')}</div>
                       <Button variant="destructive" className="mt-2 rounded-md px-3 py-1" onClick={() => setShowDeleteDialog(true)}>
-                        Delete Class
+                        {t(language, 'courseDetails.deleteClass')}
                       </Button>
                       <p className="text-xs text-muted-foreground mt-2">Deleting a class is permanent. This action is restricted.</p>
                     </div>
@@ -1105,10 +1105,10 @@ const CourseDetails = () => {
                         className="w-full flex items-center justify-center gap-2 mb-3"
                       >
                         <Plus className="h-4 w-4" />
-                        Join a Session / Tham gia buổi học
+                        {t(language, 'courseDetails.joinSession')}
                       </Button>
                       <p className="text-xs text-muted-foreground text-center mb-4">
-                        Join a tutoring session to sign up for sessions
+                        {t(language, 'courseDetails.joinSessionDesc')}
                       </p>
 
                       {/* Submit Feedback Button */}
@@ -1123,13 +1123,13 @@ const CourseDetails = () => {
                         </Button>
                       )}
 
-                      <div className="mt-6 text-sm text-muted-foreground">Danger Zone</div>
+                      <div className="mt-6 text-sm text-muted-foreground">{t(language, 'courseDetails.dangerZone')}</div>
                       {user?.role?.toLowerCase?.() === 'student' && course?.registrationId && (
                         <div>
                           <Button variant="destructive" className="mt-2 rounded-md px-3 py-1" onClick={() => setShowExitDialog(true)}>
-                            Exit Class
+                            {t(language, 'courseDetails.exitClass')}
                           </Button>
-                          <p className="text-xs text-muted-foreground mt-2">Leaving a class will remove your registration.</p>
+                          <p className="text-xs text-muted-foreground mt-2">{t(language, 'courseDetails.exitClassWarning')}</p>
                         </div>
                       )}
                     </div>
@@ -1144,7 +1144,7 @@ const CourseDetails = () => {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Calendar className="h-5 w-5" />
-                      Scheduled Sessions
+                      {t(language, 'courseDetails.scheduledSessions')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1179,7 +1179,7 @@ const CourseDetails = () => {
                       {!isOwner && (
                         <Button variant="outline" className="w-full mt-4" onClick={handleJoinSessionClick}>
                           <Plus className="h-4 w-4 mr-2" />
-                          Join a Session
+                          {t(language, 'courseDetails.joinSession')}
                         </Button>
                       )}
                     </div>
@@ -1194,21 +1194,21 @@ const CourseDetails = () => {
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2">
                         <BookOpen className="h-5 w-5" />
-                        Course Materials
+                        {t(language, 'courseMaterials.title')}
                       </CardTitle>
                       {isOwner && (
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline" onClick={() => setShowLibrarySelectDialog(true)}>
                             <Plus className="h-3 w-3 mr-1" />
-                            From Library
+                            {t(language, 'courseMaterials.fromLibrary')}
                           </Button>
                           <Button size="sm" variant="outline" onClick={() => setShowFileUploadDialog(true)}>
                             <Plus className="h-3 w-3 mr-1" />
-                            Upload File
+                            {t(language, 'courseMaterials.uploadFile')}
                           </Button>
                           <Button size="sm" variant="outline" onClick={() => setShowExternalUrlDialog(true)}>
                             <Plus className="h-3 w-3 mr-1" />
-                            Add Link
+                            {t(language, 'courseMaterials.addLink')}
                           </Button>
                         </div>
                       )}
@@ -1216,15 +1216,15 @@ const CourseDetails = () => {
                   </CardHeader>
                   <CardContent>
                     {loadingMaterials && (
-                      <div className="text-sm text-muted-foreground">Loading course materials...</div>
+                      <div className="text-sm text-muted-foreground">{t(language, 'courseMaterials.loading')}</div>
                     )}
                     {!loadingMaterials && materialsError && (
                       <div className="text-sm text-destructive">{materialsError}</div>
                     )}
                     {!loadingMaterials && !materialsError && sessionMaterials.length === 0 && (
                       <div className="text-sm text-muted-foreground">
-                        No course materials yet.
-                        {isOwner && " Add materials to help students learn!"}
+                        {t(language, 'courseMaterials.noMaterials')}
+                        {isOwner && ` ${t(language, 'courseMaterials.addMaterialsHelp')}`}
                       </div>
                     )}
                     {!loadingMaterials && !materialsError && sessionMaterials.length > 0 && (
@@ -1251,7 +1251,7 @@ const CourseDetails = () => {
                                 <p className="text-xs text-muted-foreground mt-1">{material.originalName}</p>
                               )}
                               {material.sizeBytes && (
-                                <p className="text-xs text-muted-foreground mt-1">Size: {formatFileSize(material.sizeBytes)}</p>
+                                <p className="text-xs text-muted-foreground mt-1">{t(language, 'courseMaterials.size')}: {formatFileSize(material.sizeBytes)}</p>
                               )}
                             </div>
                             <div className="flex gap-1 flex-shrink-0">
@@ -1306,7 +1306,7 @@ const CourseDetails = () => {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Star className="h-5 w-5" />
-                      {isOwner ? 'Student Evaluation' : 'Course Feedback'}
+                      {isOwner ? t(language, 'courseDetails.studentEvaluation') : t(language, 'courseDetails.courseFeedback')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1314,10 +1314,10 @@ const CourseDetails = () => {
                       /* Tutor View - Student Evaluation */
                       <div className="space-y-4">
                         {loadingStudents && (
-                          <div className="text-sm text-muted-foreground">Loading students...</div>
+                          <div className="text-sm text-muted-foreground">{t(language, 'courseDetails.loadingStudents')}</div>
                         )}
                         {!loadingStudents && enrolledStudents.length === 0 && (
-                          <div className="text-sm text-muted-foreground">No students enrolled yet.</div>
+                          <div className="text-sm text-muted-foreground">{t(language, 'courseDetails.noStudentsEnrolled')}</div>
                         )}
                         {!loadingStudents && enrolledStudents.length > 0 && (
                           <div className="space-y-3">
@@ -1336,7 +1336,7 @@ const CourseDetails = () => {
                                   onClick={() => handleEvaluateStudent(student)}
                                 >
                                   <Star className="h-4 w-4 mr-1" />
-                                  Evaluate
+                                  {t(language, 'courseDetails.evaluate')}
                                 </Button>
                               </div>
                             ))}
@@ -1433,7 +1433,7 @@ const CourseDetails = () => {
                                         onClick={() => handleEvaluateStudent(student)}
                                       >
                                         <Star className="h-3 w-3 mr-1" />
-                                        Evaluate
+                                        {t(language, 'courseDetails.evaluate')}
                                       </Button>
                                     </div>
                                   ))}
