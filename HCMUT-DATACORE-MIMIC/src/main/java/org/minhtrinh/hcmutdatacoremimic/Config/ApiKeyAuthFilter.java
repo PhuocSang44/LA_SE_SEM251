@@ -18,7 +18,7 @@ import java.util.Collections;
 @Component
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
-    @Value("${app.internal-api-key}")
+    @Value("${app.internal-api-key:YourVeryStrongAndSecretKeyHere12345}")
     private String expectedApiKey;
 
     private static final String API_KEY_HEADER = "X-INTERNAL-API-KEY";

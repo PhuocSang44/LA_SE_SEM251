@@ -88,7 +88,7 @@ const CreateClass = () => {
   const computeDefaultSemester = () => {
     const now = new Date();
     const year = now.getFullYear();
-    const month = now.getMonth() + 1; // 1-12
+    const month = now.getMonth() + 1;   
     // Term mapping: Jan-May -> Spring, Jun-Aug -> Summer, Sep-Dec -> Fall
     let term = 'Spring';
     if (month >= 9) term = 'Fall';
@@ -175,6 +175,14 @@ const CreateClass = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!capacity || capacity <= 0) {
+      toast({ 
+        title: "Invalid Capacity", 
+        description: "Capacity must be greater than 0 and not empty.", 
+        variant: "destructive" 
+      });
+      return;
+    }
     if (!courseCode || !courseName || !semester) {
       toast({ title: "Missing fields", description: "Please pick a valid course and fill semester", variant: "destructive" });
       return;
@@ -278,8 +286,24 @@ const CreateClass = () => {
                   </div>
 
                   <div>
-                    <Label htmlFor="capacity">Capacity (leave empty for unlimited)</Label>
-                    <Input id="capacity" value={capacity ?? ''} onChange={(e) => setCapacity(e.target.value === '' ? null : parseInt(e.target.value))} placeholder="e.g., 30" type="number" />
+                    <Label htmlFor="capacity">Capacity <span className="text-destructive">*</span></Label>
+                    <Input 
+                      id="capacity" 
+                      type="number"
+                      min="1" 
+                      required 
+                      placeholder="e.g., 40" 
+                      value={capacity ?? ''} 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCapacity(val === '' ? null : parseInt(val));
+                      }} 
+                    />
+                    {capacity !== null && capacity <= 0 && (
+                      <p className="text-xs text-destructive mt-1">
+                        Capacity must be greater than 0.
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex gap-2">
