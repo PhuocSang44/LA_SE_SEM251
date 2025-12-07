@@ -25,7 +25,6 @@ const CreateClass = () => {
   const [courseDisplay, setCourseDisplay] = useState("");
   // whether a canonical course has been selected (locks the input)
   const [courseSelected, setCourseSelected] = useState(false);
-  const [courseDescription, setCourseDescription] = useState("");
   // restored: user-provided display name for the class (optional)
   const [customClassName, setCustomClassName] = useState("");
   const [semester, setSemester] = useState("");
@@ -196,7 +195,6 @@ const CreateClass = () => {
           courseCode,
           courseName,
           customClassName,
-          courseDescription,
           semester,
           capacity
         };
@@ -218,7 +216,6 @@ const CreateClass = () => {
       setCourseCode("");
       setCourseName("");
       setCustomClassName("");
-      setCourseDescription("");
       setSemester(computeDefaultSemester());
       setCapacity(null);
     } catch (err: any) {
@@ -279,11 +276,6 @@ const CreateClass = () => {
                   </div>
 
                   <div>
-                    <Label htmlFor="courseDescription">{t(language, 'createClass.courseDescription')}</Label>
-                    <Textarea id="courseDescription" value={courseDescription} onChange={(e) => setCourseDescription(e.target.value)} placeholder={t(language, 'createClass.courseDescription')} />
-                  </div>
-
-                  <div>
                     <Label htmlFor="semester">{t(language, 'createClass.semester')}</Label>
                     <Input id="semester" value={semester} onChange={(e) => setSemester(e.target.value)} placeholder={t(language, 'createClass.semester')} />
                   </div>
@@ -311,7 +303,7 @@ const CreateClass = () => {
 
                   <div className="flex gap-2">
                     <Button type="submit" disabled={loading}>{loading ? t(language, 'common.loading') : t(language, 'createClass.submit')}</Button>
-                    <Button type="button" variant="outline" onClick={() => { setCourseCode(''); setCourseName(''); setCourseDisplay(''); setCourseSelected(false); setCourseDescription(''); setSemester(computeDefaultSemester()); setCapacity(null); }}>{t(language, 'common.cancel')}</Button>
+                    <Button type="button" variant="outline" onClick={() => { setCourseCode(''); setCourseName(''); setCourseDisplay(''); setCourseSelected(false); setSemester(computeDefaultSemester()); setCapacity(null); }}>{t(language, 'common.cancel')}</Button>
                   </div>
                 </form>
               </CardContent>
