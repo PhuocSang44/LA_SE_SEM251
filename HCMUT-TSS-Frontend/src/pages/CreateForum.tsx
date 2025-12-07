@@ -160,7 +160,7 @@ export default function CreateForum() {
                                 <Input
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
-                                    placeholder="e.g., Calculus I Discussion (3-20 words)"
+                                    placeholder={t(language, 'forums.titlePlaceholder')}
                                     required
                                 />
                                 <p className={`text-xs mt-1 ${titleWordCount > 20 ? 'text-red-500' : 'text-gray-500'}`}>
@@ -173,7 +173,7 @@ export default function CreateForum() {
                                 <Textarea
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
-                                    placeholder="Describe the purpose and scope of this forum... (optional, max 200 words)"
+                                    placeholder={t(language, 'forums.descriptionPlaceholder')}
                                     rows={5}
                                 />
                                 <p className={`text-xs mt-1 ${descriptionWordCount > 200 ? 'text-red-500' : 'text-gray-500'}`}>
@@ -191,7 +191,7 @@ export default function CreateForum() {
                                     className="w-full px-4 py-2 border border-gray-300 rounded-md"
                                     required
                                 >
-                                    <option value="">Select...</option>
+                                    <option value="">{t(language, 'forums.selectPlaceholder')}</option>
                                     {subjects.map(s => (
                                         <option key={s} value={s}>{s}</option>
                                     ))}

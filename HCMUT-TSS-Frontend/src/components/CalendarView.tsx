@@ -11,6 +11,8 @@ import {  formatSessionRange, createSession } from "@/lib/sessionApi";
 import { listSessionsByUser } from "@/lib/sessionApi";
 import type { Session } from "@/types/session";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { t } from "@/lib/translations";
 
 // Merge a date string (YYYY-MM-DD) and time string (HH:mm) into a local ISO-like string with timezone offset
 const mergeDateTime = (dateStr: string, timeStr: string): string => {
@@ -61,6 +63,7 @@ const CalendarView = () => {
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
+  const { language } = useLanguage();
   const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:10001";
   const numericUserId: number | null = user?.officialId ? Number(user.officialId) : null;
   const refreshSessions = async () => {
@@ -211,8 +214,17 @@ const CalendarView = () => {
   };
 
   const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate);
-  const monthNames = ["January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"];
+  const monthNames = [
+    t(language, 'calendar.monthJan'), t(language, 'calendar.monthFeb'), t(language, 'calendar.monthMar'),
+    t(language, 'calendar.monthApr'), t(language, 'calendar.monthMay'), t(language, 'calendar.monthJun'),
+    t(language, 'calendar.monthJul'), t(language, 'calendar.monthAug'), t(language, 'calendar.monthSep'),
+    t(language, 'calendar.monthOct'), t(language, 'calendar.monthNov'), t(language, 'calendar.monthDec')
+  ];
+  const dayNames = [
+    t(language, 'calendar.sun'), t(language, 'calendar.mon'), t(language, 'calendar.tue'),
+    t(language, 'calendar.wed'), t(language, 'calendar.thu'), t(language, 'calendar.fri'),
+    t(language, 'calendar.sat')
+  ];
   
   const previousMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
@@ -253,8 +265,8 @@ const CalendarView = () => {
       </div>
 
       <div className="grid grid-cols-7 gap-2">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-          <div key={day} className="text-center font-semibold text-sm text-muted-foreground py-2">
+        {dayNames.map((day, idx) => (
+          <div key={idx} className="text-center font-semibold text-sm text-muted-foreground py-2">
             {day}
           </div>
         ))}
@@ -292,8 +304,8 @@ const CalendarView = () => {
                   setShowScheduler(true);
                 } else if (user?.role === 'tutor' && isPastDate) {
                   toast({
-                    title: "Cannot create session",
-                    description: "You cannot create a session in the past.",
+                    title: t(language, 'calendar.cannotCreate'),
+                    description: t(language, 'calendar.pastDate'),
                     variant: "destructive"
                   });
                 }
@@ -333,10 +345,10 @@ const CalendarView = () => {
       </div>
 
       <div className="mt-6 pt-6 border-t">
-        <h3 className="font-semibold mb-3 text-foreground">Legend / Actions</h3>
+        <h3 className="font-semibold mb-3 text-foreground">{t(language, 'calendar.legend')}</h3>
         <div className="text-xs text-muted-foreground space-y-1">
-          <p>Blue blocks: scheduled sessions.</p>
-          {user?.role === 'tutor' && <p>Click on the date to open the session creation box, then select the class and time.</p>}
+          <p>{t(language, 'calendar.blueBlocks')}</p>
+          {user?.role === 'tutor' && <p>{t(language, 'calendar.clickDate')}</p>}
         </div>
       </div>
 
@@ -355,15 +367,15 @@ const CalendarView = () => {
       }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Session</DialogTitle>
-            <DialogDescription>Selected date: {selectedDate || 'None'}</DialogDescription>
+            <DialogTitle>{t(language, 'calendar.createSession')}</DialogTitle>
+            <DialogDescription>{t(language, 'calendar.selectedDate')}: {selectedDate || 'None'}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="calendar-class">Class</Label>
+              <Label htmlFor="calendar-class">{t(language, 'calendar.class')}</Label>
               <Select value={selectedClassId} onValueChange={setSelectedClassId}>
                 <SelectTrigger id="calendar-class">
-                  <SelectValue placeholder={ownedClasses.length ? 'Select a class' : 'No classes available'} />
+                  <SelectValue placeholder={ownedClasses.length ? t(language, 'calendar.selectClass') : t(language, 'calendar.noClasses')} />
                 </SelectTrigger>
                 <SelectContent>
                   {ownedClasses.map((cls) => (
@@ -375,56 +387,56 @@ const CalendarView = () => {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="calendar-topic">Topic</Label>
-              <Input id="calendar-topic" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="E.g: Chapter 3 Review" />
+              <Label htmlFor="calendar-topic">{t(language, 'calendar.topic')}</Label>
+              <Input id="calendar-topic" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t(language, 'calendar.topicPlaceholder')} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="calendar-start">Start Time</Label>
+                <Label htmlFor="calendar-start">{t(language, 'calendar.startTime')}</Label>
                 <Input type="time" id="calendar-start" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
               </div>
               <div>
-                <Label htmlFor="calendar-end">End Time</Label>
+                <Label htmlFor="calendar-end">{t(language, 'calendar.endTime')}</Label>
                 <Input type="time" id="calendar-end" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="calendar-location">Location (optional)</Label>
-              <Input id="calendar-location" value={sessionLocation} onChange={(e) => setSessionLocation(e.target.value)} placeholder="e.g. Room 101 or Zoom link" />
+              <Label htmlFor="calendar-location">{t(language, 'courses.location')}</Label>
+              <Input id="calendar-location" value={sessionLocation} onChange={(e) => setSessionLocation(e.target.value)} placeholder={t(language, 'courses.locationPlaceholder')} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="calendar-sessionType">Session Type (optional)</Label>
+                <Label htmlFor="calendar-sessionType">{t(language, 'courses.sessionType')}</Label>
                 <Select value={sessionType} onValueChange={setSessionType}>
                   <SelectTrigger id="calendar-sessionType">
-                    <SelectValue placeholder="Select type" />
+                    <SelectValue placeholder={t(language, 'courses.selectType')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="LECTURE">Lecture</SelectItem>
-                    <SelectItem value="LAB">Lab</SelectItem>
-                    <SelectItem value="TUTORIAL">Tutorial</SelectItem>
-                    <SelectItem value="DISCUSSION">Discussion</SelectItem>
+                    <SelectItem value="LECTURE">{t(language, 'courses.lecture')}</SelectItem>
+                    <SelectItem value="LAB">{t(language, 'courses.lab')}</SelectItem>
+                    <SelectItem value="TUTORIAL">{t(language, 'courses.tutorial')}</SelectItem>
+                    <SelectItem value="DISCUSSION">{t(language, 'courses.discussion')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               {/* <div>
-                <Label htmlFor="calendar-capacity">Capacity (optional, default: 30)</Label>
-                <Input type="number" id="calendar-capacity" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="30" min="1" />
+                <Label htmlFor="calendar-capacity">{t(language, 'courses.capacity')}</Label>
+                <Input type="number" id="calendar-capacity" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder={t(language, 'courses.capacityPlaceholder')} min="1" />
               </div> */}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="calendar-description">Description (optional)</Label>
-              <Input id="calendar-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Additional notes or requirements" />
+              <Label htmlFor="calendar-description">{t(language, 'courses.sessionDescription')}</Label>
+              <Input id="calendar-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t(language, 'courses.descriptionPlaceholder')} />
             </div>
             <Button disabled={submitting || !ownedClasses.length} onClick={async () => {
               if (!selectedDate || !selectedClassId || !title || !startTime || !endTime) {
-                toast({ title: 'Missing information', description: 'Please fill in class, topic, start/end time', variant: 'destructive' });
+                toast({ title: t(language, 'calendar.missingInfo'), description: t(language, 'calendar.fillRequired'), variant: 'destructive' });
                 return;
               }
               const startIso = mergeDateTime(selectedDate, startTime);
               const endIso = mergeDateTime(selectedDate, endTime);
               if (new Date(startIso) >= new Date(endIso)) {
-                toast({ title: 'Invalid time range', description: 'End time must be after start time', variant: 'destructive' });
+                toast({ title: t(language, 'calendar.invalidTime'), description: t(language, 'calendar.endAfterStart'), variant: 'destructive' });
                 return;
               }
               setSubmitting(true);
@@ -439,15 +451,15 @@ const CalendarView = () => {
                 description: description || undefined,
               });
               if (created) {
-                toast({ title: 'Session created', description: `${title} • ${selectedDate}` });
+                toast({ title: t(language, 'calendar.sessionCreated'), description: `${title} • ${selectedDate}` });
                 await refreshSessions();
                 setShowScheduler(false);
               } else {
-                toast({ title: 'Failed to create session', description: 'Check API / connection', variant: 'destructive' });
+                toast({ title: t(language, 'calendar.failedCreate'), description: t(language, 'calendar.checkApi'), variant: 'destructive' });
               }
               setSubmitting(false);
             }}>
-              {submitting ? 'Creating...' : 'Create Session'}
+              {submitting ? t(language, 'calendar.creating') : t(language, 'calendar.createSession')}
             </Button>
           </div>
         </DialogContent>
