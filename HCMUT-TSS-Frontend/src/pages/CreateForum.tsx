@@ -6,13 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Circle, AlertCircle } from "lucide-react";
 import { forumApi } from "@/lib/forumApi";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { t } from "@/lib/translations";
 import type { ForumType } from "@/types/forum";
+import { containsInappropriateContent, isSpam } from "@/lib/contentModeration";
 
 export default function CreateForum() {
     const navigate = useNavigate();
@@ -24,6 +25,7 @@ export default function CreateForum() {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [subject, setSubject] = useState("");
+    const [errors, setErrors] = useState<string[]>([]);
 
     const forumType: ForumType = type === 'career' ? 'CAREER' : 'ACADEMIC';
     const isAcademic = type === 'academic';
@@ -40,12 +42,59 @@ export default function CreateForum() {
 
     const subjects = isAcademic ? academicSubjects : careerTopics;
 
+    // Validation checks
+    const titleWordCount = title.trim().split(/\s+/).filter(w => w.length > 0).length;
+    const descriptionWordCount = description.trim().split(/\s+/).filter(w => w.length > 0).length;
+    
+    const titleValid = titleWordCount >= 3 && titleWordCount <= 20;
+    const descriptionValid = descriptionWordCount <= 200;
+    const subjectValid = subject.length > 0;
+    const allValid = titleValid && descriptionValid && subjectValid;
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!title.trim() || !description.trim() || !subject) {
-            toast.error(t(language, 'forums.fillRequired'));
+        const newErrors: string[] = [];
+
+        // Validate title
+        if (!titleValid) {
+            if (titleWordCount < 3) {
+                newErrors.push('Forum title must be at least 3 words');
+            } else if (titleWordCount > 20) {
+                newErrors.push('Forum title must not exceed 20 words');
+            }
+        }
+
+        // Validate description
+        if (!descriptionValid) {
+            newErrors.push('Description must not exceed 200 words');
+        }
+
+        // Check for inappropriate content
+        if (containsInappropriateContent(title)) {
+            newErrors.push('Title contains inappropriate language');
+        }
+        if (description && containsInappropriateContent(description)) {
+            newErrors.push('Description contains inappropriate language');
+        }
+
+        // Check for spam/gibberish
+        if (isSpam(title)) {
+            newErrors.push('Title appears to be spam or gibberish');
+        }
+        if (description && isSpam(description)) {
+            newErrors.push('Description appears to be spam or gibberish');
+        }
+
+        // Validate subject
+        if (!subjectValid) newErrors.push('Please select a subject/topic');
+
+        if (newErrors.length > 0) {
+            setErrors(newErrors);
+            toast.error('Please fix the errors below');
             return;
         }
+
+        setErrors([]);
 
         try {
             await forumApi.createForum({
@@ -90,26 +139,46 @@ export default function CreateForum() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
+                        {/* Error Display */}
+                        {errors.length > 0 && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                                <h3 className="font-semibold text-red-900 mb-2 flex items-center gap-2">
+                                    <AlertCircle className="w-5 h-5" />
+                                    Errors Found
+                                </h3>
+                                <ul className="space-y-1">
+                                    {errors.map((error, idx) => (
+                                        <li key={idx} className="text-sm text-red-800">• {error}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div>
                                 <label className="block text-sm font-medium mb-2">{t(language, 'forums.forumTitle')} *</label>
                                 <Input
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
-                                    placeholder="e.g., Calculus I Discussion"
+                                    placeholder="e.g., Calculus I Discussion (3-20 words)"
                                     required
                                 />
+                                <p className={`text-xs mt-1 ${titleWordCount > 20 ? 'text-red-500' : 'text-gray-500'}`}>
+                                    {titleWordCount} / 20 words
+                                </p>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium mb-2">{t(language, 'forums.forumDescription')} *</label>
+                                <label className="block text-sm font-medium mb-2">{t(language, 'forums.forumDescription')}</label>
                                 <Textarea
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
-                                    placeholder="Describe the purpose and scope of this forum..."
+                                    placeholder="Describe the purpose and scope of this forum... (optional, max 200 words)"
                                     rows={5}
-                                    required
                                 />
+                                <p className={`text-xs mt-1 ${descriptionWordCount > 200 ? 'text-red-500' : 'text-gray-500'}`}>
+                                    {descriptionWordCount} / 200 words
+                                </p>
                             </div>
 
                             <div>
@@ -130,7 +199,13 @@ export default function CreateForum() {
                             </div>
 
                             <div className="flex gap-2">
-                                <Button type="submit" className="bg-blue-600">{t(language, 'forums.createForum')}</Button>
+                                <Button 
+                                    type="submit" 
+                                    className="bg-blue-600"
+                                    disabled={!allValid}
+                                >
+                                    {t(language, 'forums.createForum')}
+                                </Button>
                                 <Button type="button" variant="outline" onClick={() => navigate(-1)}>{t(language, 'common.cancel')}</Button>
                             </div>
                         </form>
