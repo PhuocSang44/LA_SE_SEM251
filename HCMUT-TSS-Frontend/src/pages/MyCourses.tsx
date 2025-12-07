@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Calendar, User, Clock, Plus, CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useNavigate } from "react-router-dom";
+import { t } from "@/lib/translations";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +25,7 @@ import type { Session } from "@/types/session";
 
 const MyCourses = () => {
   const navigate = useNavigate();
+  const { language } = useLanguage();
   
   const { user } = useAuth();
   const isTutor = user?.role === 'tutor';
@@ -429,8 +432,8 @@ const MyCourses = () => {
         <div className="container mx-auto px-4 py-8">
           <div className="mb-8 flex items-start justify-between">
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">My Courses</h1>
-              <p className="text-muted-foreground">Track your enrolled tutoring courses</p>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">{t(language, 'courses.title')}</h1>
+              <p className="text-muted-foreground">{t(language, 'courses.description')}</p>
             </div>
             {isStudent && (
               <Button 
@@ -438,18 +441,18 @@ const MyCourses = () => {
                 className="flex items-center gap-2"
               >
                 <Plus className="h-4 w-4" />
-                Join a Session
+                {t(language, 'courses.join')}
               </Button>
             )}
           </div>
 
-          {loadingCourses && <p className="text-sm text-muted-foreground mb-4">Loading courses...</p>}
+          {loadingCourses && <p className="text-sm text-muted-foreground mb-4">{t(language, 'common.loading')}</p>}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {displayedCourses.length === 0 && !loadingCourses ? (
               <Card className="rounded-xl shadow-sm">
                 <CardContent className="py-10 text-center text-muted-foreground">
-                  No courses to display.
+                  {t(language, 'courses.noCourses')}
                 </CardContent>
               </Card>
             ) : (
@@ -464,7 +467,7 @@ const MyCourses = () => {
                         <div className="flex-1">
                           <CardTitle className="text-xl mb-2">{course.name}</CardTitle>
                           <Badge className={`${course.color} text-white border-0`}>
-                            {sessionList.length} sessions
+                            {sessionList.length} {t(language, 'courses.sessions')}
                           </Badge>
                         </div>
                       </div>
@@ -499,11 +502,11 @@ const MyCourses = () => {
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-semibold">Sessions</span>
                             <Button size="sm" onClick={() => openSessionDialog('create', course)}>
-                              <Plus className="h-4 w-4 mr-1" /> New Session
+                              <Plus className="h-4 w-4 mr-1" /> {t(language, 'courses.createSession')}
                             </Button>
                           </div>
                           {visibleSessions.length === 0 && (
-                            <p className="text-sm text-muted-foreground">No sessions available.</p>
+                            <p className="text-sm text-muted-foreground">{t(language, 'forums.noPosts')}</p>
                           )}
                           {visibleSessions.map((session) => (
                             <div key={session.id} className="border rounded-lg p-3 text-sm flex items-start justify-between gap-3">
@@ -513,8 +516,8 @@ const MyCourses = () => {
                                 <p className="text-xs text-muted-foreground">Status: {session.status}</p>
                               </div>
                               <div className="flex flex-col gap-2">
-                                <Button size="sm" variant="outline" onClick={() => openSessionDialog('edit', course, session)}>Reschedule</Button>
-                                <Button size="sm" variant="destructive" onClick={() => handleCancelSession(course.id, session.id)}>Cancel</Button>
+                                <Button size="sm" variant="outline" onClick={() => openSessionDialog('edit', course, session)}>{t(language, 'courses.reschedule')}</Button>
+                                <Button size="sm" variant="destructive" onClick={() => handleCancelSession(course.id, session.id)}>{t(language, 'courses.cancelSession')}</Button>
                               </div>
                             </div>
                           ))}
@@ -545,12 +548,12 @@ const MyCourses = () => {
                                       disabled={session.status === 'cancelled' || joined}
                                       onClick={() => { if (!joined) handleJoinSessionDirect(session); }}
                                     >
-                                      {joined ? 'Joined' : 'Join'}
+                                      {joined ? t(language, 'courses.join') : t(language, 'courses.join')}
                                     </Button>
 
                                     {joined && (
                                       <Button size="sm" variant="destructive" onClick={() => cancelEnrollment(sid)}>
-                                        Cancel
+                                        {t(language, 'common.cancel')}
                                       </Button>
                                     )}
                                   </div>
@@ -569,7 +572,7 @@ const MyCourses = () => {
                           navigate("/course-details", { state: { course } });
                         }}
                       >
-                        View Details
+                        {t(language, 'common.edit')}
                       </Button>
                     </CardContent>
                   </Card>
@@ -582,16 +585,16 @@ const MyCourses = () => {
           <Dialog open={showJoinSessionDialog} onOpenChange={(open) => !open && closeJoinSessionDialog()}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Join a Session</DialogTitle>
+                <DialogTitle>{t(language, 'courses.findCourse')}</DialogTitle>
                 <DialogDescription>
-                  Enter the course ID to see available tutoring sessions
+                  {t(language, 'courses.searchById')}
                 </DialogDescription>
               </DialogHeader>
 
               {joinSessionStatus === "idle" && !foundCourse && (
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="courseId">Course ID</Label>
+                    <Label htmlFor="courseId">{t(language, 'courses.searchById')}</Label>
                     <div className="flex gap-2 mt-2">
                       <Input
                         id="courseId"
@@ -601,7 +604,7 @@ const MyCourses = () => {
                         onKeyDown={(e) => e.key === 'Enter' && handleSearchCourseById()}
                       />
                       <Button onClick={handleSearchCourseById}>
-                        Search
+                        {t(language, 'common.confirm')}
                       </Button>
                     </div>
                   </div>
@@ -641,7 +644,7 @@ const MyCourses = () => {
                   
                   <div className="flex gap-2">
                     <Button onClick={() => { setFoundCourse(null); setCourseId(""); }} variant="outline" className="flex-1">
-                      Back
+                      {t(language, 'common.back')}
                     </Button>
                     <Button onClick={handleSessionSelect} className="flex-1">
                       Join Session
@@ -684,34 +687,34 @@ const MyCourses = () => {
           }}>
             <DialogContent className="sm:max-w-lg">
               <DialogHeader>
-                <DialogTitle>{sessionDialogMode === 'create' ? 'Create new session' : 'Reschedule session'}</DialogTitle>
+                <DialogTitle>{sessionDialogMode === 'create' ? t(language, 'courses.createSession') : t(language, 'courses.reschedule')}</DialogTitle>
                 <DialogDescription>
-                  {activeCourse ? `Class: ${activeCourse.name}` : 'Select a class to proceed'}
+                  {activeCourse ? `${t(language, 'createClass.myClasses')}: ${activeCourse.name}` : 'Select a class to proceed'}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label>Topic</Label>
+                  <Label>{t(language, 'courses.sessionTopic')}</Label>
                   <Input value={sessionTopic} onChange={(e) => setSessionTopic(e.target.value)} placeholder="e.g., Review Chapter 3" />
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="col-span-1">
-                    <Label>Date</Label>
+                    <Label>{t(language, 'courses.sessionDate')}</Label>
                     <Input type="date" value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} />
                   </div>
                   <div>
-                    <Label>Start Time</Label>
+                    <Label>{t(language, 'courses.sessionStartTime')}</Label>
                     <Input type="time" value={sessionStart} onChange={(e) => setSessionStart(e.target.value)} />
                   </div>
                   <div>
-                    <Label>End Time</Label>
+                    <Label>{t(language, 'courses.sessionEndTime')}</Label>
                     <Input type="time" value={sessionEnd} onChange={(e) => setSessionEnd(e.target.value)} />
                   </div>
                 </div>
                 <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={() => { setSessionDialogOpen(false); resetSessionForm(); }} disabled={sessionSubmitting}>Cancel</Button>
+                  <Button variant="outline" onClick={() => { setSessionDialogOpen(false); resetSessionForm(); }} disabled={sessionSubmitting}>{t(language, 'common.cancel')}</Button>
                   <Button onClick={handleSessionDialogSubmit} disabled={sessionSubmitting}>
-                    {sessionSubmitting ? 'Saving...' : (sessionDialogMode === 'create' ? 'Create Session' : 'Save Changes')}
+                    {sessionSubmitting ? t(language, 'common.updating') : (sessionDialogMode === 'create' ? t(language, 'courses.createSession') : t(language, 'common.save'))}
                   </Button>
                 </div>
               </div>

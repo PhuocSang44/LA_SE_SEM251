@@ -1,4 +1,3 @@
-// ...existing code...
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import CalendarView from "@/components/CalendarView";
@@ -9,9 +8,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import { listSessionsByUser } from "@/lib/sessionApi";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { t } from "@/lib/translations";
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { language } = useLanguage();
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [classesById, setClassesById] = useState<Record<number, any>>({});
@@ -130,14 +132,14 @@ const Dashboard = () => {
         <div className="container mx-auto px-4 py-8">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">My Dashboard</h1>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">{t(language, 'dashboard.title')}</h1>
               <p className="text-muted-foreground">Manage your tutoring sessions and schedule</p>
             </div>
             {user?.role === 'tutor' && (
               <Link to="/create-session">
                 <Button className="rounded-lg shadow-md">
                   <Plus className="h-5 w-5 mr-2" />
-                  Create Session
+                  {t(language, 'courses.createSession')}
                 </Button>
               </Link>
             )}
@@ -194,12 +196,12 @@ const Dashboard = () => {
             <div className="lg:col-span-1">
               <Card className="rounded-xl shadow-md">
                 <CardContent className="p-6">
-                  <h2 className="text-xl font-bold text-foreground mb-4">Upcoming Sessions</h2>
+                  <h2 className="text-xl font-bold text-foreground mb-4">{t(language, 'dashboard.upcomingSessions')}</h2>
                   
                   {loading ? (
-                    <div className="text-center py-8 text-muted-foreground">Loading sessions...</div>
+                    <div className="text-center py-8 text-muted-foreground">{t(language, 'common.loading')}</div>
                   ) : upcoming.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">No upcoming sessions</div>
+                    <div className="text-center py-8 text-muted-foreground">{t(language, 'dashboard.noActivity')}</div>
                   ) : (
                     <div className="space-y-3 mb-4">
                       {upcoming.slice(0, 5).map((session) => {
@@ -252,7 +254,7 @@ const Dashboard = () => {
                   {!loading && upcoming.length > 0 && (
                     <Link to="/my-courses">
                       <Button variant="outline" className="w-full">
-                        View All Sessions
+                        {t(language, 'common.edit')}
                       </Button>
                     </Link>
                   )}

@@ -10,11 +10,14 @@ import { ArrowLeft } from "lucide-react";
 import { forumApi } from "@/lib/forumApi";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { t } from "@/lib/translations";
 import type { ForumType } from "@/types/forum";
 
 export default function CreateForum() {
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { language } = useLanguage();
     const [searchParams] = useSearchParams();
     const type = searchParams.get('type') as 'academic' | 'career';
     
@@ -40,7 +43,7 @@ export default function CreateForum() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title.trim() || !description.trim() || !subject) {
-            toast.error('Please fill in all required fields');
+            toast.error(t(language, 'forums.fillRequired'));
             return;
         }
 
@@ -51,11 +54,11 @@ export default function CreateForum() {
                 forumType,
                 subject
             });
-            toast.success('Forum created successfully!');
+            toast.success(t(language, 'forums.createdSuccess'));
             navigate(`/forums/${type}`);
         } catch (error) {
             console.error('Error creating forum:', error);
-            toast.error('Failed to create forum');
+            toast.error(t(language, 'forums.failedCreateForum'));
         }
     };
 
@@ -76,20 +79,20 @@ export default function CreateForum() {
             <div className="max-w-4xl mx-auto px-6 py-8">
                 <button onClick={() => navigate(-1)} className="text-blue-600 hover:underline mb-6 flex items-center gap-2">
                     <ArrowLeft className="w-4 h-4" />
-                    Back to Forums
+                    {t(language, 'common.back')}
                 </button>
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Create {isAcademic ? 'Academic' : 'Career'} Forum</CardTitle>
+                        <CardTitle>{t(language, 'forums.createForum')}</CardTitle>
                         <CardDescription>
-                            Create a new community forum for students to learn and collaborate
+                            {t(language, 'forums.forumDescription')}
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div>
-                                <label className="block text-sm font-medium mb-2">Forum Title *</label>
+                                <label className="block text-sm font-medium mb-2">{t(language, 'forums.forumTitle')} *</label>
                                 <Input
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
@@ -99,7 +102,7 @@ export default function CreateForum() {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium mb-2">Description *</label>
+                                <label className="block text-sm font-medium mb-2">{t(language, 'forums.forumDescription')} *</label>
                                 <Textarea
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
@@ -127,8 +130,8 @@ export default function CreateForum() {
                             </div>
 
                             <div className="flex gap-2">
-                                <Button type="submit" className="bg-blue-600">Create Forum</Button>
-                                <Button type="button" variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
+                                <Button type="submit" className="bg-blue-600">{t(language, 'forums.createForum')}</Button>
+                                <Button type="button" variant="outline" onClick={() => navigate(-1)}>{t(language, 'common.cancel')}</Button>
                             </div>
                         </form>
                     </CardContent>

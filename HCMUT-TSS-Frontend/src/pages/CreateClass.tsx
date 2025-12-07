@@ -9,11 +9,14 @@ import { Badge } from "@/components/ui/badge";
 import { useEffect, useState, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useNavigate } from "react-router-dom";
+import { t } from "@/lib/translations";
 
 const CreateClass = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { language } = useLanguage();
 
   // form state
   const [courseCode, setCourseCode] = useState("");
@@ -208,7 +211,7 @@ const CreateClass = () => {
         throw new Error(text || 'Failed to create class');
       }
       const data = await res.json();
-      toast({ title: 'Class created', description: `${data.courseName} (${data.courseCode}) created` });
+      toast({ title: t(language, 'createClass.success'), description: `${data.courseName} (${data.courseCode}) created` });
       // refresh
       setMyClasses(prev => [mapResponseToCourse(data), ...prev]);
       // clear (semester -> default)
@@ -220,7 +223,7 @@ const CreateClass = () => {
       setCapacity(null);
     } catch (err: any) {
       console.error(err);
-      toast({ title: 'Error', description: String(err), variant: 'destructive' });
+      toast({ title: t(language, 'common.error'), description: String(err), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -233,11 +236,11 @@ const CreateClass = () => {
         <div className="container mx-auto px-4 py-8">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-1">My Class</h1>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-1">{t(language, 'createClass.myClasses')}</h1>
               <p className="text-sm text-muted-foreground">Create and manage the classes you teach</p>
             </div>
             <div>
-              <Button onClick={() => navigate('/my-courses')}>Go to My Courses</Button>
+              <Button onClick={() => navigate('/my-courses')}>{t(language, 'navbar.myCourses')}</Button>
             </div>
           </div>
 
@@ -245,16 +248,16 @@ const CreateClass = () => {
             {/* Create panel (left) */}
             <Card className="lg:col-span-1">
               <CardHeader>
-                <CardTitle className="text-lg">Create Class</CardTitle>
+                <CardTitle className="text-lg">{t(language, 'createClass.title')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <Label htmlFor="courseCode">Course (code — name)</Label>
+                    <Label htmlFor="courseCode">{t(language, 'createClass.courseCode')}</Label>
                     <div className="flex items-center gap-2">
                       <Input id="courseCode" value={courseDisplay || courseCode} onChange={(e) => { setCourseSelected(false); onCourseCodeChange(e.target.value); }} onBlur={onCourseBlur} placeholder="Type code or name to search" readOnly={courseSelected} />
                       {courseSelected ? (
-                        <Button size="sm" variant="outline" onClick={() => { setCourseSelected(false); setCourseCode(''); setCourseName(''); setCourseDisplay(''); }}>Clear</Button>
+                        <Button size="sm" variant="outline" onClick={() => { setCourseSelected(false); setCourseCode(''); setCourseName(''); setCourseDisplay(''); }}>{t(language, 'common.cancel')}</Button>
                       ) : null}
                     </div>
                     {showSuggestions && suggestions.length > 0 && (
@@ -271,28 +274,28 @@ const CreateClass = () => {
  
 
                   <div>
-                    <Label htmlFor="customClassName">Class name (optional)</Label>
-                    <Input id="customClassName" value={customClassName} onChange={(e) => setCustomClassName(e.target.value)} placeholder="Display name for the class (optional)" />
+                    <Label htmlFor="customClassName">{t(language, 'createClass.customClassName')}</Label>
+                    <Input id="customClassName" value={customClassName} onChange={(e) => setCustomClassName(e.target.value)} placeholder={t(language, 'createClass.customClassName')} />
                   </div>
 
                   <div>
-                    <Label htmlFor="courseDescription">Description</Label>
-                    <Textarea id="courseDescription" value={courseDescription} onChange={(e) => setCourseDescription(e.target.value)} placeholder="Optional description" />
+                    <Label htmlFor="courseDescription">{t(language, 'createClass.courseDescription')}</Label>
+                    <Textarea id="courseDescription" value={courseDescription} onChange={(e) => setCourseDescription(e.target.value)} placeholder={t(language, 'createClass.courseDescription')} />
                   </div>
 
                   <div>
-                    <Label htmlFor="semester">Semester</Label>
-                    <Input id="semester" value={semester} onChange={(e) => setSemester(e.target.value)} placeholder="e.g., Fall 2025" />
+                    <Label htmlFor="semester">{t(language, 'createClass.semester')}</Label>
+                    <Input id="semester" value={semester} onChange={(e) => setSemester(e.target.value)} placeholder={t(language, 'createClass.semester')} />
                   </div>
 
                   <div>
-                    <Label htmlFor="capacity">Capacity <span className="text-destructive">*</span></Label>
+                    <Label htmlFor="capacity">{t(language, 'createClass.capacity')} <span className="text-destructive">*</span></Label>
                     <Input 
                       id="capacity" 
                       type="number"
                       min="1" 
                       required 
-                      placeholder="e.g., 40" 
+                      placeholder={t(language, 'createClass.capacity')} 
                       value={capacity ?? ''} 
                       onChange={(e) => {
                         const val = e.target.value;
@@ -301,14 +304,14 @@ const CreateClass = () => {
                     />
                     {capacity !== null && capacity <= 0 && (
                       <p className="text-xs text-destructive mt-1">
-                        Capacity must be greater than 0.
+                        {t(language, 'createClass.invalidCapacity')}
                       </p>
                     )}
                   </div>
 
                   <div className="flex gap-2">
-                    <Button type="submit" disabled={loading}>{loading ? 'Creating...' : 'Create'}</Button>
-                    <Button type="button" variant="outline" onClick={() => { setCourseCode(''); setCourseName(''); setCourseDisplay(''); setCourseSelected(false); setCourseDescription(''); setSemester(computeDefaultSemester()); setCapacity(null); }}>Reset</Button>
+                    <Button type="submit" disabled={loading}>{loading ? t(language, 'common.loading') : t(language, 'createClass.submit')}</Button>
+                    <Button type="button" variant="outline" onClick={() => { setCourseCode(''); setCourseName(''); setCourseDisplay(''); setCourseSelected(false); setCourseDescription(''); setSemester(computeDefaultSemester()); setCapacity(null); }}>{t(language, 'common.cancel')}</Button>
                   </div>
                 </form>
               </CardContent>
@@ -317,7 +320,7 @@ const CreateClass = () => {
             {/* Classes list (right) */}
             <div className="lg:col-span-2 space-y-4">
               {myClasses.length === 0 && (
-                <div className="rounded-lg border p-6 bg-card">You have not created any classes yet.</div>
+                <div className="rounded-lg border p-6 bg-card">{t(language, 'createClass.noClasses')}</div>
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -342,7 +345,7 @@ const CreateClass = () => {
                         {/* Main View button - passes full mapped course object */}
                         <div className="flex">
                           <Button className="w-full rounded-lg" onClick={() => navigate('/course-details', { state: { course: c } })}>
-                            View Details
+                            {t(language, 'common.edit')}
                           </Button>
                         </div>
 

@@ -3,36 +3,32 @@ import Hero from "@/components/Hero";
 import Footer from "@/components/Footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar, Users, BookOpen, Award } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { t } from "@/lib/translations";
 
 const Index = () => {
+  const { language } = useLanguage();
+  
   const features = [
     {
       icon: Calendar,
-      title: "Easy Scheduling",
-      titleVi: "Lên lịch dễ dàng",
-      description: "View and manage your tutoring sessions in an intuitive calendar interface",
-      descriptionVi: "Xem và quản lý các buổi học trong giao diện lịch trực quan"
+      title: t(language, 'home.easyScheduling'),
+      description: t(language, 'home.easySchedulingDesc')
     },
     {
       icon: Users,
-      title: "Qualified Tutors",
-      titleVi: "Gia sư có trình độ",
-      description: "Connect with experienced tutors specialized in your subjects",
-      descriptionVi: "Kết nối với gia sư có kinh nghiệm chuyên về môn học của bạn"
+      title: t(language, 'home.qualifiedTutors'),
+      description: t(language, 'home.qualifiedTutorsDesc')
     },
     {
       icon: BookOpen,
-      title: "Multiple Subjects",
-      titleVi: "Nhiều môn học",
-      description: "Get support across all your HCMUT courses and subjects",
-      descriptionVi: "Nhận hỗ trợ cho tất cả các môn học tại HCMUT"
+      title: t(language, 'home.multipleSubjects'),
+      description: t(language, 'home.multipleSubjectsDesc')
     },
     {
       icon: Award,
-      title: "Track Progress",
-      titleVi: "Theo dõi tiến độ",
-      description: "Monitor your learning progress and session attendance",
-      descriptionVi: "Theo dõi tiến độ học tập và tham gia các buổi học"
+      title: t(language, 'home.trackProgress'),
+      description: t(language, 'home.trackProgressDesc')
     }
   ];
 
@@ -46,7 +42,7 @@ const Index = () => {
           <div className="container mx-auto px-4">
             <div className="text-center mb-12">
               <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">
-                Why Choose HCMUT Tutor?
+                {t(language, 'home.whyChoose')}
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                 Our platform makes it simple to find and connect with the best tutors for your academic needs

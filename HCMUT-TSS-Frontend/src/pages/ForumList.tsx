@@ -11,11 +11,14 @@ import { forumApi } from "@/lib/forumApi";
 import type { Forum, ForumType } from "@/types/forum";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { t } from "@/lib/translations";
 
 export default function ForumList() {
     const { forumType: type } = useParams<{ forumType: 'academic' | 'career' }>();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { language } = useLanguage();
     const [forums, setForums] = useState<Forum[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
@@ -35,7 +38,7 @@ export default function ForumList() {
             setForums(data);
         } catch (error) {
             console.error('Error loading forums:', error);
-            toast.error('Failed to load forums');
+            toast.error(t(language, 'forums.failedToLoad'));
         } finally {
             setLoading(false);
         }
@@ -44,11 +47,11 @@ export default function ForumList() {
     const handleJoinForum = async (forumId: number) => {
         try {
             await forumApi.joinForum(forumId);
-            toast.success('Successfully joined forum!');
+            toast.success(t(language, 'forums.successfully'));
             await loadForums(); // Reload to update isJoined status
         } catch (error) {
             console.error('Error joining forum:', error);
-            toast.error('Failed to join forum');
+            toast.error(t(language, 'forums.failedToJoin'));
         }
     };
 
@@ -59,11 +62,11 @@ export default function ForumList() {
         
         try {
             await forumApi.deleteForum(forumId);
-            toast.success('Forum deleted successfully');
+            toast.success(t(language, 'forums.deletedSuccess'));
             await loadForums(); // Reload forums list
         } catch (error) {
             console.error('Error deleting forum:', error);
-            toast.error('Failed to delete forum');
+            toast.error(t(language, 'forums.failedDelete'));
         }
     };
 
@@ -99,7 +102,7 @@ export default function ForumList() {
                         className="text-blue-600 hover:underline mb-4 flex items-center gap-2"
                     >
                         <ArrowLeft className="w-4 h-4" />
-                        Back to Hub
+                        {t(language, 'common.back')}
                     </button>
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
@@ -112,7 +115,7 @@ export default function ForumList() {
                                 className="bg-blue-600 hover:bg-blue-700"
                             >
                                 <Plus className="w-4 h-4 mr-2" />
-                                Create Forum
+                                {t(language, 'forums.createForum')}
                             </Button>
                         )}
                     </div>
@@ -123,7 +126,7 @@ export default function ForumList() {
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                         <Input
-                            placeholder="Search forums..."
+                            placeholder={t(language, 'common.search')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="pl-10"
@@ -147,7 +150,7 @@ export default function ForumList() {
                 ) : filteredForums.length === 0 ? (
                     <Card className="text-center py-12">
                         <CardContent>
-                            <p className="text-gray-600">No forums found</p>
+                            <p className="text-gray-600">{t(language, 'forums.noPosts')}</p>
                         </CardContent>
                     </Card>
                 ) : (
@@ -177,11 +180,11 @@ export default function ForumList() {
                                         <div className="flex items-center gap-4 text-sm text-gray-600">
                                             <div className="flex items-center gap-1">
                                                 <Users className="w-4 h-4" />
-                                                <span>{forum.memberCount} members</span>
+                                                <span>{forum.memberCount} {t(language, 'forums.replies')}</span>
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <MessageSquare className="w-4 h-4" />
-                                                <span>{forum.postCount} questions</span>
+                                                <span>{forum.postCount} {t(language, 'forums.replies')}</span>
                                             </div>
                                         </div>
 
@@ -200,7 +203,7 @@ export default function ForumList() {
                                                         variant="outline"
                                                         size="sm"
                                                     >
-                                                        View Forum
+                                                        {t(language, 'common.close')}
                                                     </Button>
                                                 </>
                                             ) : (
@@ -209,7 +212,7 @@ export default function ForumList() {
                                                     className="bg-blue-600 hover:bg-blue-700"
                                                     size="sm"
                                                 >
-                                                    Join Forum
+                                                    {t(language, 'forums.joinForum')}
                                                 </Button>
                                             )}
                                             {user?.userId === forum.creatorUserId && (
@@ -220,7 +223,7 @@ export default function ForumList() {
                                                     className="ml-auto"
                                                 >
                                                     <Trash2 className="w-4 h-4 mr-1" />
-                                                    Delete
+                                                    {t(language, 'common.delete')}
                                                 </Button>
                                             )}
                                         </div>

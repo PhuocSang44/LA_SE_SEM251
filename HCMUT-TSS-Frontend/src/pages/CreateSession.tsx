@@ -11,6 +11,8 @@ import { toast } from "@/hooks/use-toast";
 import { createSession } from "@/lib/sessionApi";
 import type { CreateSessionPayload } from "@/types/session";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { t } from "@/lib/translations";
 import { Toast } from "@radix-ui/react-toast";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -51,6 +53,7 @@ const CreateSession = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { language } = useLanguage();
   const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:10001";
   // course passed in state
   const course = location.state?.course || null;
@@ -156,12 +159,12 @@ const CreateSession = () => {
       <main className="flex-1 bg-muted/30">
         <div className="container mx-auto px-4 py-8">
           <div className="mb-6 flex items-center justify-between">
-            <h1 className="text-3xl md:text-4xl font-bold">Create Session</h1>
-            <Button variant="outline" onClick={() => navigate(-1)}>Back</Button>
+            <h1 className="text-3xl md:text-4xl font-bold">{t(language, 'courses.createSession')}</h1>
+            <Button variant="outline" onClick={() => navigate(-1)}>{t(language, 'common.back')}</Button>
           </div>
           <Card className="max-w-xl mx-auto">
             <CardHeader>
-              <CardTitle>New Tutoring Session</CardTitle>
+              <CardTitle>{t(language, 'courses.createSession')}</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -188,20 +191,20 @@ const CreateSession = () => {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="topic">Topic</Label>
+                  <Label htmlFor="topic">{t(language, 'courses.sessionTopic')}</Label>
                   <Input id="topic" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Chapter 3 Review" />
                 </div>
                 <div>
-                  <Label htmlFor="date">Date</Label>
+                  <Label htmlFor="date">{t(language, 'courses.sessionDate')}</Label>
                   <Input type="date" id="date" value={date} onChange={e => setDate(e.target.value)} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="startTime">Start Time</Label>
+                    <Label htmlFor="startTime">{t(language, 'courses.sessionStartTime')}</Label>
                     <Input type="time" id="startTime" value={startTime} onChange={e => setStartTime(e.target.value)} />
                   </div>
                   <div>
-                    <Label htmlFor="endTime">End Time</Label>
+                    <Label htmlFor="endTime">{t(language, 'courses.sessionEndTime')}</Label>
                     <Input type="time" id="endTime" value={endTime} onChange={e => setEndTime(e.target.value)} />
                   </div>
                 </div>
@@ -234,8 +237,8 @@ const CreateSession = () => {
                   <Input id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="Additional notes or requirements" />
                 </div>
                 <div className="flex gap-2">
-                  <Button type="submit" disabled={submitting}>{submitting ? 'Creating...' : 'Create'}</Button>
-                  <Button type="button" variant="outline" onClick={() => { setTitle(''); setDate(''); setStartTime(''); setEndTime(''); }}>Reset</Button>
+                  <Button type="submit" disabled={submitting}>{submitting ? t(language, 'common.creating') : t(language, 'common.submit')}</Button>
+                  <Button type="button" variant="outline" onClick={() => { setTitle(''); setDate(''); setStartTime(''); setEndTime(''); }}>{t(language, 'common.reset')}</Button>
                 </div>
               </form>
             </CardContent>

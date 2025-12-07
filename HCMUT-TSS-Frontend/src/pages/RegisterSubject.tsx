@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { t } from "@/lib/translations";
 import {
   Select,
   SelectContent,
@@ -17,6 +19,7 @@ import { toast } from "sonner";
 
 const RegisterSubject = () => {
   const navigate = useNavigate();
+  const { language } = useLanguage();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +34,7 @@ const RegisterSubject = () => {
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-2xl mx-auto">
             <div className="mb-8">
-              <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">Register a Subject</h1>
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">{t(language, 'courses.title')}</h1>
               <p className="text-muted-foreground">Submit your tutoring request for a specific subject</p>
             </div>
 
@@ -42,7 +45,7 @@ const RegisterSubject = () => {
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="subject">Subject Name *</Label>
+                    <Label htmlFor="subject">{t(language, 'courses.title')} *</Label>
                     <Input 
                       id="subject" 
                       placeholder="e.g., Calculus 1, Linear Algebra" 
@@ -52,7 +55,7 @@ const RegisterSubject = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="category">Category *</Label>
+                    <Label htmlFor="category">{t(language, 'profile.faculty')} *</Label>
                     <Select required>
                       <SelectTrigger className="rounded-lg">
                         <SelectValue placeholder="Select a category" />
@@ -69,7 +72,7 @@ const RegisterSubject = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="preferredTutor">Preferred Tutor (Optional)</Label>
+                    <Label htmlFor="preferredTutor">{t(language, 'courses.sessionTopic')} (Optional)</Label>
                     <Input 
                       id="preferredTutor" 
                       placeholder="Dr. Nguyen Van A" 

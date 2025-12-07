@@ -12,11 +12,14 @@ import type { Post, Comment } from "@/types/forum";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { t } from "@/lib/translations";
 
 export default function PostDetail() {
     const { postId } = useParams<{ postId: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { language } = useLanguage();
     const [post, setPost] = useState<Post | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
     const [newComment, setNewComment] = useState("");
@@ -41,7 +44,7 @@ export default function PostDetail() {
             ));
         } catch (error) {
             console.error('Error loading post:', error);
-            toast.error('Failed to load post');
+            toast.error(t(language, 'forums.failedLoadPost'));
         } finally {
             setLoading(false);
         }
@@ -53,7 +56,7 @@ export default function PostDetail() {
             await loadPostData();
         } catch (error) {
             console.error('Error voting:', error);
-            toast.error('Failed to vote');
+            toast.error(t(language, 'forums.failedVote'));
         }
     };
 
@@ -63,7 +66,7 @@ export default function PostDetail() {
             await loadPostData();
         } catch (error) {
             console.error('Error voting:', error);
-            toast.error('Failed to vote');
+            toast.error(t(language, 'forums.failedVote'));
         }
     };
 
@@ -77,22 +80,22 @@ export default function PostDetail() {
                 content: newComment
             });
             setNewComment('');
-            toast.success('Answer posted!');
+            toast.success(t(language, 'forums.answerPosted'));
             await loadPostData();
         } catch (error) {
             console.error('Error posting comment:', error);
-            toast.error('Failed to post answer');
+            toast.error(t(language, 'forums.failedPostAnswer'));
         }
     };
 
     const handleAcceptComment = async (commentId: number) => {
         try {
             await forumApi.acceptComment(commentId);
-            toast.success('Answer accepted!');
+            toast.success(t(language, 'forums.answerAccepted'));
             await loadPostData();
         } catch (error) {
             console.error('Error accepting answer:', error);
-            toast.error('Failed to accept answer');
+            toast.error(t(language, 'forums.failedAccept'));
         }
     };
 
@@ -109,7 +112,7 @@ export default function PostDetail() {
                     className="text-blue-600 hover:underline mb-6 flex items-center gap-2"
                 >
                     <ArrowLeft className="w-4 h-4" />
-                    Back to Forum
+                    {t(language, 'common.back')}
                 </button>
 
                 {/* Question */}
@@ -148,7 +151,7 @@ export default function PostDetail() {
                                     <span>Asked by <strong>{post.authorName}</strong></span>
                                     <span className="flex items-center gap-1">
                                         <Eye className="w-4 h-4" />
-                                        {post.views} views
+                                        {post.views} {t(language, 'forums.views')}
                                     </span>
                                     <span>{format(new Date(post.createdAt), 'MMM d, yyyy HH:mm')}</span>
                                 </div>
@@ -159,7 +162,7 @@ export default function PostDetail() {
 
                 {/* Answers */}
                 <div className="mb-8">
-                    <h2 className="text-xl font-bold text-blue-900 mb-6">{comments.length} Answers</h2>
+                    <h2 className="text-xl font-bold text-blue-900 mb-6">{comments.length} {t(language, 'forums.answers')}</h2>
                     <div className="space-y-6">
                         {comments.map(comment => (
                             <Card key={comment.commentId} className={comment.isAccepted ? 'border-2 border-green-500' : ''}>
@@ -188,7 +191,7 @@ export default function PostDetail() {
                                         {/* Content */}
                                         <div className="flex-1">
                                             {comment.isAccepted && (
-                                                <Badge className="bg-green-600 mb-2">Accepted Answer</Badge>
+                                                <Badge className="bg-green-600 mb-2">{t(language, 'forums.answerAccepted')}</Badge>
                                             )}
                                             <div className="prose max-w-none mb-4">{comment.content}</div>
                                             <div className="flex items-center justify-between">
@@ -204,7 +207,7 @@ export default function PostDetail() {
                                                         className="text-green-600"
                                                     >
                                                         <CheckCircle className="w-4 h-4 mr-2" />
-                                                        Accept Answer
+                                                        {t(language, 'forums.answerAccepted')}
                                                     </Button>
                                                 )}
                                             </div>
@@ -219,7 +222,7 @@ export default function PostDetail() {
                 {/* Post Answer */}
                 <Card>
                     <CardContent className="p-6">
-                        <h3 className="text-lg font-semibold mb-4">Your Answer</h3>
+                        <h3 className="text-lg font-semibold mb-4">{t(language, 'forums.postAnswer')}</h3>
                         <form onSubmit={handlePostComment}>
                             <Textarea
                                 value={newComment}
@@ -228,7 +231,7 @@ export default function PostDetail() {
                                 rows={6}
                                 className="mb-4"
                             />
-                            <Button type="submit" className="bg-blue-600">Post Answer</Button>
+                            <Button type="submit" className="bg-blue-600">{t(language, 'forums.postAnswer')}</Button>
                         </form>
                     </CardContent>
                 </Card>

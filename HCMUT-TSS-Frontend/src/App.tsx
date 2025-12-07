@@ -28,13 +28,15 @@ import ForumDetail from "@/pages/ForumDetail.tsx";
 import CreatePost from "@/pages/CreatePost.tsx";
 import CreateForum from "@/pages/CreateForum.tsx";
 import PostDetail from "@/pages/PostDetail.tsx";
+import { LanguageProvider } from "@/contexts/LanguageContext.tsx";
 
 const queryClient = new QueryClient();
 
 const App = () => (
     <QueryClientProvider client={queryClient}>
         <AuthProvider>
-            <TooltipProvider>
+            <LanguageProvider>
+                <TooltipProvider>
                 {/* ... (Toaster, Sonner) ... */}
                 <BrowserRouter>
                     <Routes>
@@ -87,6 +89,7 @@ const App = () => (
                 </BrowserRouter>
                 <Toaster />
             </TooltipProvider>
+            </LanguageProvider>
         </AuthProvider>
     </QueryClientProvider>
 );
